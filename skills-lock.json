@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "skills": {
+    "ai-tasks": {
+      "source": "imagekit-developer/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ai-tasks/SKILL.md",
+      "computedHash": "dca174b31d2b20de25c394c634da73ee4d24b69e02bb81f0c28fd2358f74abde"
+    },
+    "asset-access-control": {
+      "source": "imagekit-developer/skills",
+      "sourceType": "github",
+      "skillPath": "skills/asset-access-control/SKILL.md",
+      "computedHash": "be71820b1ed8587d6b51580aeb97e7fee493140de24e69bdfabe954440345d80"
+    },
+    "imagekit-integrations": {
+      "source": "imagekit-developer/skills",
+      "sourceType": "github",
+      "skillPath": "skills/imagekit-integrations/SKILL.md",
+      "computedHash": "3cb026d6150bc868e5e3fae3293efd4072775ec5cdda2c898384cea7a2395df3"
+    },
+    "mcp-preflight": {
+      "source": "imagekit-developer/skills",
+      "sourceType": "github",
+      "skillPath": "skills/mcp-preflight/SKILL.md",
+      "computedHash": "e802352b24886e208eaf7c5d36ab4f769ede00e74120d3cb86796244fcaa1320"
+    },
+    "search-assets": {
+      "source": "imagekit-developer/skills",
+      "sourceType": "github",
+      "skillPath": "skills/search-assets/SKILL.md",
+      "computedHash": "8f52b211ce6f446bba8b68f05c98c5d0735aa70e35b78fa073c28579ff89349b"
+    },
+    "search-docs": {
+      "source": "imagekit-developer/skills",
+      "sourceType": "github",
+      "skillPath": "skills/search-docs/SKILL.md",
+      "computedHash": "ed26b13c55a8995419748c9b10e19f03abd2ddb807714662f2019ea8d1aa7aa3"
+    },
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase/SKILL.md",
+      "computedHash": "a6260582f48df8ba53380bb9b9e870ed2ae5fe147799e90ed783b8aa25167d50"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "128fac78002d916c8ca908245d398e634f540d8bcf20915b2b2359aeb18eba59"
+    },
+    "transformation-builder": {
+      "source": "imagekit-developer/skills",
+      "sourceType": "github",
+      "skillPath": "skills/transformation-builder/SKILL.md",
+      "computedHash": "e0e140ef59697b2c3fa49b1b8aba6cd706d1ef294c3a1fcffb22a88f3e3adc76"
+    },
+    "upload-files": {
+      "source": "imagekit-developer/skills",
+      "sourceType": "github",
+      "skillPath": "skills/upload-files/SKILL.md",
+      "computedHash": "540c09a40c98dd30f36069f74c1e3a07ce323288a1b051ccc8e84f709c171e16"
+    }
+  }
+}

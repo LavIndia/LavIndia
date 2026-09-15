@@ -23,7 +23,6 @@
 ### 3. Beautiful UI Components
 
 - **AuthDialog Component**:
-
   - Split design: Left side with flowing jewelry images carousel
   - Right side with Login/Signup tabs
   - Email or Mobile signup options
@@ -32,7 +31,6 @@
   - Smooth animations and transitions
 
 - **UserMenu Dropdown**:
-
   - User icon in header
   - Shows "Login" when logged out
   - Shows user profile menu when logged in with:
@@ -201,7 +199,7 @@ NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=lavish-india-secret-key-change-in-production-use-openssl-rand-base64-32
 GOOGLE_CLIENT_ID=99672118383-1podkr6uukdtkn7s4vf427vqolv6mlr8.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=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
-DATABASE_URL="file:./lavishindiadb.db"
+DATABASE_URL="postgresql://postgres:<password>@localhost:5433/lavishindiadb"
 ```
 
 ## ⚠️ Important Notes
