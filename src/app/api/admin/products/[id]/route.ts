@@ -189,7 +189,10 @@ export async function DELETE(
         },
       });
     } catch (auditError) {
-      console.error("Product deleted but audit log creation failed:", auditError);
+      console.error(
+        "Product deleted but audit log creation failed:",
+        auditError,
+      );
     }
 
     return NextResponse.json({ message: "Product deleted successfully" });
