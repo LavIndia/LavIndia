@@ -7,7 +7,7 @@ export async function GET() {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const products = await prisma.product.findMany({
+    let products = await prisma.product.findMany({
       where: {
         isActive: true,
         // isPublished: true, // Commented out for development
@@ -25,6 +25,15 @@ export async function GET() {
         createdAt: "desc",
       },
     });
+
+    if (products.length === 0) {
+      products = await prisma.product.findMany({
+        where: { isActive: true },
+        include: { images: { orderBy: { position: "asc" } }, category: true },
+        orderBy: { createdAt: "desc" },
+        take: 12,
+      });
+    }
 
     // Transform to match frontend interface
     const formattedProducts = products.map((product) => ({

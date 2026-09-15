@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     const category = await prisma.category.findUnique({
-      where: { slug },
+      where: { slug: slug === "necklaces" ? "necklace" : slug },
       select: {
         id: true,
         name: true,

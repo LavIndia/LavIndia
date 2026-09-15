@@ -44,6 +44,9 @@ export default function DynamicCategoryPage() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<string>("createdAt");
 
+  const apiSort = sortBy.startsWith("priceCents") ? "price" : sortBy;
+  const apiOrder = sortBy.endsWith("-asc") ? "asc" : "desc";
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -57,7 +60,7 @@ export default function DynamicCategoryPage() {
 
             // Fetch products for this category
             const productsRes = await fetch(
-              `/api/products?category=${categorySlug}&sort=${sortBy}`
+              `/api/products?category=${categorySlug}&sort=${apiSort}&order=${apiOrder}`
             );
             if (productsRes.ok) {
               const productsData = await productsRes.json();
@@ -73,7 +76,7 @@ export default function DynamicCategoryPage() {
     };
 
     fetchData();
-  }, [categorySlug, sortBy]);
+  }, [apiOrder, apiSort, categorySlug, sortBy]);
 
   if (loading) {
     return (

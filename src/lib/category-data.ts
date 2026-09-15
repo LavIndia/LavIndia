@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/prisma";
 
 export async function getCategoryProducts(categorySlug: string, limit = 30) {
+  const normalizedSlug = categorySlug === "necklaces" ? "necklace" : categorySlug;
   const [products, totalCount] = await Promise.all([
     prisma.product.findMany({
-      where: { isActive: true, category: { slug: categorySlug } },
+      where: { isActive: true, category: { slug: normalizedSlug } },
       include: {
-        images: { where: { isPrimary: true }, orderBy: { position: "asc" } },
+        images: { orderBy: { position: "asc" }, take: 3 },
         variants: { where: { isActive: true }, orderBy: { stock: "desc" } },
         category: true,
       },
@@ -13,7 +14,7 @@ export async function getCategoryProducts(categorySlug: string, limit = 30) {
       take: limit,
     }),
     prisma.product.count({
-      where: { isActive: true, category: { slug: categorySlug } },
+      where: { isActive: true, category: { slug: normalizedSlug } },
     }),
   ]);
 
@@ -29,10 +30,12 @@ export async function getCategoryProducts(categorySlug: string, limit = 30) {
     stock: product.stock || 0,
     sku: product.sku,
     isFeatured: product.isFeatured,
-    images: product.images.map((img) => ({
+    images: [product.images.find((image) => image.isPrimary) || product.images[0]]
+      .filter(Boolean)
+      .map((img) => ({
       url: img.url,
       alt: img.alt || product.name,
-    })),
+      })),
     variants: product.variants.map((variant) => ({
       id: variant.id,
       name: variant.name,
@@ -68,10 +71,11 @@ export async function getCategoryProducts(categorySlug: string, limit = 30) {
 export type FilterType = "CHECKBOX" | "DROPDOWN" | "RANGE" | "COLOR";
 
 export async function getCategoryFilters(categorySlug: string) {
+  const normalizedSlug = categorySlug === "necklaces" ? "necklace" : categorySlug;
   const filters = await prisma.filter.findMany({
     where: {
       isActive: true,
-      categories: { some: { category: { slug: categorySlug } } },
+      categories: { some: { category: { slug: normalizedSlug } } },
     },
     include: { options: { orderBy: { order: "asc" } } },
     orderBy: { order: "asc" },

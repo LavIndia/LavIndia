@@ -89,8 +89,12 @@ export async function GET(request: NextRequest) {
       // isPublished: true,
     };
 
+    if (category === "necklaces") {
+      where.category = { slug: "necklace" };
+    }
+
     // Add category filter
-    if (category) {
+    if (category && category !== "necklaces") {
       where.category = {
         slug: category,
       };
@@ -155,8 +159,8 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           images: {
-            where: { isPrimary: true },
             orderBy: { position: "asc" },
+            take: 3,
           },
           variants: {
             where: { isActive: true },
@@ -184,10 +188,12 @@ export async function GET(request: NextRequest) {
       stock: product.stock || 0, // Add stock field
       sku: product.sku,
       isFeatured: product.isFeatured,
-      images: product.images.map((img) => ({
+        images: [product.images.find((image) => image.isPrimary) || product.images[0]]
+          .filter(Boolean)
+          .map((img) => ({
         url: img.url,
         alt: img.alt || product.name,
-      })),
+          })),
       variants: product.variants.map((variant) => ({
         id: variant.id,
         name: variant.name,

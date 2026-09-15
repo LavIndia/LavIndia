@@ -73,13 +73,22 @@ export async function getFeaturedCategories() {
 }
 
 export async function getBestsellers() {
-  const products = await prisma.product.findMany({
+  let products = await prisma.product.findMany({
     where: { isActive: true },
     include: {
       images: { orderBy: { position: "asc" } },
     },
     orderBy: { orderItems: { _count: "desc" } },
   });
+
+  if (products.length === 0) {
+    products = await prisma.product.findMany({
+      where: { isActive: true },
+      include: { images: { orderBy: { position: "asc" } } },
+      orderBy: { createdAt: "desc" },
+      take: 12,
+    });
+  }
 
   return formatProducts(products);
 }
