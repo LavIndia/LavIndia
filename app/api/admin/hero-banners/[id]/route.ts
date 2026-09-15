@@ -1,0 +1,110 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { logAudit } from "@/lib/audit";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const banner = await prisma.heroBanner.findUnique({
+      where: { id },
+    });
+
+    if (!banner) {
+      return NextResponse.json(
+        { error: "Hero banner not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ banner });
+  } catch (error) {
+    console.error("Error fetching hero banner:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch hero banner" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { title, subtitle, imagePath, linkUrl, order, active } = body;
+
+    const banner = await prisma.heroBanner.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(subtitle !== undefined && { subtitle }),
+        ...(imagePath !== undefined && { imagePath }),
+        ...(linkUrl !== undefined && { linkUrl }),
+        ...(order !== undefined && { order }),
+        ...(active !== undefined && { active }),
+      },
+    });
+
+    await logAudit({
+      adminId: session.user.id || "system",
+      adminName: session.user.name || session.user.email || "Admin",
+      action: "UPDATE",
+      entity: "HeroBanner",
+      entityId: banner.id,
+      metadata: { title: banner.title },
+    });
+
+    return NextResponse.json({ banner });
+  } catch (error) {
+    console.error("Error updating hero banner:", error);
+    return NextResponse.json(
+      { error: "Failed to update hero banner" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const banner = await prisma.heroBanner.delete({
+      where: { id },
+    });
+
+    await logAudit({
+      adminId: session.user.id || "system",
+      adminName: session.user.name || session.user.email || "Admin",
+      action: "DELETE",
+      entity: "HeroBanner",
+      entityId: banner.id,
+      metadata: { title: banner.title },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting hero banner:", error);
+    return NextResponse.json(
+      { error: "Failed to delete hero banner" },
+      { status: 500 }
+    );
+  }
+}

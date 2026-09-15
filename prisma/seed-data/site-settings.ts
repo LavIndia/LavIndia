@@ -1,0 +1,26 @@
+export const siteSettings = {
+  id: "default",
+  businessName: "Lavish India",
+  address: "123 Jewelry Street, Karol Bagh, New Delhi, India 110005",
+  contactNumber: "+91-9876543210",
+  email: "info@lavishindia.com",
+  gstNumber: "07AABCU9603R1ZX",
+  instagram: "https://instagram.com/lavishindia",
+  facebook: "https://facebook.com/lavishindia",
+  twitter: "https://twitter.com/lavishindia",
+  linkedin: "https://linkedin.com/company/lavishindia",
+  amazonLink: null,
+  flipkartLink: null,
+  myntraLink: null,
+  codAvailable: true,
+  customerCount: "9L+",
+  rating: "4.8",
+  supportHoursStart: "10:30 AM",
+  supportHoursEnd: "5:30 PM",
+  metaTitle: "Lavish India - Premium Indian Jewelry",
+  metaDescription:
+    "Shop beautiful handcrafted jewelry with traditional Indian designs. Earrings, necklaces, rings and more.",
+  metaKeywords:
+    "indian jewelry, gold plated, silver jewelry, earrings, necklaces, rings",
+  copyrightText: "© 2025 Lavish India. All rights reserved.",
+};

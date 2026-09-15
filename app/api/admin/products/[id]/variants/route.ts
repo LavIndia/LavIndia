@@ -1,0 +1,46 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+const variantSchema = z.object({
+  name: z.string().min(1),
+  color: z.string().optional().nullable(),
+  size: z.string().optional().nullable(),
+  priceCents: z.number().int().optional().nullable(),
+  stock: z.number().int().min(0).default(0),
+});
+
+// POST /api/admin/products/[id]/variants - Add variant
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await req.json();
+    const validatedData = variantSchema.parse(body);
+
+    const variant = await prisma.productVariant.create({
+      data: {
+        ...validatedData,
+        productId: id,
+      },
+    });
+
+    return NextResponse.json(variant, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Validation failed" }, { status: 400 });
+    }
+    return NextResponse.json(
+      { error: "Failed to add variant" },
+      { status: 500 }
+    );
+  }
+}
