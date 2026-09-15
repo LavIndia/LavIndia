@@ -8,7 +8,9 @@ loadEnvConfig(process.cwd());
 const publicDirectory = path.join(process.cwd(), "public");
 
 if (!process.env.IMAGEKIT_URL_ENDPOINT || !process.env.IMAGEKIT_PRIVATE_KEY) {
-  throw new Error("Set IMAGEKIT_URL_ENDPOINT and IMAGEKIT_PRIVATE_KEY before migrating assets.");
+  throw new Error(
+    "Set IMAGEKIT_URL_ENDPOINT and IMAGEKIT_PRIVATE_KEY before migrating assets.",
+  );
 }
 
 const contentTypes: Record<string, string> = {

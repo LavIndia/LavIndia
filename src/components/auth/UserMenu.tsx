@@ -21,7 +21,8 @@ export function UserMenu() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: "/" });
+    await signOut({ redirect: false });
+    window.location.assign("/");
   };
 
   // Show loading state

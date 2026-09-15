@@ -50,11 +50,17 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { imageId } = await params;
+    const { id, imageId } = await params;
 
-    const image = await prisma.productImage.delete({
-      where: { id: imageId },
+    const image = await prisma.productImage.findFirst({
+      where: { id: imageId, productId: id },
     });
+
+    if (!image) {
+      return NextResponse.json({ error: "Image not found" }, { status: 404 });
+    }
+
+    await prisma.productImage.delete({ where: { id: imageId } });
 
     if (image.url.startsWith("/assets/")) {
       await removePublicAsset(image.url);

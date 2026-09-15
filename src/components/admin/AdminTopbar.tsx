@@ -106,7 +106,10 @@ export function AdminTopbar({ user }: AdminTopbarProps) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-red-600 focus:text-red-600"
-              onClick={() => signOut({ callbackUrl: "/" })}
+              onClick={async () => {
+                await signOut({ redirect: false });
+                window.location.assign("/");
+              }}
             >
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>

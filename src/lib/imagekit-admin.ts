@@ -57,7 +57,9 @@ export async function uploadPublicAsset(
   });
 
   if (!response.ok) {
-    throw new Error(`ImageKit upload failed: ${response.status} ${await response.text()}`);
+    throw new Error(
+      `ImageKit upload failed: ${response.status} ${await response.text()}`,
+    );
   }
 
   return publicPath;
@@ -84,10 +86,13 @@ export async function removePublicAsset(publicPath: string) {
   const file = await findFile(publicPath);
   if (!file) return;
 
-  const response = await fetch(`https://api.imagekit.io/v1/files/${file.fileId}`, {
-    method: "DELETE",
-    headers: { Authorization: authorizationHeader(privateKey) },
-  });
+  const response = await fetch(
+    `https://api.imagekit.io/v1/files/${file.fileId}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: authorizationHeader(privateKey) },
+    },
+  );
 
   if (!response.ok && response.status !== 404) {
     throw new Error(`ImageKit delete failed: ${response.status}`);

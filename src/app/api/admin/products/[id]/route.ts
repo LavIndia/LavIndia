@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { removePublicAsset } from "@/lib/imagekit-admin";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -21,7 +22,7 @@ const productUpdateSchema = z.object({
 // GET /api/admin/products/[id] - Get single product
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
@@ -52,7 +53,7 @@ export async function GET(
     console.error("Error fetching product:", error);
     return NextResponse.json(
       { error: "Failed to fetch product" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -60,7 +61,7 @@ export async function GET(
 // PATCH /api/admin/products/[id] - Update product
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
@@ -103,14 +104,14 @@ export async function PATCH(
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     console.error("Error updating product:", error);
     return NextResponse.json(
       { error: "Failed to update product" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -118,7 +119,7 @@ export async function PATCH(
 // DELETE /api/admin/products/[id] - Delete product
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await auth();
@@ -131,7 +132,11 @@ export async function DELETE(
 
     const product = await prisma.product.findUnique({
       where: { id },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        images: { select: { url: true } },
+      },
     });
 
     if (!product) {
@@ -141,6 +146,23 @@ export async function DELETE(
     await prisma.product.delete({
       where: { id },
     });
+
+    const assetCleanup = await Promise.allSettled(
+      product.images
+        .filter((image) => image.url.startsWith("/assets/"))
+        .map((image) => removePublicAsset(image.url)),
+    );
+    assetCleanup
+      .filter(
+        (result): result is PromiseRejectedResult =>
+          result.status === "rejected",
+      )
+      .forEach((result) => {
+        console.error(
+          "Failed to remove product image from ImageKit:",
+          result.reason,
+        );
+      });
 
     // Create audit log
     await prisma.auditLog.create({
@@ -159,7 +181,7 @@ export async function DELETE(
     console.error("Error deleting product:", error);
     return NextResponse.json(
       { error: "Failed to delete product" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
