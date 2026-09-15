@@ -173,9 +173,14 @@ export function ProductsTable({
         method: "DELETE",
       });
 
-      if (!res.ok) throw new Error("Failed to delete");
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Failed to delete");
 
-      toast.success("Product deleted successfully");
+      toast.success(
+        result.archived
+          ? "Product archived because it has existing orders"
+          : "Product deleted successfully",
+      );
       router.refresh();
     } catch {
       toast.error("Failed to delete product");

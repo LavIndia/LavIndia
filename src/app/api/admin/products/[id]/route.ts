@@ -136,11 +136,24 @@ export async function DELETE(
         id: true,
         name: true,
         images: { select: { url: true } },
+        _count: { select: { orderItems: true } },
       },
     });
 
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    if (product._count.orderItems > 0) {
+      await prisma.product.update({
+        where: { id },
+        data: { isActive: false, isPublished: false },
+      });
+
+      return NextResponse.json({
+        archived: true,
+        message: "Product archived because it has existing orders",
+      });
     }
 
     await prisma.product.delete({
@@ -164,17 +177,20 @@ export async function DELETE(
         );
       });
 
-    // Create audit log
-    await prisma.auditLog.create({
-      data: {
-        adminId: session.user.id!,
-        adminName: session.user.name || undefined,
-        action: "DELETE",
-        entity: "Product",
-        entityId: product.id,
-        metadata: { productName: product.name },
-      },
-    });
+    try {
+      await prisma.auditLog.create({
+        data: {
+          adminId: session.user.id!,
+          adminName: session.user.name || undefined,
+          action: "DELETE",
+          entity: "Product",
+          entityId: product.id,
+          metadata: { productName: product.name },
+        },
+      });
+    } catch (auditError) {
+      console.error("Product deleted but audit log creation failed:", auditError);
+    }
 
     return NextResponse.json({ message: "Product deleted successfully" });
   } catch (error) {
