@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { css } from "styled-system/css";
 
 // Mock data - will be replaced with real data
 const salesData = [
@@ -33,27 +34,49 @@ const orderStatusData = [
   { status: "Cancelled", count: 8 },
 ];
 
+// Recharts renders its own SVG and cannot consume Panda's css() tokens, so
+// these are the literal hex values from panda.config.ts's jewellery palette
+// (gold.500 for the primary series, onyx.400/onyx.200 for chrome/gridlines).
+const CHART_GOLD = "#b8933a"; // gold.500
+const CHART_GOLD_LIGHT = "#dcc064"; // gold.300
+const AXIS_COLOR = "#6b6864"; // onyx.400
+const GRID_COLOR = "#c9c7c2"; // onyx.200
+
+const gridStyle = css({
+  fontFamily: "body",
+  fontSize: "xs",
+});
+
 export function DashboardCharts() {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className={css({ display: "grid", gap: "4", md: { gridTemplateColumns: "repeat(2, 1fr)" } })}>
       {/* Sales Chart */}
-      <Card className="rounded-xl shadow-sm">
+      <Card className={css({ borderRadius: "xl" })}>
         <CardHeader>
           <CardTitle>Sales Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} className={gridStyle}>
             <LineChart data={salesData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+              <XAxis dataKey="name" stroke={AXIS_COLOR} tick={{ fill: AXIS_COLOR, fontSize: 12 }} />
+              <YAxis stroke={AXIS_COLOR} tick={{ fill: AXIS_COLOR, fontSize: 12 }} />
+              <Tooltip
+                contentStyle={{
+                  background: "#fffdf8",
+                  border: "1px solid rgba(31,29,27,0.08)",
+                  borderRadius: 12,
+                  fontSize: 13,
+                }}
+              />
+              <Legend wrapperStyle={{ fontSize: 13 }} />
               <Line
                 type="monotone"
                 dataKey="sales"
-                stroke="#9333ea"
+                stroke={CHART_GOLD}
                 strokeWidth={2}
+                dot={{ fill: CHART_GOLD, r: 3 }}
+                activeDot={{ fill: CHART_GOLD_LIGHT, r: 5 }}
                 name="Sales (₹)"
               />
             </LineChart>
@@ -62,18 +85,25 @@ export function DashboardCharts() {
       </Card>
 
       {/* Orders by Status */}
-      <Card className="rounded-xl shadow-sm">
+      <Card className={css({ borderRadius: "xl" })}>
         <CardHeader>
           <CardTitle>Orders by Status</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={300} className={gridStyle}>
             <BarChart data={orderStatusData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="status" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#9333ea" name="Orders" />
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+              <XAxis dataKey="status" stroke={AXIS_COLOR} tick={{ fill: AXIS_COLOR, fontSize: 12 }} />
+              <YAxis stroke={AXIS_COLOR} tick={{ fill: AXIS_COLOR, fontSize: 12 }} />
+              <Tooltip
+                contentStyle={{
+                  background: "#fffdf8",
+                  border: "1px solid rgba(31,29,27,0.08)",
+                  borderRadius: 12,
+                  fontSize: 13,
+                }}
+              />
+              <Bar dataKey="count" fill={CHART_GOLD} radius={[6, 6, 0, 0]} name="Orders" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

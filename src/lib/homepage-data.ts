@@ -150,6 +150,31 @@ export async function getActiveDiscounts() {
   });
 }
 
+const DEFAULT_SECTIONS: Array<{ name: string; order: number; isVisible: boolean }> = [
+  { name: "hero", order: 0, isVisible: true },
+  { name: "explore", order: 1, isVisible: true },
+  { name: "bestsellers", order: 2, isVisible: true },
+  { name: "budget", order: 3, isVisible: true },
+  { name: "free_gifts", order: 4, isVisible: true },
+  { name: "new_arrivals", order: 5, isVisible: true },
+  { name: "trust_badges", order: 6, isVisible: true },
+  { name: "coupons", order: 7, isVisible: true },
+];
+
+export async function getHomePageSections() {
+  const rows = await prisma.homePageSection.findMany({ orderBy: { order: "asc" } });
+  if (rows.length > 0) return rows;
+
+  // No admin config yet — fall back to the default order/visibility so the
+  // homepage still renders correctly, and seed it so the admin table isn't
+  // just empty on first visit.
+  await prisma.homePageSection.createMany({
+    data: DEFAULT_SECTIONS,
+    skipDuplicates: true,
+  });
+  return prisma.homePageSection.findMany({ orderBy: { order: "asc" } });
+}
+
 export async function getHomepageData() {
   const [
     topPromoBanners,
@@ -161,6 +186,7 @@ export async function getHomepageData() {
     budgetTiers,
     trustBadgeSettings,
     activeDiscounts,
+    sections,
   ] = await Promise.all([
     getPromoBanners("top_scroll"),
     getPromoBanners("free_gifts"),
@@ -171,6 +197,7 @@ export async function getHomepageData() {
     getBudgetTiers(),
     getTrustBadgeSettings(),
     getActiveDiscounts(),
+    getHomePageSections(),
   ]);
 
   return {
@@ -183,5 +210,6 @@ export async function getHomepageData() {
     budgetTiers,
     trustBadgeSettings,
     activeDiscounts,
+    sections,
   };
 }

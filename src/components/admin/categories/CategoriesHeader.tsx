@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { css } from "styled-system/css";
 
 export function CategoriesHeader() {
   const router = useRouter();
@@ -50,15 +51,36 @@ export function CategoriesHeader() {
 
   return (
     <>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div
+        className={css({
+          display: "flex",
+          flexDirection: "column",
+          gap: "4",
+          md: {
+            flexDirection: "row",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+          },
+        })}
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1
+            className={css({
+              fontFamily: "display",
+              fontSize: "3xl",
+              fontWeight: "bold",
+              letterSpacing: "tight",
+              color: "fg.default",
+            })}
+          >
+            Categories
+          </h1>
+          <p className={css({ color: "fg.muted", marginTop: "2" })}>
             Manage product categories
           </p>
         </div>
         <Button onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className={css({ height: "4", width: "4", marginRight: "2" })} />
           Add Category
         </Button>
       </div>
@@ -68,8 +90,11 @@ export function CategoriesHeader() {
           <DialogHeader>
             <DialogTitle>Add New Category</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid gap-2">
+          <form
+            onSubmit={handleSubmit}
+            className={css({ display: "flex", flexDirection: "column", gap: "4" })}
+          >
+            <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
               <Label htmlFor="name">Name *</Label>
               <Input
                 id="name"
@@ -84,7 +109,7 @@ export function CategoriesHeader() {
                 required
               />
             </div>
-            <div className="grid gap-2">
+            <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
               <Label htmlFor="slug">Slug *</Label>
               <Input
                 id="slug"
@@ -95,7 +120,7 @@ export function CategoriesHeader() {
                 required
               />
             </div>
-            <div className="grid gap-2">
+            <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
               <Label htmlFor="description">Description</Label>
               <Input
                 id="description"
@@ -105,7 +130,7 @@ export function CategoriesHeader() {
                 }
               />
             </div>
-            <div className="flex justify-end gap-2">
+            <div className={css({ display: "flex", justifyContent: "flex-end", gap: "2" })}>
               <Button
                 type="button"
                 variant="outline"

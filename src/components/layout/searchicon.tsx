@@ -15,8 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import Link from "next/link";
-import colors from "@/styles/colors";
-import { designSystem } from "@/styles/design-system";
+import { css } from "styled-system/css";
 
 interface SearchProduct {
   id: string;
@@ -32,6 +31,103 @@ interface SearchProduct {
     name: string;
   };
 }
+
+const contentStyle = css({
+  width: { base: "100vw", sm: "600px", lg: "720px" },
+  maxWidth: "26rem",
+  overflowY: "auto",
+});
+
+const searchFieldWrapStyle = css({ position: "relative" });
+const searchIconStyle = css({
+  position: "absolute",
+  left: "4",
+  top: "50%",
+  transform: "translateY(-50%)",
+  height: "5",
+  width: "5",
+  color: "fg.muted",
+  pointerEvents: "none",
+});
+const searchInputStyle = css({
+  paddingLeft: "12",
+  paddingRight: "4",
+  height: "12",
+  fontSize: "md",
+  borderRadius: "xl",
+  borderWidth: "2px",
+});
+const spinnerRightStyle = css({
+  position: "absolute",
+  right: "4",
+  top: "50%",
+  transform: "translateY(-50%)",
+  height: "5",
+  width: "5",
+  color: "fg.muted",
+  animation: "spin",
+});
+
+const resultsWrapStyle = css({ marginTop: "6", display: "flex", flexDirection: "column", gap: "4" });
+const centerStateStyle = css({ textAlign: "center", paddingBlock: "8", color: "fg.muted" });
+const countLabelStyle = css({ fontSize: "sm", color: "fg.muted", fontWeight: "medium" });
+const resultsGridStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", sm: "1fr 1fr" },
+  gap: "4",
+  maxHeight: "70vh",
+  overflowY: "auto",
+  paddingRight: "2",
+});
+
+const cardStyle = css({
+  background: "bg.surface",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  borderRadius: "lg",
+  overflow: "hidden",
+  transition: "box-shadow 0.25s ease, border-color 0.25s ease",
+  "&:hover, &[data-hovered]": { boxShadow: "glassLg", borderColor: "accent.default" },
+});
+const cardImageWrapStyle = css({
+  position: "relative",
+  width: "full",
+  height: "48",
+  background: "bg.canvas",
+  overflow: "hidden",
+});
+const cardImageStyle = css({
+  objectFit: "cover",
+  transition: "transform 0.3s ease",
+  ".cardGroup:hover &, .cardGroup[data-hovered] &": { transform: "scale(1.05)" },
+});
+const noImageStyle = css({
+  width: "full",
+  height: "full",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "fg.muted",
+});
+const discountBadgeStyle = css({ position: "absolute", top: "2", left: "2", background: "danger", color: "white" });
+const cardBodyStyle = css({ padding: "4" });
+const cardTitleRowStyle = css({ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "2", marginBottom: "2" });
+const cardTitleStyle = css({
+  fontFamily: "body",
+  fontWeight: "semibold",
+  fontSize: "sm",
+  lineClamp: 2,
+  transition: "color 0.2s ease",
+  ".cardGroup:hover &, .cardGroup[data-hovered] &": { color: "accent.pressed" },
+});
+const categoryBadgeStyle = css({ fontSize: "xs", flexShrink: 0 });
+const priceRowStyle = css({ display: "flex", alignItems: "center", gap: "2" });
+const priceStyle = css({ fontFamily: "display", fontWeight: "bold", color: "fg.default" });
+const compareAtStyle = css({ fontSize: "sm", color: "fg.muted", textDecoration: "line-through" });
+const emptyStateStyle = css({ textAlign: "center", paddingBlock: "12" });
+const emptyIconStyle = css({ height: "12", width: "12", color: "border.subtle", marginInline: "auto", marginBottom: "3" });
+const emptyTitleStyle = css({ color: "fg.muted", fontWeight: "medium" });
+const emptySubtitleStyle = css({ fontSize: "sm", color: "fg.muted", marginTop: "1" });
 
 export function SearchIcon() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -67,7 +163,7 @@ export function SearchIcon() {
   }, [searchQuery]);
 
   const formatPrice = (cents: number) => {
-    return `?${(cents / 100).toLocaleString("en-IN")}`;
+    return `₹${(cents / 100).toLocaleString("en-IN")}`;
   };
 
   const handleProductClick = () => {
@@ -79,73 +175,66 @@ export function SearchIcon() {
   return (
     <Sheet open={isSearchOpen} onOpenChange={setIsSearchOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9">
-          <Search className="h-4 w-4" />
-          <span className="sr-only">Search</span>
+        <Button variant="ghost" size="icon">
+          <Search className={css({ height: "4", width: "4" })} />
+          <span className={css({ srOnly: true })}>Search</span>
         </Button>
       </SheetTrigger>
-      <SheetContent
-        side="right"
-        className="w-[480px] sm:w-[600px] lg:w-[720px] overflow-y-auto"
-      >
+      <SheetContent side="right" className={contentStyle}>
         <SheetHeader>
           <SheetTitle>Search Products</SheetTitle>
           <SheetDescription>
             Search for jewelry, collections, and more.
           </SheetDescription>
         </SheetHeader>
-        <div className="mt-8">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+        <div>
+          <div className={searchFieldWrapStyle}>
+            <Search className={searchIconStyle} aria-hidden />
             <Input
               placeholder="Search for earrings, necklaces, rings..."
-              className={`pl-12 pr-4 py-3 ${designSystem.fontSize.xl} ${designSystem.borderRadius.xl} border-2 border-gray-200 focus:border-[${colors.accentGold}] focus:ring-2 focus:ring-[${colors.accentGold}]/20 ${designSystem.componentHeight.lg}`}
+              className={searchInputStyle}
               autoFocus
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            {loading && (
-              <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" />
-            )}
+            {loading && <Loader2 className={spinnerRightStyle} aria-hidden />}
           </div>
 
           {searchQuery.trim().length >= 2 && (
-            <div className="mt-6 space-y-4">
+            <div className={resultsWrapStyle}>
               {loading ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                <div className={centerStateStyle}>
+                  <Loader2 className={css({ height: "8", width: "8", animation: "spin", marginInline: "auto", marginBottom: "2" })} />
                   <p>Searching...</p>
                 </div>
               ) : results.length > 0 ? (
                 <>
-                  <p className="text-sm text-muted-foreground font-medium">
+                  <p className={countLabelStyle}>
                     Found {results.length}{" "}
                     {results.length === 1 ? "product" : "products"}
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[70vh] overflow-y-auto pr-2">
+                  <div className={resultsGridStyle}>
                     {results.map((product) => (
                       <Link
                         key={product.id}
                         href={`/product/${product.id}`}
                         onClick={handleProductClick}
-                        className="group"
+                        className="cardGroup"
                       >
-                        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-xl hover:border-amber-500 transition-all duration-300">
-                          <div className="relative w-full h-48 bg-gray-100 overflow-hidden">
+                        <div className={cardStyle}>
+                          <div className={cardImageWrapStyle}>
                             {product.images[0] ? (
                               <Image
                                 src={product.images[0].url}
                                 alt={product.images[0].alt || product.name}
                                 fill
-                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                className={cardImageStyle}
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                No image
-                              </div>
+                              <div className={noImageStyle}>No image</div>
                             )}
                             {product.compareAtCents && (
-                              <Badge className="absolute top-2 left-2 bg-red-500 text-white">
+                              <Badge className={discountBadgeStyle}>
                                 {Math.round(
                                   ((product.compareAtCents -
                                     product.priceCents) /
@@ -156,24 +245,19 @@ export function SearchIcon() {
                               </Badge>
                             )}
                           </div>
-                          <div className="p-4">
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-amber-600 transition-colors">
-                                {product.name}
-                              </h3>
-                              <Badge
-                                variant="outline"
-                                className="text-xs shrink-0"
-                              >
+                          <div className={cardBodyStyle}>
+                            <div className={cardTitleRowStyle}>
+                              <h3 className={cardTitleStyle}>{product.name}</h3>
+                              <Badge variant="outline" className={categoryBadgeStyle}>
                                 {product.category.name}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-gray-900">
+                            <div className={priceRowStyle}>
+                              <span className={priceStyle}>
                                 {formatPrice(product.priceCents)}
                               </span>
                               {product.compareAtCents && (
-                                <span className="text-sm text-gray-500 line-through">
+                                <span className={compareAtStyle}>
                                   {formatPrice(product.compareAtCents)}
                                 </span>
                               )}
@@ -185,10 +269,10 @@ export function SearchIcon() {
                   </div>
                 </>
               ) : (
-                <div className="text-center py-12">
-                  <Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500 font-medium">No products found</p>
-                  <p className="text-sm text-gray-400 mt-1">
+                <div className={emptyStateStyle}>
+                  <Search className={emptyIconStyle} />
+                  <p className={emptyTitleStyle}>No products found</p>
+                  <p className={emptySubtitleStyle}>
                     Try different keywords or browse our collections
                   </p>
                 </div>

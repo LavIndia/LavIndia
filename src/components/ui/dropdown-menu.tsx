@@ -1,257 +1,182 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
-import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
+import * as React from "react";
+import {
+  MenuTrigger as AriaMenuTrigger,
+  Menu as AriaMenu,
+  MenuItem as AriaMenuItem,
+  Popover as AriaPopover,
+  Separator as AriaSeparator,
+  Header as AriaHeader,
+  Button as AriaButton,
+  type MenuItemProps as AriaMenuItemProps,
+  type PopoverProps as AriaPopoverProps,
+  type SeparatorProps as AriaSeparatorProps,
+} from "react-aria-components";
+import { css, cva, cx } from "styled-system/css";
 
-import { cn } from "@/lib/utils"
-
-function DropdownMenu({
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+/** Root: old Radix API took no required props here (open state lived on the trigger's own interaction). React Aria's MenuTrigger works the same uncontrolled way by default. */
+export interface DropdownMenuProps {
+  children?: React.ReactNode;
 }
 
-function DropdownMenuPortal({
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
-  return (
-    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
-  )
+export function DropdownMenu({ children }: DropdownMenuProps) {
+  return <AriaMenuTrigger>{children}</AriaMenuTrigger>;
 }
 
-function DropdownMenuTrigger({
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
+export interface DropdownMenuTriggerProps {
+  asChild?: boolean;
+  children?: React.ReactNode;
+}
+
+export function DropdownMenuTrigger({ asChild, children }: DropdownMenuTriggerProps) {
+  if (asChild) {
+    return React.Children.only(children) as React.ReactElement;
+  }
+  return <AriaButton>{children}</AriaButton>;
+}
+
+const dropdownMenuPopoverStyle = css({
+  minWidth: "48",
+  maxHeight: "80",
+  overflowY: "auto",
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.glass",
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  boxShadow: "glassLg",
+  padding: "1.5",
+  zIndex: "50",
+  opacity: 1,
+  transform: "scale(1) translateY(0)",
+  transition: "opacity 0.12s ease, transform 0.12s ease",
+  "&[data-entering]": { opacity: 0, transform: "scale(0.98) translateY(-4px)" },
+  "&[data-exiting]": { opacity: 0 },
+});
+
+export interface DropdownMenuContentProps extends Omit<AriaPopoverProps, "className" | "children"> {
+  className?: string;
+  children?: React.ReactNode;
+  align?: "start" | "center" | "end";
+}
+
+const alignToPlacement = {
+  start: "bottom start",
+  center: "bottom",
+  end: "bottom end",
+} as const;
+
+export function DropdownMenuContent({ className, children, align = "start", ...props }: DropdownMenuContentProps) {
   return (
-    <DropdownMenuPrimitive.Trigger
-      data-slot="dropdown-menu-trigger"
+    <AriaPopover
+      className={cx(dropdownMenuPopoverStyle, className)}
+      placement={alignToPlacement[align]}
       {...props}
-    />
-  )
+    >
+      <AriaMenu className={css({ display: "flex", flexDirection: "column", gap: "0.5", outline: "none" })}>
+        {children}
+      </AriaMenu>
+    </AriaPopover>
+  );
 }
 
-function DropdownMenuContent({
+const dropdownMenuItemStyle = cva({
+  base: {
+    display: "flex",
+    alignItems: "center",
+    gap: "2",
+    borderRadius: "md",
+    paddingInline: "3",
+    paddingBlock: "2",
+    fontSize: "sm",
+    color: "fg.default",
+    cursor: "pointer",
+    outline: "none",
+    textDecoration: "none",
+    "&[data-disabled]": { opacity: 0.5, cursor: "not-allowed" },
+    "&[data-focused], &[data-hovered]": { background: "bg.surface" },
+    "& svg": { flexShrink: 0, pointerEvents: "none" },
+  },
+  variants: {
+    variant: {
+      default: {},
+      destructive: {
+        color: "danger",
+        "&[data-focused], &[data-hovered]": { background: "rgba(138, 44, 59, 0.1)" },
+      },
+    },
+  },
+  defaultVariants: { variant: "default" },
+});
+
+export interface DropdownMenuItemProps
+  extends Omit<AriaMenuItemProps, "className" | "children" | "onAction" | "href"> {
+  className?: string;
+  children?: React.ReactNode;
+  asChild?: boolean;
+  variant?: "default" | "destructive";
+  /** Back-compat: old Radix API used a plain DOM `onClick`; mapped onto React Aria's `onAction` (fired on select via mouse, keyboard, or touch alike). */
+  onClick?: () => void;
+}
+
+export function DropdownMenuItem({
   className,
-  sideOffset = 4,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
-  return (
-    <DropdownMenuPrimitive.Portal>
-      <DropdownMenuPrimitive.Content
-        data-slot="dropdown-menu-content"
-        sideOffset={sideOffset}
-        className={cn(
-          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md",
-          className
-        )}
-        {...props}
-      />
-    </DropdownMenuPrimitive.Portal>
-  )
-}
-
-function DropdownMenuGroup({
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
-  return (
-    <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
-  )
-}
-
-function DropdownMenuItem({
-  className,
-  inset,
+  children,
+  asChild,
   variant = "default",
+  onClick,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Item> & {
-  inset?: boolean
-  variant?: "default" | "destructive"
-}) {
-  return (
-    <DropdownMenuPrimitive.Item
-      data-slot="dropdown-menu-item"
-      data-inset={inset}
-      data-variant={variant}
-      className={cn(
-        "focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:!text-destructive [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className
-      )}
-      {...props}
-    />
-  )
-}
+}: DropdownMenuItemProps) {
+  const classes = cx(dropdownMenuItemStyle({ variant }), className);
 
-function DropdownMenuCheckboxItem({
-  className,
-  children,
-  checked,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  if (asChild) {
+    // The item's own DOM node must be the real trigger (e.g. an <a href>) so
+    // that both pointer and keyboard activation work — nesting a full <Link>
+    // inside a plain wrapper element would leave keyboard Enter/Space unable
+    // to reach it. We lift the child's href/content onto MenuItem itself
+    // instead of cloning the child, which is the pattern React Aria expects
+    // for link-like menu items (this is a deliberate, documented deviation
+    // from Button's asChild clone-in-place pattern).
+    const child = React.Children.only(children) as React.ReactElement<{
+      href?: string;
+      className?: string;
+      children?: React.ReactNode;
+    }>;
+    return (
+      <AriaMenuItem
+        className={classes}
+        href={child.props.href}
+        onAction={onClick}
+        textValue={typeof child.props.children === "string" ? child.props.children : undefined}
+        {...props}
+      >
+        {child.props.children}
+      </AriaMenuItem>
+    );
+  }
+
   return (
-    <DropdownMenuPrimitive.CheckboxItem
-      data-slot="dropdown-menu-checkbox-item"
-      className={cn(
-        "focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className
-      )}
-      checked={checked}
-      {...props}
-    >
-      <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
-        <DropdownMenuPrimitive.ItemIndicator>
-          <CheckIcon className="size-4" />
-        </DropdownMenuPrimitive.ItemIndicator>
-      </span>
+    <AriaMenuItem className={classes} onAction={onClick} {...props}>
       {children}
-    </DropdownMenuPrimitive.CheckboxItem>
-  )
+    </AriaMenuItem>
+  );
 }
 
-function DropdownMenuRadioGroup({
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>) {
+export function DropdownMenuLabel({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <DropdownMenuPrimitive.RadioGroup
-      data-slot="dropdown-menu-radio-group"
+    <AriaHeader
+      className={cx(css({ paddingInline: "3", paddingBlock: "1.5", fontSize: "sm", fontWeight: "medium", color: "fg.default" }), className)}
       {...props}
     />
-  )
+  );
 }
 
-function DropdownMenuRadioItem({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+export function DropdownMenuSeparator({ className, ...props }: Omit<AriaSeparatorProps, "className"> & { className?: string }) {
   return (
-    <DropdownMenuPrimitive.RadioItem
-      data-slot="dropdown-menu-radio-item"
-      className={cn(
-        "focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className
-      )}
-      {...props}
-    >
-      <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
-        <DropdownMenuPrimitive.ItemIndicator>
-          <CircleIcon className="size-2 fill-current" />
-        </DropdownMenuPrimitive.ItemIndicator>
-      </span>
-      {children}
-    </DropdownMenuPrimitive.RadioItem>
-  )
-}
-
-function DropdownMenuLabel({
-  className,
-  inset,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Label> & {
-  inset?: boolean
-}) {
-  return (
-    <DropdownMenuPrimitive.Label
-      data-slot="dropdown-menu-label"
-      data-inset={inset}
-      className={cn(
-        "px-2 py-1.5 text-sm font-medium data-[inset]:pl-8",
-        className
-      )}
+    <AriaSeparator
+      className={cx(css({ height: "1px", background: "border.subtle", marginBlock: "1.5", marginInline: "-1.5" }), className)}
       {...props}
     />
-  )
-}
-
-function DropdownMenuSeparator({
-  className,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
-  return (
-    <DropdownMenuPrimitive.Separator
-      data-slot="dropdown-menu-separator"
-      className={cn("bg-border -mx-1 my-1 h-px", className)}
-      {...props}
-    />
-  )
-}
-
-function DropdownMenuShortcut({
-  className,
-  ...props
-}: React.ComponentProps<"span">) {
-  return (
-    <span
-      data-slot="dropdown-menu-shortcut"
-      className={cn(
-        "text-muted-foreground ml-auto text-xs tracking-widest",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function DropdownMenuSub({
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
-  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
-}
-
-function DropdownMenuSubTrigger({
-  className,
-  inset,
-  children,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.SubTrigger> & {
-  inset?: boolean
-}) {
-  return (
-    <DropdownMenuPrimitive.SubTrigger
-      data-slot="dropdown-menu-sub-trigger"
-      data-inset={inset}
-      className={cn(
-        "focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className
-      )}
-      {...props}
-    >
-      {children}
-      <ChevronRightIcon className="ml-auto size-4" />
-    </DropdownMenuPrimitive.SubTrigger>
-  )
-}
-
-function DropdownMenuSubContent({
-  className,
-  ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
-  return (
-    <DropdownMenuPrimitive.SubContent
-      data-slot="dropdown-menu-sub-content"
-      className={cn(
-        "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-md border p-1 shadow-lg",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-export {
-  DropdownMenu,
-  DropdownMenuPortal,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuLabel,
-  DropdownMenuItem,
-  DropdownMenuCheckboxItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
+  );
 }

@@ -1,63 +1,135 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as SliderPrimitive from "@radix-ui/react-slider"
+import * as React from "react";
+import {
+  Slider as AriaSlider,
+  SliderTrack,
+  SliderFill,
+  SliderThumb,
+  type SliderProps as AriaSliderProps,
+} from "react-aria-components";
+import { css, cx } from "styled-system/css";
 
-import { cn } from "@/lib/utils"
+const rootStyle = css({
+  display: "flex",
+  width: "full",
+  touchAction: "none",
+  userSelect: "none",
+  "&[data-disabled]": { opacity: 0.5, cursor: "not-allowed" },
+});
 
-function Slider({
-  className,
-  defaultValue,
-  value,
-  min = 0,
-  max = 100,
-  ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
-  const _values = React.useMemo(
-    () =>
-      Array.isArray(value)
-        ? value
-        : Array.isArray(defaultValue)
-          ? defaultValue
-          : [min, max],
-    [value, defaultValue, min, max]
-  )
+const trackStyle = css({
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  width: "full",
+  height: "5",
+  cursor: "pointer",
+  "&[data-disabled]": { cursor: "not-allowed" },
+});
 
-  return (
-    <SliderPrimitive.Root
-      data-slot="slider"
-      defaultValue={defaultValue}
-      value={value}
-      min={min}
-      max={max}
-      className={cn(
-        "relative flex w-full touch-none items-center select-none data-[disabled]:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col",
-        className
-      )}
-      {...props}
-    >
-      <SliderPrimitive.Track
-        data-slot="slider-track"
-        className={cn(
-          "bg-muted relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5"
-        )}
-      >
-        <SliderPrimitive.Range
-          data-slot="slider-range"
-          className={cn(
-            "bg-primary absolute data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full"
-          )}
-        />
-      </SliderPrimitive.Track>
-      {Array.from({ length: _values.length }, (_, index) => (
-        <SliderPrimitive.Thumb
-          data-slot="slider-thumb"
-          key={index}
-          className="border-primary ring-ring/50 block size-4 shrink-0 rounded-full border bg-white shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
-        />
-      ))}
-    </SliderPrimitive.Root>
-  )
+const railStyle = css({
+  position: "absolute",
+  insetInline: "0",
+  top: "50%",
+  transform: "translateY(-50%)",
+  height: "1.5",
+  borderRadius: "full",
+  background: "border.subtle",
+});
+
+const fillStyle = css({
+  position: "absolute",
+  top: "50%",
+  transform: "translateY(-50%)",
+  height: "1.5",
+  borderRadius: "full",
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+});
+
+const thumbStyle = css({
+  width: "4",
+  height: "4",
+  borderRadius: "full",
+  background: "bg.surface",
+  border: "2px solid",
+  borderColor: "accent.default",
+  boxShadow: "card",
+  transition: "box-shadow 0.15s ease, transform 0.12s ease",
+  "&[data-dragging]": { transform: "scale(1.15)" },
+  "&[data-focus-visible]": { boxShadow: "0 0 0 3px token(colors.gold.200)" },
+  "&[data-disabled]": { cursor: "not-allowed" },
+});
+
+export interface SliderProps
+  extends Omit<AriaSliderProps<number[]>, "className" | "children"> {
+  className?: string;
+  /** Back-compat alias for minValue (old Radix API used the native-input name `min`). */
+  min?: number;
+  /** Back-compat alias for maxValue. */
+  max?: number;
+  /** Back-compat alias for isDisabled. */
+  disabled?: boolean;
+  /** Back-compat alias for onChange. */
+  onValueChange?: (value: number[]) => void;
+  /** Back-compat alias for onChangeEnd. */
+  onValueCommit?: (value: number[]) => void;
 }
 
-export { Slider }
+export function Slider({
+  className,
+  min = 0,
+  max = 100,
+  minValue,
+  maxValue,
+  disabled,
+  isDisabled,
+  value,
+  defaultValue,
+  onValueChange,
+  onValueCommit,
+  onChange,
+  onChangeEnd,
+  ...props
+}: SliderProps) {
+  const thumbCount = React.useMemo(() => {
+    const source = value ?? defaultValue;
+    return Array.isArray(source) ? source.length : 2;
+  }, [value, defaultValue]);
+
+  const resolvedDefaultValue = React.useMemo(
+    () => defaultValue ?? (value ? undefined : [minValue ?? min, maxValue ?? max]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  return (
+    <AriaSlider
+      className={cx(rootStyle, className)}
+      minValue={minValue ?? min}
+      maxValue={maxValue ?? max}
+      isDisabled={isDisabled ?? disabled}
+      value={value}
+      defaultValue={resolvedDefaultValue}
+      onChange={(v) => {
+        const next = v as number[];
+        onChange?.(next);
+        onValueChange?.(next);
+      }}
+      onChangeEnd={(v) => {
+        const next = v as number[];
+        onChangeEnd?.(next);
+        onValueCommit?.(next);
+      }}
+      {...props}
+    >
+      <SliderTrack className={trackStyle}>
+        <span className={railStyle} />
+        <SliderFill className={fillStyle} />
+        {Array.from({ length: thumbCount }, (_, index) => (
+          <SliderThumb key={index} index={index} className={thumbStyle} />
+        ))}
+      </SliderTrack>
+    </AriaSlider>
+  );
+}

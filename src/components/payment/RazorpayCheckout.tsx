@@ -3,6 +3,51 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
+import { css } from "styled-system/css";
+import { motion } from "motion/react";
+
+const overlayStyle = css({
+  position: "fixed",
+  inset: 0,
+  background: "rgba(18, 17, 16, 0.5)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: "50",
+  padding: "4",
+});
+const cardStyle = css({
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  border: "1px solid",
+  borderColor: "border.glass",
+  boxShadow: "glassLg",
+  borderRadius: "xl",
+  padding: "6",
+  maxWidth: "sm",
+  width: "full",
+});
+const contentStyle = css({ textAlign: "center" });
+const iconWrapStyle = css({ marginBottom: "4" });
+const iconCircleStyle = css({
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: "16",
+  height: "16",
+  borderRadius: "full",
+  background: "gold.50",
+});
+const spinnerStyle = css({ width: "8", height: "8", color: "accent.default" });
+const headingStyle = css({
+  fontFamily: "display",
+  fontSize: "lg",
+  fontWeight: "semibold",
+  color: "fg.default",
+  marginBottom: "2",
+});
+const subTextStyle = css({ fontSize: "sm", color: "fg.muted", marginBottom: "4" });
+const orderNumStyle = css({ fontSize: "xs", color: "fg.muted" });
 
 // Razorpay TypeScript declarations
 interface RazorpayResponse {
@@ -235,19 +280,26 @@ export default function RazorpayCheckout({
   }, [razorpayLoaded]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
-        <div className="text-center">
-          <div className="mb-4">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
-              <svg
-                className="w-8 h-8 text-blue-600 animate-spin"
+    <div className={overlayStyle}>
+      <motion.div
+        className={cardStyle}
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+      >
+        <div className={contentStyle}>
+          <div className={iconWrapStyle}>
+            <div className={iconCircleStyle}>
+              <motion.svg
+                className={spinnerStyle}
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, ease: "linear", repeat: Infinity }}
               >
                 <circle
-                  className="opacity-25"
+                  opacity={0.25}
                   cx="12"
                   cy="12"
                   r="10"
@@ -255,24 +307,24 @@ export default function RazorpayCheckout({
                   strokeWidth="4"
                 ></circle>
                 <path
-                  className="opacity-75"
+                  opacity={0.75}
                   fill="currentColor"
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 ></path>
-              </svg>
+              </motion.svg>
             </div>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className={headingStyle}>
             {razorpayLoaded
               ? "Opening Payment Gateway..."
               : "Loading Payment Gateway..."}
           </h3>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className={subTextStyle}>
             Please wait while we redirect you to secure payment
           </p>
-          <p className="text-xs text-gray-500">Order #{orderNumber}</p>
+          <p className={orderNumStyle}>Order #{orderNumber}</p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

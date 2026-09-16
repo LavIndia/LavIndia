@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,16 +13,174 @@ import {
   CarouselItem,
 } from "@/components/ui/carousel";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import Autoplay from "embla-carousel-autoplay";
 import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
+import { css, cx } from "styled-system/css";
 
 interface AuthDialogProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Runs right after a successful login or signup, before onClose. */
+  onAuthSuccess?: () => void;
 }
 
-export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
+const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
+const OTP_RESEND_SECONDS = 30;
+
+const contentStyle = css({
+  maxWidth: { base: "95vw", md: "50rem", lg: "74rem" },
+  width: "full",
+  // The generic DialogContent wrapper (src/components/ui/dialog.tsx)
+  // applies its own maxHeight:90vh + overflowY:auto to the outer AriaModal
+  // for plain dialogs. This auth dialog manages its own internal scroll
+  // region (formPanelStyle) instead, so these must explicitly win over
+  // that shorthand/longhand pair regardless of stylesheet source order.
+  maxHeight: "96vh",
+  overflow: "hidden",
+  overflowY: "hidden",
+  padding: "0",
+  borderRadius: "xl",
+});
+
+const gridStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", md: "1fr 1fr" },
+  width: "full",
+  height: "full",
+});
+
+// Full-bleed photo, no colored padding/frame around it — the image itself
+// carries the elegance, with the brand mark as a soft gradient caption
+// over its base rather than a separate boxed-in section.
+const imagePanelStyle = css({
+  display: { base: "none", md: "block" },
+  position: "relative",
+  overflow: "hidden",
+  background: "bg.canvas",
+});
+
+const carouselWrapStyle = css({ position: "absolute", inset: 0 });
+const carouselSlideStyle = css({ position: "relative", height: "full", width: "full" });
+const carouselImageStyle = css({ objectFit: "cover" });
+const carouselLoadingStyle = css({ display: "flex", alignItems: "center", justifyContent: "center", height: "full" });
+
+const brandingStyle = css({
+  position: "absolute",
+  insetX: 0,
+  bottom: 0,
+  textAlign: "center",
+  display: "flex",
+  flexDirection: "column",
+  gap: "1.5",
+  paddingInline: "8",
+  paddingTop: "16",
+  paddingBottom: "8",
+  background: "linear-gradient(to top, rgba(20,16,12,0.72), rgba(20,16,12,0.28) 55%, transparent)",
+});
+const brandingTitleStyle = css({ fontFamily: "display", fontSize: "3xl", fontWeight: "semibold", color: "white" });
+const brandingSubtitleStyle = css({ fontSize: "md", color: "rgba(255,255,255,0.82)" });
+
+const formPanelStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "bg.surface",
+  padding: { base: "4", md: "6" },
+  // A luxury dialog should never look like it's scrolling — the layout is
+  // sized to fit, and this is only a safety net for very short viewports,
+  // so the scrollbar chrome itself stays invisible.
+  overflowY: "auto",
+  scrollbarWidth: "none",
+  "&::-webkit-scrollbar": { display: "none" },
+});
+
+const formInnerStyle = css({ width: "full", maxWidth: "26rem" });
+
+const welcomeTextStyle = css({ fontFamily: "display", fontSize: "lg", fontWeight: "semibold", color: "fg.default", textAlign: "center", marginBottom: "3" });
+
+const tabRowStyle = css({ display: "flex", marginBottom: "3", borderBottom: "1px solid", borderColor: "border.subtle" });
+
+const tabButtonStyle = cx(
+  css({
+    flex: "1",
+    paddingBlock: "2.5",
+    textAlign: "center",
+    fontFamily: "body",
+    fontWeight: "medium",
+    fontSize: "sm",
+    color: "fg.muted",
+    background: "transparent",
+    cursor: "pointer",
+    outline: "none",
+    borderBottom: "2px solid transparent",
+    transition: "color 0.15s ease, border-color 0.15s ease",
+    "&:hover, &[data-hovered]": { color: "fg.default" },
+    "&[data-focus-visible]": { boxShadow: "0 0 0 3px token(colors.gold.200)" },
+  })
+);
+
+const tabButtonActiveStyle = css({
+  color: "accent.pressed",
+  borderColor: "accent.default",
+});
+
+const formStyle = css({ display: "flex", flexDirection: "column", gap: "2.5" });
+const fieldLabelStyle = css({ display: "block", fontSize: "sm", color: "fg.muted", marginBottom: "1.5" });
+const nameUsernameRowStyle = css({ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3" });
+const errorTextStyle = css({ color: "danger", fontSize: "sm", textAlign: "center" });
+
+const primaryButtonStyle = css({ width: "full", height: "11", fontWeight: "medium" });
+
+const forgotWrapStyle = css({ textAlign: "center" });
+const forgotLinkStyle = css({
+  fontSize: "sm",
+  color: "fg.muted",
+  transition: "color 0.15s ease",
+  "&:hover, &[data-hovered]": { color: "accent.pressed" },
+});
+
+const dividerWrapStyle = css({ position: "relative", marginBlock: "3" });
+const dividerLineStyle = css({ position: "absolute", inset: 0, display: "flex", alignItems: "center" });
+const dividerLineInnerStyle = css({ width: "full", borderTop: "1px solid", borderColor: "border.subtle" });
+const dividerLabelWrapStyle = css({ position: "relative", display: "flex", justifyContent: "center", fontSize: "xs", textTransform: "uppercase" });
+const dividerLabelStyle = css({ background: "bg.surface", paddingInline: "2", color: "fg.muted" });
+
+const googleButtonStyle = css({ width: "full", height: "11", display: "flex", alignItems: "center", justifyContent: "center", gap: "3" });
+
+const methodRowStyle = css({ display: "flex", gap: "2", marginBottom: "3" });
+const methodButtonStyle = css({ flex: "1" });
+
+const switchLineStyle = css({ textAlign: "center", fontSize: "sm", color: "fg.muted", marginTop: "3" });
+const switchLinkStyle = css({
+  color: "accent.pressed",
+  fontWeight: "medium",
+  background: "transparent",
+  border: "none",
+  cursor: "pointer",
+  "&:hover, &[data-hovered]": { textDecoration: "underline" },
+});
+
+const spinnerInlineStyle = css({ marginRight: "2", height: "5", width: "5", animation: "spin" });
+
+const trustLineStyle = css({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "1.5",
+  fontSize: "xs",
+  color: "fg.muted",
+  marginTop: "3",
+});
+
+const fieldHintStyle = css({ fontSize: "xs", color: "fg.muted", marginTop: "1.5" });
+const fieldHintErrorStyle = css({ color: "danger" });
+
+const otpRowStyle = css({ display: "flex", gap: "2" });
+const otpInputWrapStyle = css({ flex: "1" });
+
+export function AuthDialog({ isOpen, onClose, onAuthSuccess }: AuthDialogProps) {
   const router = useRouter();
   const { businessName } = useSiteSettings();
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
@@ -62,15 +221,37 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
   }, [isOpen, carouselImages.length]);
 
   // Login form state
+  const [loginMethod, setLoginMethod] = useState<"password" | "otp">("password");
   const [loginIdentifier, setLoginIdentifier] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpResendIn, setOtpResendIn] = useState(0);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
 
   // Signup form state
   const [signupName, setSignupName] = useState("");
+  const [signupUsername, setSignupUsername] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupMobile, setSignupMobile] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupMethod, setSignupMethod] = useState<"email" | "mobile">("email");
+
+  // Reset transient state whenever the tab or login method changes
+  useEffect(() => {
+    setError("");
+    setOtpSent(false);
+    setOtpCode("");
+  }, [activeTab, loginMethod]);
+
+  // Countdown for OTP resend
+  useEffect(() => {
+    if (otpResendIn <= 0) return;
+    const timer = setInterval(() => {
+      setOtpResendIn((v) => Math.max(0, v - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpResendIn]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +268,56 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
       if (result?.error) {
         setError("Invalid email/mobile or password");
       } else {
+        onAuthSuccess?.();
+        onClose();
+        router.refresh();
+      }
+    } catch {
+      setError("Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!loginIdentifier) {
+      setError("Enter your email or mobile first");
+      return;
+    }
+    setError("");
+    setIsSendingOtp(true);
+    try {
+      await fetch("/api/auth/otp/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: loginIdentifier }),
+      });
+      setOtpSent(true);
+      setOtpResendIn(OTP_RESEND_SECONDS);
+      toast.success("If an account exists, an OTP has been sent.");
+    } catch {
+      setError("Could not send OTP right now");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const result = await signIn("otp", {
+        identifier: loginIdentifier,
+        otp: otpCode,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError(result.error || "Incorrect OTP");
+      } else {
+        onAuthSuccess?.();
         onClose();
         router.refresh();
       }
@@ -100,6 +331,12 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!USERNAME_PATTERN.test(signupUsername)) {
+      setError("Username must be 3-20 characters: letters, numbers, underscores only");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -108,6 +345,7 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: signupName,
+          username: signupUsername,
           email: signupMethod === "email" ? signupEmail : null,
           mobile: signupMethod === "mobile" ? signupMobile : null,
           password: signupPassword,
@@ -132,6 +370,7 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
       if (result?.error) {
         setError("Account created but login failed. Please try logging in.");
       } else {
+        onAuthSuccess?.();
         onClose();
         router.refresh();
       }
@@ -158,106 +397,76 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="!max-w-[95vw] md:!max-w-4xl lg:!max-w-6xl w-full max-h-[90vh] p-0 overflow-hidden border-0 shadow-2xl rounded-xl">
-        <div className="grid md:grid-cols-2 w-full h-full">
-          {/* Left Panel - Image/Illustration */}
-          <div className="hidden md:flex flex-col items-center justify-center bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-8 overflow-hidden">
-            <div className="w-full h-full flex flex-col justify-center space-y-6">
-              {/* Jewelry Image Carousel - Full Space */}
-              <div className="flex-1 flex items-center justify-center">
-                {carouselImages.length > 0 ? (
-                  <Carousel
-                    opts={{
-                      align: "center",
-                      loop: true,
-                    }}
-                    plugins={[
-                      Autoplay({
-                        delay: parseInt(
-                          process.env.NEXT_PUBLIC_CAROUSEL_AUTOPLAY_DELAY ||
-                            "3000"
-                        ),
-                        stopOnInteraction: false,
-                      }),
-                    ]}
-                    className="w-full h-full"
-                  >
-                    <CarouselContent className="h-full">
-                      {carouselImages.map((image, index) => (
-                        <CarouselItem
-                          key={index}
-                          className="h-full flex items-center justify-center"
-                        >
-                          <div className="relative w-full h-full min-h-[500px] max-h-[600px]">
-                            <Image
-                              src={image}
-                              alt={`${businessName} Jewelry ${index + 1}`}
-                              fill
-                              className="object-contain drop-shadow-2xl transition-transform duration-700 hover:scale-105"
-                              priority={index === 0}
-                              sizes="(max-width: 768px) 100vw, 50vw"
-                            />
-                          </div>
-                        </CarouselItem>
-                      ))}
-                    </CarouselContent>
-                  </Carousel>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <Loader2 className="h-12 w-12 animate-spin text-amber-600" />
-                  </div>
-                )}
-              </div>
+      <DialogContent className={contentStyle}>
+        <div className={gridStyle}>
+          {/* Left Panel - Full-bleed Image/Illustration */}
+          <div className={imagePanelStyle}>
+            <div className={carouselWrapStyle}>
+              {carouselImages.length > 0 ? (
+                <Carousel
+                  opts={{
+                    align: "center",
+                    loop: true,
+                  }}
+                  plugins={[
+                    Autoplay({
+                      delay: parseInt(
+                        process.env.NEXT_PUBLIC_CAROUSEL_AUTOPLAY_DELAY ||
+                          "3000"
+                      ),
+                      stopOnInteraction: false,
+                    }),
+                  ]}
+                  className={css({ width: "full", height: "full" })}
+                >
+                  <CarouselContent className={css({ height: "full" })}>
+                    {carouselImages.map((image, index) => (
+                      <CarouselItem key={index} className={carouselSlideStyle}>
+                        <Image
+                          src={image}
+                          alt={`${businessName} Jewelry ${index + 1}`}
+                          fill
+                          className={carouselImageStyle}
+                          priority={index === 0}
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                        />
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                </Carousel>
+              ) : (
+                <div className={carouselLoadingStyle}>
+                  <Loader2 className={css({ height: "12", width: "12", animation: "spin", color: "accent.default" })} />
+                </div>
+              )}
+            </div>
 
-              {/* Branding Text */}
-              <div className="text-center space-y-3 pb-4">
-                <h2 className="text-4xl font-bold text-gray-800">
-                  {businessName}
-                </h2>
-                <p className="text-lg text-gray-700">
-                  Exquisite jewelry for every moment
-                </p>
-              </div>
+            {/* Branding caption, overlaid on the image with a gradient scrim */}
+            <div className={brandingStyle}>
+              <h2 className={brandingTitleStyle}>{businessName}</h2>
+              <p className={brandingSubtitleStyle}>
+                Exquisite jewelry for every moment
+              </p>
             </div>
           </div>
 
           {/* Right Panel - Form */}
-          <div className="flex flex-col items-center justify-center bg-white p-12 overflow-y-auto">
-            <div className="w-full max-w-md">
-              {/* Logo/Title */}
-              <div className="text-center mb-8">
-                <h1
-                  className="text-4xl font-bold text-gray-900 mb-3"
-                  style={{ fontFamily: "cursive" }}
-                >
-                  {businessName}
-                </h1>
-              </div>
-
-              {/* Welcome Text */}
-              <h3 className="text-2xl font-semibold text-gray-800 mb-8 text-center">
-                Welcome to {businessName}
-              </h3>
+          <div className={formPanelStyle}>
+            <div className={formInnerStyle}>
+              {/* Welcome Text (the image panel already carries the full brand mark) */}
+              <h3 className={welcomeTextStyle}>Welcome to {businessName}</h3>
 
               {/* Tab Switch */}
-              <div className="flex mb-6">
+              <div className={tabRowStyle}>
                 <button
                   onClick={() => setActiveTab("login")}
-                  className={`flex-1 py-2 text-center font-medium transition-colors ${
-                    activeTab === "login"
-                      ? "text-amber-600 border-b-2 border-amber-600"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className={cx(tabButtonStyle, activeTab === "login" && tabButtonActiveStyle)}
                 >
                   Login
                 </button>
                 <button
                   onClick={() => setActiveTab("signup")}
-                  className={`flex-1 py-2 text-center font-medium transition-colors ${
-                    activeTab === "signup"
-                      ? "text-amber-600 border-b-2 border-amber-600"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
+                  className={cx(tabButtonStyle, activeTab === "signup" && tabButtonActiveStyle)}
                 >
                   Sign Up
                 </button>
@@ -265,69 +474,178 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
 
               {/* Login Form */}
               {activeTab === "login" && (
-                <form onSubmit={handleLogin} className="space-y-5">
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-2">
-                      Email or Mobile Number
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="Enter your email or mobile"
-                      value={loginIdentifier}
-                      onChange={(e) => setLoginIdentifier(e.target.value)}
-                      className="w-full h-11 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-2">
+                <>
+                  <div className={methodRowStyle}>
+                    <Button
+                      type="button"
+                      variant={loginMethod === "password" ? "default" : "outline"}
+                      onClick={() => setLoginMethod("password")}
+                      className={methodButtonStyle}
+                    >
                       Password
-                    </label>
-                    <Input
-                      type="password"
-                      placeholder="Enter your password"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      className="w-full h-11 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      required
-                    />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={loginMethod === "otp" ? "default" : "outline"}
+                      onClick={() => setLoginMethod("otp")}
+                      className={methodButtonStyle}
+                    >
+                      OTP
+                    </Button>
                   </div>
 
-                  {error && (
-                    <p className="text-red-600 text-sm text-center">{error}</p>
+                  {loginMethod === "password" ? (
+                    <form onSubmit={handleLogin} className={formStyle}>
+                      <div>
+                        <label className={fieldLabelStyle}>
+                          Email or Mobile Number
+                        </label>
+                        <Input
+                          type="text"
+                          placeholder="Enter your email or mobile"
+                          value={loginIdentifier}
+                          onChange={(e) => setLoginIdentifier(e.target.value)}
+                          required
+                          autoFocus
+                        />
+                      </div>
+
+                      <div>
+                        <label className={fieldLabelStyle}>Password</label>
+                        <Input
+                          type="password"
+                          placeholder="Enter your password"
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
+                          required
+                        />
+                      </div>
+
+                      {error && <p className={errorTextStyle}>{error}</p>}
+
+                      <Button type="submit" disabled={isLoading} className={primaryButtonStyle}>
+                        {isLoading ? (
+                          <>
+                            <Loader2 className={spinnerInlineStyle} />
+                            Signing in...
+                          </>
+                        ) : (
+                          "Sign in"
+                        )}
+                      </Button>
+
+                      <div className={forgotWrapStyle}>
+                        <button
+                          type="button"
+                          className={forgotLinkStyle}
+                          onClick={() =>
+                            toast.info(
+                              "Password reset is coming soon. Please contact support for now."
+                            )
+                          }
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleVerifyOtp} className={formStyle}>
+                      <div>
+                        <label className={fieldLabelStyle}>
+                          Email or Mobile Number
+                        </label>
+                        <Input
+                          type="text"
+                          placeholder="Enter your email or mobile"
+                          value={loginIdentifier}
+                          onChange={(e) => setLoginIdentifier(e.target.value)}
+                          required
+                          autoFocus
+                        />
+                      </div>
+
+                      {!otpSent ? (
+                        <Button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={isSendingOtp || !loginIdentifier}
+                          className={primaryButtonStyle}
+                        >
+                          {isSendingOtp ? (
+                            <>
+                              <Loader2 className={spinnerInlineStyle} />
+                              Sending OTP...
+                            </>
+                          ) : (
+                            "Send OTP"
+                          )}
+                        </Button>
+                      ) : (
+                        <>
+                          <div>
+                            <label className={fieldLabelStyle}>
+                              6-digit OTP
+                            </label>
+                            <div className={otpRowStyle}>
+                              <div className={otpInputWrapStyle}>
+                                <Input
+                                  type="text"
+                                  inputMode="numeric"
+                                  maxLength={6}
+                                  placeholder="Enter OTP"
+                                  value={otpCode}
+                                  onChange={(e) =>
+                                    setOtpCode(e.target.value.replace(/\D/g, ""))
+                                  }
+                                  required
+                                  autoFocus
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleSendOtp}
+                                disabled={otpResendIn > 0 || isSendingOtp}
+                              >
+                                {otpResendIn > 0 ? `Resend (${otpResendIn}s)` : "Resend"}
+                              </Button>
+                            </div>
+                            <p className={fieldHintStyle}>
+                              We sent a code to {loginIdentifier}.
+                            </p>
+                          </div>
+
+                          {error && <p className={errorTextStyle}>{error}</p>}
+
+                          <Button
+                            type="submit"
+                            disabled={isLoading || otpCode.length !== 6}
+                            className={primaryButtonStyle}
+                          >
+                            {isLoading ? (
+                              <>
+                                <Loader2 className={spinnerInlineStyle} />
+                                Verifying...
+                              </>
+                            ) : (
+                              "Verify & Sign in"
+                            )}
+                          </Button>
+                        </>
+                      )}
+
+                      {error && !otpSent && (
+                        <p className={errorTextStyle}>{error}</p>
+                      )}
+                    </form>
                   )}
 
-                  <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full h-12 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-full transition-colors"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign in"
-                    )}
-                  </Button>
-
-                  <div className="text-center">
-                    <a
-                      href="#"
-                      className="text-sm text-gray-600 hover:text-amber-600"
-                    >
-                      Forgot password?
-                    </a>
-                  </div>
-
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-200" />
+                  <div className={dividerWrapStyle}>
+                    <div className={dividerLineStyle}>
+                      <div className={dividerLineInnerStyle} />
                     </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white px-2 text-gray-500">or</span>
+                    <div className={dividerLabelWrapStyle}>
+                      <span className={dividerLabelStyle}>or</span>
                     </div>
                   </div>
 
@@ -336,9 +654,9 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
                     variant="outline"
                     onClick={handleGoogleSignIn}
                     disabled={isLoading}
-                    className="w-full h-12 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-md flex items-center justify-center gap-3"
+                    className={googleButtonStyle}
                   >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24">
+                    <svg className={css({ height: "5", width: "5" })} viewBox="0 0 24 24">
                       <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                         fill="#4285F4"
@@ -358,56 +676,69 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
                     </svg>
                     Sign in with Google
                   </Button>
-                </form>
+
+                  <p className={trustLineStyle}>
+                    <ShieldCheck className={css({ height: "3.5", width: "3.5" })} />
+                    Your details are encrypted and never shared
+                  </p>
+                </>
               )}
 
               {/* Signup Form */}
               {activeTab === "signup" && (
-                <form onSubmit={handleSignup} className="space-y-5">
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-2">
-                      Full Name
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={signupName}
-                      onChange={(e) => setSignupName(e.target.value)}
-                      className="w-full h-11 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      required
-                    />
+                <form onSubmit={handleSignup} className={formStyle}>
+                  <div className={nameUsernameRowStyle}>
+                    <div>
+                      <label className={fieldLabelStyle}>Full Name</label>
+                      <Input
+                        type="text"
+                        placeholder="Full name"
+                        value={signupName}
+                        onChange={(e) => setSignupName(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className={fieldLabelStyle}>Username</label>
+                      <Input
+                        type="text"
+                        placeholder="Unique username"
+                        value={signupUsername}
+                        onChange={(e) =>
+                          setSignupUsername(
+                            e.target.value.replace(/[^a-zA-Z0-9_]/g, "")
+                          )
+                        }
+                        minLength={3}
+                        maxLength={20}
+                        required
+                      />
+                    </div>
                   </div>
+                  {signupUsername.length > 0 &&
+                    !USERNAME_PATTERN.test(signupUsername) && (
+                      <p className={cx(fieldHintStyle, fieldHintErrorStyle, css({ marginTop: "-2" }))}>
+                        Username: 3-20 characters, letters/numbers/underscores only
+                      </p>
+                    )}
 
                   <div>
-                    <label className="block text-sm text-gray-600 mb-2">
-                      Sign up with
-                    </label>
-                    <div className="flex gap-2 mb-3">
+                    <label className={fieldLabelStyle}>Sign up with</label>
+                    <div className={methodRowStyle}>
                       <Button
                         type="button"
-                        variant={
-                          signupMethod === "email" ? "default" : "outline"
-                        }
+                        variant={signupMethod === "email" ? "default" : "outline"}
                         onClick={() => setSignupMethod("email")}
-                        className={`flex-1 ${
-                          signupMethod === "email"
-                            ? "bg-amber-600 hover:bg-amber-700 text-white"
-                            : "border-gray-300 text-gray-700"
-                        }`}
+                        className={methodButtonStyle}
                       >
                         Email
                       </Button>
                       <Button
                         type="button"
-                        variant={
-                          signupMethod === "mobile" ? "default" : "outline"
-                        }
+                        variant={signupMethod === "mobile" ? "default" : "outline"}
                         onClick={() => setSignupMethod("mobile")}
-                        className={`flex-1 ${
-                          signupMethod === "mobile"
-                            ? "bg-amber-600 hover:bg-amber-700 text-white"
-                            : "border-gray-300 text-gray-700"
-                        }`}
+                        className={methodButtonStyle}
                       >
                         Mobile
                       </Button>
@@ -416,29 +747,23 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
 
                   {signupMethod === "email" ? (
                     <div>
-                      <label className="block text-sm text-gray-600 mb-2">
-                        Email Address
-                      </label>
+                      <label className={fieldLabelStyle}>Email Address</label>
                       <Input
                         type="email"
                         placeholder="your@email.com"
                         value={signupEmail}
                         onChange={(e) => setSignupEmail(e.target.value)}
-                        className="w-full h-11 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                         required
                       />
                     </div>
                   ) : (
                     <div>
-                      <label className="block text-sm text-gray-600 mb-2">
-                        Mobile Number
-                      </label>
+                      <label className={fieldLabelStyle}>Mobile Number</label>
                       <Input
                         type="tel"
                         placeholder="10 digit mobile number"
                         value={signupMobile}
                         onChange={(e) => setSignupMobile(e.target.value)}
-                        className="w-full h-11 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                         pattern="[0-9]{10}"
                         required
                       />
@@ -446,32 +771,23 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
                   )}
 
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1.5">
-                      Password
-                    </label>
+                    <label className={fieldLabelStyle}>Password</label>
                     <Input
                       type="password"
-                      placeholder="Minimum 6 characters"
+                      placeholder="8+ characters, upper, lower & number"
                       value={signupPassword}
                       onChange={(e) => setSignupPassword(e.target.value)}
-                      className="w-full h-11 px-4 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                      minLength={6}
+                      minLength={8}
                       required
                     />
                   </div>
 
-                  {error && (
-                    <p className="text-red-600 text-sm text-center">{error}</p>
-                  )}
+                  {error && <p className={errorTextStyle}>{error}</p>}
 
-                  <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full h-12 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white font-semibold rounded-full transition-all shadow-md hover:shadow-lg"
-                  >
+                  <Button type="submit" disabled={isLoading} className={primaryButtonStyle}>
                     {isLoading ? (
                       <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        <Loader2 className={spinnerInlineStyle} />
                         Creating account...
                       </>
                     ) : (
@@ -479,12 +795,12 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
                     )}
                   </Button>
 
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-200" />
+                  <div className={dividerWrapStyle}>
+                    <div className={dividerLineStyle}>
+                      <div className={dividerLineInnerStyle} />
                     </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white px-2 text-gray-500">or</span>
+                    <div className={dividerLabelWrapStyle}>
+                      <span className={dividerLabelStyle}>or</span>
                     </div>
                   </div>
 
@@ -493,9 +809,9 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
                     variant="outline"
                     onClick={handleGoogleSignIn}
                     disabled={isLoading}
-                    className="w-full h-10 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium rounded-md flex items-center justify-center gap-3"
+                    className={googleButtonStyle}
                   >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24">
+                    <svg className={css({ height: "5", width: "5" })} viewBox="0 0 24 24">
                       <path
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                         fill="#4285F4"
@@ -516,12 +832,12 @@ export function AuthDialog({ isOpen, onClose }: AuthDialogProps) {
                     Sign up with Google
                   </Button>
 
-                  <p className="text-center text-sm text-gray-600 mt-4">
+                  <p className={switchLineStyle}>
                     Already have an account?{" "}
                     <button
                       type="button"
                       onClick={() => setActiveTab("login")}
-                      className="text-amber-600 hover:underline font-medium"
+                      className={switchLinkStyle}
                     >
                       Sign in
                     </button>

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { parse } from "papaparse";
+import { css } from "styled-system/css";
 
 interface ProductRow {
   name: string;
@@ -193,12 +194,20 @@ export default function BulkUploadPage() {
   const errorCount = preview.filter((v) => v.errors.length > 0).length;
 
   return (
-    <div className="max-w-6xl space-y-6">
+    <div className={css({ maxWidth: "6xl", display: "flex", flexDirection: "column", gap: "6" })}>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <h1
+          className={css({
+            fontFamily: "display",
+            fontSize: { base: "2xl", md: "3xl" },
+            fontWeight: "bold",
+            letterSpacing: "tight",
+            color: "fg.default",
+          })}
+        >
           Bulk Upload Products
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className={css({ color: "fg.muted", marginTop: "2", fontSize: "sm" })}>
           Import multiple products at once using a CSV file
         </p>
       </div>
@@ -209,8 +218,18 @@ export default function BulkUploadPage() {
           <CardTitle>Instructions</CardTitle>
           <CardDescription>How to prepare your CSV file</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <ol className="list-decimal list-inside space-y-2 text-sm">
+        <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+          <ol
+            className={css({
+              listStyleType: "decimal",
+              listStylePosition: "inside",
+              display: "flex",
+              flexDirection: "column",
+              gap: "2",
+              fontSize: "sm",
+              color: "fg.default",
+            })}
+          >
             <li>Download the CSV template below</li>
             <li>
               Fill in your product data (name, slug, price, stock, category are
@@ -226,7 +245,7 @@ export default function BulkUploadPage() {
           </ol>
 
           <Button variant="outline" onClick={downloadTemplate}>
-            <Download className="h-4 w-4 mr-2" />
+            <Download className={css({ height: "4", width: "4" })} />
             Download Template
           </Button>
         </CardContent>
@@ -243,40 +262,57 @@ export default function BulkUploadPage() {
             type="file"
             accept=".csv"
             onChange={handleFileSelect}
-            className="hidden"
+            className={css({ srOnly: true })}
           />
 
           {!file ? (
             <div
-              className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer hover:bg-muted/50 transition"
+              className={css({
+                border: "2px dashed",
+                borderColor: "border.subtle",
+                borderRadius: "lg",
+                padding: "12",
+                textAlign: "center",
+                cursor: "pointer",
+                transition: "background 0.15s ease",
+                "&:hover": { background: "bg.canvas" },
+              })}
               onClick={() => fileInputRef.current?.click()}
             >
-              <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-              <p className="text-lg font-medium mb-1">
+              <FileSpreadsheet
+                className={css({
+                  height: "12",
+                  width: "12",
+                  marginInline: "auto",
+                  color: "fg.muted",
+                  marginBottom: "3",
+                })}
+              />
+              <p className={css({ fontSize: "lg", fontWeight: "medium", marginBottom: "1", color: "fg.default" })}>
                 Click to upload CSV file
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className={css({ fontSize: "sm", color: "fg.muted" })}>
                 Or drag and drop your file here
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
               <Alert>
-                <Upload className="h-4 w-4" />
+                <Upload className={css({ height: "4", width: "4" })} />
                 <AlertDescription>
                   File: <strong>{file.name}</strong> ({preview.length} rows)
                 </AlertDescription>
               </Alert>
 
               {preview.length > 0 && (
-                <div className="flex items-center gap-4">
-                  <Badge variant="default" className="gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
+                <div className={css({ display: "flex", alignItems: "center", gap: "4" })}>
+                  <Badge variant="default" className={css({ gap: "1" })}>
+                    <CheckCircle2 className={css({ height: "3", width: "3" })} />
                     {validCount} Valid
                   </Badge>
                   {errorCount > 0 && (
-                    <Badge variant="destructive" className="gap-1">
-                      <XCircle className="h-3 w-3" />
+                    <Badge variant="destructive" className={css({ gap: "1" })}>
+                      <XCircle className={css({ height: "3", width: "3" })} />
                       {errorCount} Errors
                     </Badge>
                   )}
@@ -295,11 +331,19 @@ export default function BulkUploadPage() {
             <CardDescription>Review before importing</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border max-h-[500px] overflow-y-auto">
+            <div
+              className={css({
+                borderRadius: "md",
+                border: "1px solid",
+                borderColor: "border.subtle",
+                maxHeight: "[500px]",
+                overflowY: "auto",
+              })}
+            >
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">Row</TableHead>
+                    <TableHead className={css({ width: "12" })}>Row</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Price</TableHead>
@@ -311,7 +355,7 @@ export default function BulkUploadPage() {
                   {preview.slice(0, 50).map((v) => (
                     <TableRow key={v.row}>
                       <TableCell>{v.row}</TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className={css({ fontWeight: "medium" })}>
                         {v.data.name}
                       </TableCell>
                       <TableCell>{v.data.category}</TableCell>
@@ -321,19 +365,19 @@ export default function BulkUploadPage() {
                       <TableCell>{v.data.stock}</TableCell>
                       <TableCell>
                         {v.errors.length > 0 ? (
-                          <div className="space-y-1">
+                          <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
                             <Badge variant="destructive">Errors</Badge>
                             {v.errors.map((err, i) => (
-                              <p key={i} className="text-xs text-red-600">
+                              <p key={i} className={css({ fontSize: "xs", color: "danger" })}>
                                 {err}
                               </p>
                             ))}
                           </div>
                         ) : (
-                          <div className="space-y-1">
+                          <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
                             <Badge variant="default">Valid</Badge>
                             {v.warnings.map((warn, i) => (
-                              <p key={i} className="text-xs text-yellow-600">
+                              <p key={i} className={css({ fontSize: "xs", color: "gold.700" })}>
                                 ⚠️ {warn}
                               </p>
                             ))}
@@ -347,7 +391,7 @@ export default function BulkUploadPage() {
             </div>
 
             {preview.length > 50 && (
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className={css({ fontSize: "sm", color: "fg.muted", marginTop: "2" })}>
                 Showing first 50 rows of {preview.length}
               </p>
             )}
@@ -357,7 +401,14 @@ export default function BulkUploadPage() {
 
       {/* Actions */}
       {preview.length > 0 && (
-        <div className="flex justify-end gap-3">
+        <div
+          className={css({
+            display: "flex",
+            flexDirection: "column-reverse",
+            gap: "3",
+            sm: { flexDirection: "row", justifyContent: "flex-end" },
+          })}
+        >
           <Button
             variant="outline"
             onClick={() => {
@@ -371,7 +422,7 @@ export default function BulkUploadPage() {
             onClick={handleUpload}
             disabled={uploading || validCount === 0}
           >
-            {uploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {uploading && <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />}
             Import {validCount} Products
           </Button>
         </div>

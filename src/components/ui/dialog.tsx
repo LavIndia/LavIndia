@@ -1,143 +1,220 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { XIcon } from "lucide-react"
+import * as React from "react";
+import {
+  DialogTrigger as AriaDialogTrigger,
+  Modal as AriaModal,
+  ModalOverlay as AriaModalOverlay,
+  Dialog as AriaDialog,
+  Heading as AriaHeading,
+  Button as AriaButton,
+  OverlayTriggerStateContext,
+  type DialogProps as AriaDialogProps,
+} from "react-aria-components";
+import { XIcon } from "lucide-react";
+import { css, cx } from "styled-system/css";
 
-import { cn } from "@/lib/utils"
+// React Aria's Modal/ModalOverlay expose [data-entering]/[data-exiting] and
+// defer unmounting until getAnimations() on their own DOM node settles — a
+// plain CSS transition keyed on those attributes is picked up automatically,
+// no animation library or manual isOpen-from-context plumbing needed. Base
+// styles are the resting "open" state; [data-entering]/[data-exiting] both
+// represent the hidden state the transition plays to/from.
+const overlayStyle = css({
+  position: "fixed",
+  inset: 0,
+  zIndex: "50",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "4",
+  background: "rgba(18, 17, 16, 0.45)",
+  transition: "opacity 0.18s ease-out",
+  "&[data-entering], &[data-exiting]": { opacity: 0 },
+});
 
-function Dialog({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+const modalStyle = css({
+  width: "full",
+  maxWidth: "32rem",
+  maxHeight: "90vh",
+  overflowY: "auto",
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.glass",
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  boxShadow: "glassLg",
+  outline: "none",
+  position: "relative",
+  transition: "opacity 0.18s ease-out, transform 0.18s ease-out",
+  "&[data-entering], &[data-exiting]": { opacity: 0, transform: "scale(0.96) translateY(8px)" },
+});
+
+const dialogSectionStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "4",
+  padding: "6",
+  color: "fg.default",
+  outline: "none",
+});
+
+const closeButtonStyle = css({
+  position: "absolute",
+  top: "4",
+  right: "4",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  height: "8",
+  width: "8",
+  borderRadius: "full",
+  color: "fg.muted",
+  background: "transparent",
+  cursor: "pointer",
+  outline: "none",
+  transition: "background 0.15s ease, color 0.15s ease",
+  "&[data-hovered]": { background: "bg.surface", color: "fg.default" },
+  "&[data-focus-visible]": { boxShadow: "0 0 0 3px token(colors.gold.200)" },
+  "& svg": { pointerEvents: "none" },
+});
+
+/** Back-compat alias: old Radix API used `open`/`onOpenChange`; React Aria's DialogTrigger uses `isOpen`/`onOpenChange` (same callback shape), so we just bridge `open` -> `isOpen`. */
+export interface DialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  defaultOpen?: boolean;
+  children?: React.ReactNode;
 }
 
-function DialogTrigger({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
-}
-
-function DialogPortal({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
-}
-
-function DialogClose({
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
-}
-
-function DialogOverlay({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+export function Dialog({ open, onOpenChange, defaultOpen, children }: DialogProps) {
   return (
-    <DialogPrimitive.Overlay
-      data-slot="dialog-overlay"
-      className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
-        className
-      )}
-      {...props}
-    />
-  )
+    <AriaDialogTrigger isOpen={open} defaultOpen={defaultOpen} onOpenChange={onOpenChange}>
+      {children}
+    </AriaDialogTrigger>
+  );
 }
 
-function DialogContent({
+export interface DialogTriggerProps {
+  asChild?: boolean;
+  children?: React.ReactNode;
+}
+
+export function DialogTrigger({ asChild, children }: DialogTriggerProps) {
+  if (asChild) {
+    return React.Children.only(children) as React.ReactElement;
+  }
+  return <AriaButton>{children}</AriaButton>;
+}
+
+export interface DialogCloseProps {
+  asChild?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+  onClick?: () => void;
+}
+
+export function DialogClose({ asChild, className, children, onClick }: DialogCloseProps) {
+  const state = React.useContext(OverlayTriggerStateContext);
+  const handlePress = () => {
+    onClick?.();
+    state?.close();
+  };
+
+  if (asChild) {
+    const child = React.Children.only(children) as React.ReactElement<{
+      className?: string;
+      onClick?: (event: React.MouseEvent) => void;
+    }>;
+    return React.cloneElement(child, {
+      className: cx(className, child.props.className),
+      onClick: (event: React.MouseEvent) => {
+        child.props.onClick?.(event);
+        handlePress();
+      },
+    });
+  }
+
+  return (
+    <AriaButton className={className} onPress={handlePress}>
+      {children}
+    </AriaButton>
+  );
+}
+
+export interface DialogContentProps
+  extends Omit<AriaDialogProps, "className" | "children"> {
+  className?: string;
+  children?: React.ReactNode;
+  showCloseButton?: boolean;
+}
+
+export function DialogContent({
   className,
   children,
   showCloseButton = true,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  showCloseButton?: boolean
-}) {
+}: DialogContentProps) {
+  const state = React.useContext(OverlayTriggerStateContext);
+
   return (
-    <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        data-slot="dialog-content"
-        className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-          >
-            <XIcon />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Content>
-    </DialogPortal>
-  )
+    <AriaModalOverlay isDismissable className={overlayStyle}>
+      <AriaModal className={cx(modalStyle, className)}>
+        <AriaDialog className={dialogSectionStyle} {...props}>
+          {children}
+          {showCloseButton && (
+            <AriaButton className={closeButtonStyle} onPress={() => state?.close()} aria-label="Close">
+              <XIcon size={16} aria-hidden />
+            </AriaButton>
+          )}
+        </AriaDialog>
+      </AriaModal>
+    </AriaModalOverlay>
+  );
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
-      {...props}
-    />
-  )
-}
-
-function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="dialog-footer"
-      className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+      className={cx(
+        css({ display: "flex", flexDirection: "column", gap: "1.5", textAlign: { base: "center", md: "left" } }),
         className
       )}
       {...props}
     />
-  )
+  );
 }
 
-function DialogTitle({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <DialogPrimitive.Title
-      data-slot="dialog-title"
-      className={cn("text-lg leading-none font-semibold", className)}
+    <div
+      className={cx(
+        css({
+          display: "flex",
+          flexDirection: { base: "column-reverse", md: "row" },
+          gap: "2",
+          justifyContent: { md: "flex-end" },
+        }),
+        className
+      )}
       {...props}
     />
-  )
+  );
 }
 
-function DialogDescription({
-  className,
-  ...props
-}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+export function DialogTitle({ className, ...props }: React.ComponentProps<typeof AriaHeading>) {
   return (
-    <DialogPrimitive.Description
-      data-slot="dialog-description"
-      className={cn("text-muted-foreground text-sm", className)}
+    <AriaHeading
+      slot="title"
+      className={cx(
+        css({ fontFamily: "display", fontSize: "lg", fontWeight: "semibold", lineHeight: "none", color: "fg.default" }),
+        className
+      )}
       {...props}
     />
-  )
+  );
 }
 
-export {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-  DialogTrigger,
+export function DialogDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cx(css({ fontSize: "sm", color: "fg.muted" }), className)} {...props} />;
 }

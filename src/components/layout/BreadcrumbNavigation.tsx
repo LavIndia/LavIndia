@@ -11,6 +11,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { css } from "styled-system/css";
+
+const separatorStyle = css({ color: "fg.muted" });
+const pageStyle = css({ color: "fg.default", fontWeight: "medium" });
+const linkStyle = css({
+  color: "fg.muted",
+  transition: "color 0.15s ease",
+  textUnderlineOffset: "4px",
+  cursor: "pointer",
+  "&:hover, &[data-hovered]": { color: "accent.pressed", textDecoration: "underline" },
+});
 
 // Route configuration for breadcrumbs
 const ROUTE_CONFIG: Record<string, string> = {
@@ -67,8 +78,10 @@ function generateBreadcrumbs(pathname: string) {
     // Handle product route specially - skip 'product' and use next segment as product name
     if (segment === "product" && i + 1 < segments.length) {
       const productSlug = segments[i + 1];
-      // Convert slug to readable name (e.g., "gold-earrings" -> "Gold Earrings")
+      // Convert slug to readable name (e.g., "gold-earrings-1761479122480" -> "Gold Earrings").
+      // Product slugs always end in a numeric uniqueness suffix — strip it for display.
       const productName = productSlug
+        .replace(/-\d+$/, "")
         .split("-")
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join(" ");
@@ -110,21 +123,18 @@ export function BreadcrumbNavigation() {
 
   return (
     <Breadcrumb>
-      <BreadcrumbList className="text-sm">
+      <BreadcrumbList>
         {breadcrumbs.map((crumb, index) => (
           <Fragment key={crumb.href}>
-            {index > 0 && <BreadcrumbSeparator className="text-gray-400" />}
+            {index > 0 && <BreadcrumbSeparator className={separatorStyle} />}
             <BreadcrumbItem>
               {index === breadcrumbs.length - 1 ? (
-                <BreadcrumbPage className="text-gray-700 font-medium">
+                <BreadcrumbPage className={pageStyle}>
                   {crumb.label}
                 </BreadcrumbPage>
               ) : (
                 <BreadcrumbLink asChild>
-                  <Link
-                    href={crumb.href}
-                    className="text-gray-600 hover:text-amber-600 transition-colors underline-offset-4 hover:underline cursor-pointer"
-                  >
+                  <Link href={crumb.href} className={linkStyle}>
                     {crumb.label}
                   </Link>
                 </BreadcrumbLink>

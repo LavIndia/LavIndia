@@ -1,5 +1,6 @@
 "use client";
 
+import { css } from "styled-system/css";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
@@ -9,15 +10,32 @@ export function AnalyticsHeader() {
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div
+      className={css({
+        display: "flex",
+        flexDirection: "column",
+        gap: "4",
+        sm: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
+      })}
+    >
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1
+          className={css({
+            fontFamily: "display",
+            fontSize: "3xl",
+            fontWeight: "bold",
+            letterSpacing: "tight",
+            color: "fg.default",
+          })}
+        >
+          Analytics
+        </h1>
+        <p className={css({ color: "fg.muted", marginTop: "2", fontSize: "sm" })}>
           Track your business performance and insights
         </p>
       </div>
       <Button variant="outline" onClick={handleExport}>
-        <Download className="h-4 w-4 mr-2" />
+        <Download className={css({ height: "4", width: "4" })} />
         Export Report
       </Button>
     </div>

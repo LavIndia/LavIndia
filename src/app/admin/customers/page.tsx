@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { CustomersTable } from "@/components/admin/customers/CustomersTable";
 import { CustomersHeader } from "@/components/admin/customers/CustomersHeader";
+import { css } from "styled-system/css";
+
+const pageStyle = css({ display: "flex", flexDirection: "column", gap: "6" });
 
 async function getCustomers() {
   const customers = await prisma.user.findMany({
@@ -81,7 +84,7 @@ export default async function CustomersPage() {
   const customers = await getCustomers();
 
   return (
-    <div className="space-y-6">
+    <div className={pageStyle}>
       <CustomersHeader />
       <CustomersTable customers={customers} />
     </div>

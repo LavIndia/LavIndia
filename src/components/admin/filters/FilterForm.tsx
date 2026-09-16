@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Trash2, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { css } from "styled-system/css";
 
 interface FilterOption {
   id?: string;
@@ -39,6 +40,62 @@ interface FilterFormProps {
   };
   categories: Array<{ id: string; name: string }>;
 }
+
+const formStyle = css({ display: "flex", flexDirection: "column", gap: "6" });
+const cardBodyStyle = css({ display: "flex", flexDirection: "column", gap: "4" });
+const fieldStyle = css({ display: "flex", flexDirection: "column", gap: "1.5" });
+const requiredMarkStyle = css({ color: "danger", marginLeft: "0.5" });
+
+const slugRowStyle = css({ display: "flex", flexDirection: "column", gap: "3", sm: { flexDirection: "row" } });
+const slugFieldStyle = css({ flex: "1", display: "flex", flexDirection: "column", gap: "1.5" });
+const autoGenWrapStyle = css({ display: "flex", alignItems: "flex-end" });
+
+const checkboxRowStyle = css({ display: "flex", alignItems: "center", gap: "2" });
+const checkboxLabelStyle = css({ cursor: "pointer" });
+
+const optionsListStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
+const optionRowStyle = css({
+  display: "flex",
+  alignItems: "center",
+  gap: "2",
+  padding: "3",
+  background: "bg.canvas",
+  borderRadius: "lg",
+  border: "1px solid",
+  borderColor: "border.subtle",
+});
+const optionInfoStyle = css({ flex: "1" });
+const optionLabelStyle = css({ fontWeight: "medium", color: "fg.default" });
+const optionValueStyle = css({ fontSize: "sm", color: "fg.muted" });
+const swatchStyle = css({
+  width: "8",
+  height: "8",
+  borderRadius: "md",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  flexShrink: 0,
+});
+const optionActionsStyle = css({ display: "flex", gap: "1" });
+
+const addOptionBoxStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "3",
+  padding: "3",
+  background: "bg.canvas",
+  borderRadius: "lg",
+  border: "1px solid",
+  borderColor: "border.subtle",
+});
+const addOptionTitleStyle = css({ fontSize: "sm", fontWeight: "medium", color: "fg.default" });
+const colorRowStyle = css({ display: "flex", gap: "2" });
+const colorSwatchInputStyle = css({ width: "20", height: "10", padding: "1" });
+const fullWidthIconStyle = css({ marginRight: "2", height: "4", width: "4" });
+
+const categoriesListStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
+const categoryRowStyle = css({ display: "flex", alignItems: "center", gap: "2" });
+
+const actionsRowStyle = css({ display: "flex", gap: "2", justifyContent: "flex-end" });
 
 export function FilterForm({ filter, categories }: FilterFormProps) {
   const router = useRouter();
@@ -155,15 +212,18 @@ export function FilterForm({ filter, categories }: FilterFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className={formStyle}>
       {/* Basic Info */}
       <Card>
         <CardHeader>
           <CardTitle>Filter Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label>Filter Name</Label>
+        <CardContent className={cardBodyStyle}>
+          <div className={fieldStyle}>
+            <Label>
+              Filter Name
+              <span className={requiredMarkStyle}>*</span>
+            </Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -172,16 +232,20 @@ export function FilterForm({ filter, categories }: FilterFormProps) {
             />
           </div>
 
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Label>Slug</Label>
+          <div className={slugRowStyle}>
+            <div className={slugFieldStyle}>
+              <Label>
+                Slug
+                <span className={requiredMarkStyle}>*</span>
+              </Label>
               <Input
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
                 placeholder="e.g., price-range"
+                required
               />
             </div>
-            <div className="flex items-end">
+            <div className={autoGenWrapStyle}>
               <Button
                 type="button"
                 variant="outline"
@@ -192,9 +256,12 @@ export function FilterForm({ filter, categories }: FilterFormProps) {
             </div>
           </div>
 
-          <div>
-            <Label>Filter Type</Label>
-            <Select value={type} onValueChange={setType}>
+          <div className={fieldStyle}>
+            <Label>
+              Filter Type
+              <span className={requiredMarkStyle}>*</span>
+            </Label>
+            <Select value={type} onValueChange={setType} isRequired>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -207,7 +274,7 @@ export function FilterForm({ filter, categories }: FilterFormProps) {
             </Select>
           </div>
 
-          <div>
+          <div className={fieldStyle}>
             <Label>Description</Label>
             <Input
               value={description}
@@ -216,13 +283,13 @@ export function FilterForm({ filter, categories }: FilterFormProps) {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className={checkboxRowStyle}>
             <Checkbox
               id="isActive"
               checked={isActive}
               onCheckedChange={(checked) => setIsActive(checked as boolean)}
             />
-            <Label htmlFor="isActive" className="cursor-pointer">
+            <Label htmlFor="isActive" className={checkboxLabelStyle}>
               Active
             </Label>
           </div>
@@ -234,98 +301,96 @@ export function FilterForm({ filter, categories }: FilterFormProps) {
         <CardHeader>
           <CardTitle>Filter Options</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-3">
-            {options.length > 0 && (
-              <div className="space-y-2">
-                {options.map((option, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <div className="font-medium">{option.label}</div>
-                      <div className="text-sm text-gray-600">{option.value}</div>
-                    </div>
-                    {option.color && (
-                      <div
-                        className="w-8 h-8 rounded-md border border-gray-200"
-                        style={{ backgroundColor: option.color }}
-                      />
-                    )}
-                    <div className="flex gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveOption(idx, "up")}
-                        disabled={idx === 0}
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => moveOption(idx, "down")}
-                        disabled={idx === options.length - 1}
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeOption(idx)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
+        <CardContent className={cardBodyStyle}>
+          {options.length > 0 && (
+            <div className={optionsListStyle}>
+              {options.map((option, idx) => (
+                <div key={idx} className={optionRowStyle}>
+                  <div className={optionInfoStyle}>
+                    <div className={optionLabelStyle}>{option.label}</div>
+                    <div className={optionValueStyle}>{option.value}</div>
                   </div>
-                ))}
+                  {option.color && (
+                    <div
+                      className={swatchStyle}
+                      style={{ backgroundColor: option.color }}
+                    />
+                  )}
+                  <div className={optionActionsStyle}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => moveOption(idx, "up")}
+                      disabled={idx === 0}
+                      aria-label="Move option up"
+                    >
+                      <ChevronUp className={css({ height: "4", width: "4" })} />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => moveOption(idx, "down")}
+                      disabled={idx === options.length - 1}
+                      aria-label="Move option down"
+                    >
+                      <ChevronDown className={css({ height: "4", width: "4" })} />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeOption(idx)}
+                      aria-label="Remove option"
+                    >
+                      <Trash2 className={css({ height: "4", width: "4", color: "danger" })} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className={addOptionBoxStyle}>
+            <div className={addOptionTitleStyle}>Add New Option</div>
+            <Input
+              value={newOption.label}
+              onChange={(e) =>
+                setNewOption({ ...newOption, label: e.target.value })
+              }
+              placeholder="Option Label (e.g., Under ₹5,000)"
+            />
+            <Input
+              value={newOption.value}
+              onChange={(e) =>
+                setNewOption({ ...newOption, value: e.target.value })
+              }
+              placeholder="Option Value (e.g., 0-5000)"
+            />
+            {type === "COLOR" && (
+              <div className={colorRowStyle}>
+                <Input
+                  type="color"
+                  value={newOption.color || "#000000"}
+                  onChange={(e) =>
+                    setNewOption({ ...newOption, color: e.target.value })
+                  }
+                  className={colorSwatchInputStyle}
+                />
+                <Input
+                  value={newOption.color}
+                  onChange={(e) =>
+                    setNewOption({ ...newOption, color: e.target.value })
+                  }
+                  placeholder="Hex code"
+                />
               </div>
             )}
-
-            <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
-              <div className="text-sm font-medium">Add New Option</div>
-              <Input
-                value={newOption.label}
-                onChange={(e) =>
-                  setNewOption({ ...newOption, label: e.target.value })
-                }
-                placeholder="Option Label (e.g., Under ₹5,000)"
-              />
-              <Input
-                value={newOption.value}
-                onChange={(e) =>
-                  setNewOption({ ...newOption, value: e.target.value })
-                }
-                placeholder="Option Value (e.g., 0-5000)"
-              />
-              {type === "COLOR" && (
-                <div className="flex gap-2">
-                  <Input
-                    type="color"
-                    value={newOption.color || "#000000"}
-                    onChange={(e) =>
-                      setNewOption({ ...newOption, color: e.target.value })
-                    }
-                    className="w-20 h-10"
-                  />
-                  <Input
-                    value={newOption.color}
-                    onChange={(e) =>
-                      setNewOption({ ...newOption, color: e.target.value })
-                    }
-                    placeholder="Hex code"
-                  />
-                </div>
-              )}
-              <Button type="button" onClick={addOption} className="w-full">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Option
-              </Button>
-            </div>
+            <Button type="button" onClick={addOption} className={css({ width: "full" })}>
+              <Plus className={fullWidthIconStyle} />
+              Add Option
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -336,9 +401,9 @@ export function FilterForm({ filter, categories }: FilterFormProps) {
           <CardTitle>Assign to Categories</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
+          <div className={categoriesListStyle}>
             {categories.map((category) => (
-              <div key={category.id} className="flex items-center gap-2">
+              <div key={category.id} className={categoryRowStyle}>
                 <Checkbox
                   id={category.id}
                   checked={selectedCategories.includes(category.id)}
@@ -355,10 +420,7 @@ export function FilterForm({ filter, categories }: FilterFormProps) {
                     }
                   }}
                 />
-                <Label
-                  htmlFor={category.id}
-                  className="cursor-pointer"
-                >
+                <Label htmlFor={category.id} className={checkboxLabelStyle}>
                   {category.name}
                 </Label>
               </div>
@@ -368,7 +430,7 @@ export function FilterForm({ filter, categories }: FilterFormProps) {
       </Card>
 
       {/* Actions */}
-      <div className="flex gap-2 justify-end">
+      <div className={actionsRowStyle}>
         <Button
           type="button"
           variant="outline"

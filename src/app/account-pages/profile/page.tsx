@@ -18,6 +18,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Loader2,
@@ -28,10 +29,15 @@ import {
   Heart,
   Trash2,
   Plus,
+  ShieldCheck,
+  Smartphone,
+  Monitor,
+  Tablet,
 } from "lucide-react";
 import { toast } from "sonner";
 import AddressForm from "@/components/profile/AddressForm";
 import AddressCard from "@/components/profile/AddressCard";
+import { css, cva } from "styled-system/css";
 
 interface Address {
   id: string;
@@ -66,6 +72,76 @@ interface WishlistItem {
   };
 }
 
+interface LoginEvent {
+  id: string;
+  ipAddress: string | null;
+  browser: string | null;
+  os: string | null;
+  deviceType: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  createdAt: string;
+}
+
+const statusToneStyle = cva({
+  base: {
+    display: "inline-flex",
+    alignItems: "center",
+    borderRadius: "full",
+    border: "1px solid",
+    paddingInline: "3",
+    paddingBlock: "1",
+    fontSize: "xs",
+    fontWeight: "medium",
+    fontFamily: "body",
+  },
+  variants: {
+    tone: {
+      neutral: { background: "bg.surface", color: "fg.muted", borderColor: "border.subtle" },
+      gold: { background: "gold.50", color: "gold.700", borderColor: "gold.200" },
+      success: {
+        background: "rgba(47,107,88,0.1)",
+        color: "success",
+        borderColor: "rgba(47,107,88,0.25)",
+      },
+      danger: {
+        background: "rgba(138,44,59,0.1)",
+        color: "danger",
+        borderColor: "rgba(138,44,59,0.25)",
+      },
+    },
+  },
+  defaultVariants: { tone: "neutral" },
+});
+
+const statusTone = (status: string): "neutral" | "gold" | "success" | "danger" => {
+  switch (status.toLowerCase()) {
+    case "delivered":
+      return "success";
+    case "cancelled":
+      return "danger";
+    case "shipped":
+    case "processing":
+    case "confirmed":
+      return "gold";
+    default:
+      return "neutral";
+  }
+};
+
+const emptyStateStyle = css({
+  paddingBlock: "12",
+  textAlign: "center",
+});
+
+const sectionHeadingStyle = css({
+  fontFamily: "display",
+  fontSize: { base: "xl", md: "2xl" },
+  fontWeight: "semibold",
+  color: "fg.default",
+});
+
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -75,6 +151,7 @@ export default function ProfilePage() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
+  const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
 
@@ -105,6 +182,13 @@ export default function ProfilePage() {
       if (wishlistRes.ok) {
         const { wishlist: fetchedWishlist } = await wishlistRes.json();
         setWishlist(fetchedWishlist);
+      }
+
+      // Load login history
+      const loginEventsRes = await fetch("/api/user/login-events");
+      if (loginEventsRes.ok) {
+        const { events } = await loginEventsRes.json();
+        setLoginEvents(events);
       }
     } catch (error) {
       console.error("Failed to load profile data:", error);
@@ -239,8 +323,15 @@ export default function ProfilePage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div
+        className={css({
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+        })}
+      >
+        <Loader2 className={css({ h: "8", w: "8", animation: "spin", color: "accent.default" })} />
       </div>
     );
   }
@@ -249,82 +340,109 @@ export default function ProfilePage() {
     return null;
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "delivered":
-        return "bg-green-100 text-green-800";
-      case "shipped":
-        return "bg-blue-100 text-blue-800";
-      case "processing":
-        return "bg-yellow-100 text-yellow-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-white">
+    <div className={css({ minHeight: "100vh", background: "bg.canvas" })}>
       <TopPromoBanner />
       <HeaderSection />
 
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <h1 className="text-3xl font-bold mb-8">My Profile</h1>
+      <div
+        className={css({
+          marginInline: "auto",
+          paddingInline: "4",
+          paddingBlock: "8",
+          maxWidth: "7xl",
+        })}
+      >
+        <h1
+          className={css({
+            fontFamily: "display",
+            fontSize: { base: "2xl", md: "3xl" },
+            fontWeight: "bold",
+            color: "fg.default",
+            marginBottom: "8",
+          })}
+        >
+          My Profile
+        </h1>
 
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
+        <Tabs defaultValue="profile" className={css({ gap: "6" })}>
+          <TabsList
+            className={css({
+              display: "grid",
+              width: "full",
+              gridTemplateColumns: "repeat(2, 1fr)",
+              md: { gridTemplateColumns: "repeat(5, 1fr)", maxWidth: "3xl" },
+              height: "auto",
+            })}
+          >
+            <TabsTrigger value="profile" className={css({ gap: "2" })}>
+              <User className={css({ h: "4", w: "4" })} />
               Profile
             </TabsTrigger>
-            <TabsTrigger value="addresses" className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
+            <TabsTrigger value="addresses" className={css({ gap: "2" })}>
+              <MapPin className={css({ h: "4", w: "4" })} />
               Addresses
             </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
+            <TabsTrigger value="orders" className={css({ gap: "2" })}>
+              <Package className={css({ h: "4", w: "4" })} />
               Orders
             </TabsTrigger>
-            <TabsTrigger value="wishlist" className="flex items-center gap-2">
-              <Heart className="h-4 w-4" />
+            <TabsTrigger value="wishlist" className={css({ gap: "2" })}>
+              <Heart className={css({ h: "4", w: "4" })} />
               Wishlist
+            </TabsTrigger>
+            <TabsTrigger value="security" className={css({ gap: "2" })}>
+              <ShieldCheck className={css({ h: "4", w: "4" })} />
+              Security
             </TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
           <TabsContent value="profile">
-            <Card>
+            <Card variant="glass">
               <CardHeader>
                 <CardTitle>Profile Information</CardTitle>
                 <CardDescription>
                   Manage your account details and profile picture
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
                 {/* Profile Picture */}
-                <div className="flex items-center gap-6">
-                  <Avatar className="h-24 w-24">
+                <div
+                  className={css({
+                    display: "flex",
+                    flexDirection: { base: "column", sm: "row" },
+                    alignItems: { base: "flex-start", sm: "center" },
+                    gap: "6",
+                  })}
+                >
+                  <Avatar className={css({ h: "24", w: "24" })}>
                     <AvatarImage
                       src={profilePicture || undefined}
                       alt={session.user.name || "User"}
                     />
-                    <AvatarFallback className="text-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white">
+                    <AvatarFallback
+                      className={css({
+                        fontSize: "2xl",
+                        background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+                        color: "fg.onGold",
+                      })}
+                    >
                       {session.user.name?.charAt(0).toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="space-y-2">
+                  <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
                     <label htmlFor="profile-picture-upload">
                       <Button asChild variant="outline" disabled={uploading}>
-                        <span className="cursor-pointer">
+                        <span className={css({ cursor: "pointer" })}>
                           {uploading ? (
                             <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <Loader2 className={css({ h: "4", w: "4", animation: "spin" })} />
                               Uploading...
                             </>
                           ) : (
                             <>
-                              <Upload className="mr-2 h-4 w-4" />
+                              <Upload className={css({ h: "4", w: "4" })} />
                               Upload Photo
                             </>
                           )}
@@ -336,7 +454,7 @@ export default function ProfilePage() {
                       type="file"
                       accept="image/*"
                       onChange={handleProfilePictureUpload}
-                      className="hidden"
+                      className={css({ srOnly: true })}
                     />
                     {profilePicture && (
                       <Button
@@ -344,43 +462,55 @@ export default function ProfilePage() {
                         size="sm"
                         onClick={handleDeleteProfilePicture}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" />
+                        <Trash2 className={css({ h: "4", w: "4" })} />
                         Remove
                       </Button>
                     )}
-                    <p className="text-sm text-gray-500">Max file size: 5MB</p>
+                    <p className={css({ fontSize: "sm", color: "fg.muted" })}>
+                      Max file size: 5MB
+                    </p>
                   </div>
                 </div>
 
                 {/* User Info */}
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium">Name</label>
-                    <Input
-                      value={session.user.name || ""}
-                      disabled
-                      className="mt-1"
-                    />
+                <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+                  <div className={css({ display: "flex", flexDirection: "column", gap: "1.5" })}>
+                    <Label>Name</Label>
+                    <Input value={session.user.name || ""} disabled />
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">Email</label>
-                    <Input
-                      value={session.user.email || ""}
-                      disabled
-                      className="mt-1"
-                    />
+                  <div className={css({ display: "flex", flexDirection: "column", gap: "1.5" })}>
+                    <Label>Username</Label>
+                    <Input value={session.user.username || ""} disabled />
                   </div>
+                  <div className={css({ display: "flex", flexDirection: "column", gap: "1.5" })}>
+                    <Label>Email</Label>
+                    <Input value={session.user.email || ""} disabled />
+                  </div>
+                  {session.user.mobile && (
+                    <div className={css({ display: "flex", flexDirection: "column", gap: "1.5" })}>
+                      <Label>Mobile</Label>
+                      <Input value={session.user.mobile} disabled />
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Addresses Tab */}
-          <TabsContent value="addresses" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-semibold">Saved Addresses</h2>
+          <TabsContent value="addresses" className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <div
+              className={css({
+                display: "flex",
+                flexDirection: { base: "column", sm: "row" },
+                alignItems: { base: "flex-start", sm: "center" },
+                justifyContent: "space-between",
+                gap: "3",
+              })}
+            >
+              <h2 className={sectionHeadingStyle}>Saved Addresses</h2>
               <Button onClick={handleAddAddress}>
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className={css({ h: "4", w: "4" })} />
                 Add Address
               </Button>
             </div>
@@ -398,18 +528,39 @@ export default function ProfilePage() {
 
             {addresses.length === 0 ? (
               <Card>
-                <CardContent className="py-12 text-center">
-                  <MapPin className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-4 text-lg font-medium">
+                <CardContent className={emptyStateStyle}>
+                  <MapPin
+                    className={css({
+                      marginInline: "auto",
+                      h: "12",
+                      w: "12",
+                      color: "fg.muted",
+                    })}
+                  />
+                  <h3
+                    className={css({
+                      marginTop: "4",
+                      fontSize: "lg",
+                      fontWeight: "medium",
+                      color: "fg.default",
+                    })}
+                  >
                     No addresses saved
                   </h3>
-                  <p className="mt-2 text-sm text-gray-500">
+                  <p className={css({ marginTop: "2", fontSize: "sm", color: "fg.muted" })}>
                     Add a shipping address to get started
                   </p>
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div
+                className={css({
+                  display: "grid",
+                  gap: "4",
+                  gridTemplateColumns: "1fr",
+                  md: { gridTemplateColumns: "1fr 1fr" },
+                })}
+              >
                 {addresses.map((address) => (
                   <AddressCard
                     key={address.id}
@@ -423,28 +574,52 @@ export default function ProfilePage() {
           </TabsContent>
 
           {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-4">
-            <h2 className="text-2xl font-semibold">Order History</h2>
+          <TabsContent value="orders" className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <h2 className={sectionHeadingStyle}>Order History</h2>
 
             {orders.length === 0 ? (
               <Card>
-                <CardContent className="py-12 text-center">
-                  <Package className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-4 text-lg font-medium">No orders yet</h3>
-                  <p className="mt-2 text-sm text-gray-500">
+                <CardContent className={emptyStateStyle}>
+                  <Package
+                    className={css({
+                      marginInline: "auto",
+                      h: "12",
+                      w: "12",
+                      color: "fg.muted",
+                    })}
+                  />
+                  <h3
+                    className={css({
+                      marginTop: "4",
+                      fontSize: "lg",
+                      fontWeight: "medium",
+                      color: "fg.default",
+                    })}
+                  >
+                    No orders yet
+                  </h3>
+                  <p className={css({ marginTop: "2", fontSize: "sm", color: "fg.muted" })}>
                     Your order history will appear here
                   </p>
-                  <Button className="mt-4" onClick={() => router.push("/")}>
+                  <Button className={css({ marginTop: "4" })} onClick={() => router.push("/")}>
                     Start Shopping
                   </Button>
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
+              <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
                 {orders.map((order) => (
                   <Card key={order.id}>
                     <CardHeader>
-                      <div className="flex justify-between items-start">
+                      <div
+                        className={css({
+                          display: "flex",
+                          flexDirection: { base: "column", sm: "row" },
+                          justifyContent: "space-between",
+                          alignItems: { base: "flex-start", sm: "flex-start" },
+                          gap: "3",
+                        })}
+                      >
                         <div>
                           <CardTitle>Order #{order.orderNumber}</CardTitle>
                           <CardDescription>
@@ -452,21 +627,21 @@ export default function ProfilePage() {
                             {new Date(order.createdAt).toLocaleDateString()}
                           </CardDescription>
                         </div>
-                        <Badge className={getStatusColor(order.status)}>
+                        <span className={statusToneStyle({ tone: statusTone(order.status) })}>
                           {order.status}
-                        </Badge>
+                        </span>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        <p className="text-sm">
+                      <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
+                        <p className={css({ fontSize: "sm", color: "fg.default" })}>
                           <strong>Items:</strong> {order.items.length}
                         </p>
-                        <p className="text-sm">
+                        <p className={css({ fontSize: "sm", color: "fg.default" })}>
                           <strong>Total:</strong> ₹
                           {((order.totalCents || 0) / 100).toLocaleString()}
                         </p>
-                        <p className="text-sm">
+                        <p className={css({ fontSize: "sm", color: "fg.default" })}>
                           <strong>Shipping to:</strong> {order.address.fullName}
                           , {order.address.city}
                         </p>
@@ -479,54 +654,94 @@ export default function ProfilePage() {
           </TabsContent>
 
           {/* Wishlist Tab */}
-          <TabsContent value="wishlist" className="space-y-4">
-            <h2 className="text-2xl font-semibold">My Wishlist</h2>
+          <TabsContent value="wishlist" className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <h2 className={sectionHeadingStyle}>My Wishlist</h2>
 
             {wishlist.length === 0 ? (
               <Card>
-                <CardContent className="py-12 text-center">
-                  <Heart className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-4 text-lg font-medium">
+                <CardContent className={emptyStateStyle}>
+                  <Heart
+                    className={css({
+                      marginInline: "auto",
+                      h: "12",
+                      w: "12",
+                      color: "fg.muted",
+                    })}
+                  />
+                  <h3
+                    className={css({
+                      marginTop: "4",
+                      fontSize: "lg",
+                      fontWeight: "medium",
+                      color: "fg.default",
+                    })}
+                  >
                     Your wishlist is empty
                   </h3>
-                  <p className="mt-2 text-sm text-gray-500">
+                  <p className={css({ marginTop: "2", fontSize: "sm", color: "fg.muted" })}>
                     Add items you love to your wishlist
                   </p>
-                  <Button className="mt-4" onClick={() => router.push("/")}>
+                  <Button className={css({ marginTop: "4" })} onClick={() => router.push("/")}>
                     Browse Products
                   </Button>
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div
+                className={css({
+                  display: "grid",
+                  gap: "6",
+                  gridTemplateColumns: "1fr",
+                  sm: { gridTemplateColumns: "repeat(2, 1fr)" },
+                  lg: { gridTemplateColumns: "repeat(3, 1fr)" },
+                  xl: { gridTemplateColumns: "repeat(4, 1fr)" },
+                })}
+              >
                 {wishlist.map((item) => (
-                  <Card key={item.id} className="overflow-hidden">
-                    <div className="aspect-square relative">
+                  <Card key={item.id} className={css({ overflow: "hidden" })}>
+                    <div className={css({ position: "relative", aspectRatio: "1 / 1" })}>
                       <Image
                         src={item.product.images[0]?.url || "/placeholder.png"}
                         alt={item.product.images[0]?.alt || item.product.name}
                         fill
-                        className="object-cover"
+                        className={css({ objectFit: "cover" })}
                       />
                     </div>
-                    <CardContent className="p-4">
-                      <Badge variant="outline" className="mb-2">
+                    <CardContent className={css({ padding: "4" })}>
+                      <Badge variant="outline" className={css({ marginBottom: "2" })}>
                         {item.product.category.name}
                       </Badge>
-                      <h3 className="font-medium mb-2 line-clamp-1">
+                      <h3
+                        className={css({
+                          fontWeight: "medium",
+                          marginBottom: "2",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          color: "fg.default",
+                        })}
+                      >
                         {item.product.name}
                       </h3>
-                      <p className="text-lg font-bold mb-3">
+                      <p
+                        className={css({
+                          fontFamily: "display",
+                          fontSize: "lg",
+                          fontWeight: "bold",
+                          marginBottom: "3",
+                          color: "fg.default",
+                        })}
+                      >
                         ₹
                         {(
                           (item.product.priceCents || 0) / 100
                         ).toLocaleString()}
                       </p>
-                      <div className="flex gap-2">
+                      <div className={css({ display: "flex", gap: "2" })}>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1"
+                          className={css({ flex: "1" })}
                           onClick={() =>
                             router.push(`/product/${item.product.id}`)
                           }
@@ -540,12 +755,88 @@ export default function ProfilePage() {
                             handleRemoveFromWishlist(item.product.id)
                           }
                         >
-                          <Trash2 className="h-4 w-4 text-red-500" />
+                          <Trash2 className={css({ h: "4", w: "4", color: "danger" })} />
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Security Tab */}
+          <TabsContent value="security" className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <div>
+              <h2 className={sectionHeadingStyle}>Recent Sign-ins</h2>
+              <p className={css({ fontSize: "sm", color: "fg.muted", marginTop: "1" })}>
+                For your security, we keep a record of recent sign-ins to your
+                account, including approximate location and device — never
+                precise GPS location.
+              </p>
+            </div>
+
+            {loginEvents.length === 0 ? (
+              <Card>
+                <CardContent className={emptyStateStyle}>
+                  <ShieldCheck
+                    className={css({ marginInline: "auto", h: "12", w: "12", color: "fg.muted" })}
+                  />
+                  <h3 className={css({ marginTop: "4", fontSize: "lg", fontWeight: "medium", color: "fg.default" })}>
+                    No sign-in history yet
+                  </h3>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
+                {loginEvents.map((event, index) => {
+                  const DeviceIcon =
+                    event.deviceType === "Mobile"
+                      ? Smartphone
+                      : event.deviceType === "Tablet"
+                      ? Tablet
+                      : Monitor;
+                  const location = [event.city, event.region, event.country]
+                    .filter(Boolean)
+                    .join(", ");
+                  return (
+                    <Card key={event.id}>
+                      <CardContent
+                        className={css({
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4",
+                          paddingBlock: "4",
+                        })}
+                      >
+                        <DeviceIcon
+                          className={css({ h: "6", w: "6", color: "accent.default", flexShrink: "0" })}
+                        />
+                        <div className={css({ flex: "1", minWidth: "0" })}>
+                          <p className={css({ fontSize: "sm", fontWeight: "medium", color: "fg.default" })}>
+                            {[event.browser, event.os].filter(Boolean).join(" on ") ||
+                              "Unknown device"}
+                            {index === 0 && (
+                              <span
+                                className={statusToneStyle({ tone: "success" })}
+                                style={{ marginLeft: "8px" }}
+                              >
+                                Current
+                              </span>
+                            )}
+                          </p>
+                          <p className={css({ fontSize: "xs", color: "fg.muted", marginTop: "0.5" })}>
+                            {location || "Location unavailable"}
+                            {event.ipAddress ? ` · ${event.ipAddress}` : ""}
+                          </p>
+                        </div>
+                        <p className={css({ fontSize: "xs", color: "fg.muted", whiteSpace: "nowrap" })}>
+                          {new Date(event.createdAt).toLocaleString()}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>

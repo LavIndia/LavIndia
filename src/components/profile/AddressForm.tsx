@@ -4,9 +4,11 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { css } from "styled-system/css";
 
 interface Address {
   id: string;
@@ -25,6 +27,10 @@ interface AddressFormProps {
   onSave: () => void;
   onCancel: () => void;
 }
+
+const fieldStyle = css({ display: "flex", flexDirection: "column", gap: "1.5" });
+
+const requiredMarkStyle = css({ color: "danger", marginLeft: "0.5" });
 
 export default function AddressForm({
   address,
@@ -77,10 +83,22 @@ export default function AddressForm({
         <CardTitle>{address ? "Edit Address" : "Add New Address"}</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium">Full Name *</label>
+        <form
+          onSubmit={handleSubmit}
+          className={css({ display: "flex", flexDirection: "column", gap: "5" })}
+        >
+          <div
+            className={css({
+              display: "grid",
+              gap: "4",
+              gridTemplateColumns: "1fr",
+              md: { gridTemplateColumns: "1fr 1fr" },
+            })}
+          >
+            <div className={fieldStyle}>
+              <Label>
+                Full Name<span className={requiredMarkStyle}>*</span>
+              </Label>
               <Input
                 required
                 value={formData.fullName}
@@ -88,11 +106,12 @@ export default function AddressForm({
                   setFormData({ ...formData, fullName: e.target.value })
                 }
                 placeholder="John Doe"
-                className="mt-1"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Mobile Number *</label>
+            <div className={fieldStyle}>
+              <Label>
+                Mobile Number<span className={requiredMarkStyle}>*</span>
+              </Label>
               <Input
                 required
                 value={formData.mobile}
@@ -101,13 +120,14 @@ export default function AddressForm({
                 }
                 placeholder="9876543210"
                 pattern="[0-9]{10}"
-                className="mt-1"
               />
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium">Address Line 1 *</label>
+          <div className={fieldStyle}>
+            <Label>
+              Address Line 1<span className={requiredMarkStyle}>*</span>
+            </Label>
             <Input
               required
               value={formData.addressLine1}
@@ -115,25 +135,33 @@ export default function AddressForm({
                 setFormData({ ...formData, addressLine1: e.target.value })
               }
               placeholder="House/Flat No., Building Name"
-              className="mt-1"
             />
           </div>
 
-          <div>
-            <label className="text-sm font-medium">Address Line 2</label>
+          <div className={fieldStyle}>
+            <Label>Address Line 2</Label>
             <Input
               value={formData.addressLine2}
               onChange={(e) =>
                 setFormData({ ...formData, addressLine2: e.target.value })
               }
               placeholder="Road, Area, Landmark (Optional)"
-              className="mt-1"
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className="text-sm font-medium">City *</label>
+          <div
+            className={css({
+              display: "grid",
+              gap: "4",
+              gridTemplateColumns: "1fr",
+              sm: { gridTemplateColumns: "1fr 1fr" },
+              md: { gridTemplateColumns: "1fr 1fr 1fr" },
+            })}
+          >
+            <div className={fieldStyle}>
+              <Label>
+                City<span className={requiredMarkStyle}>*</span>
+              </Label>
               <Input
                 required
                 value={formData.city}
@@ -141,11 +169,12 @@ export default function AddressForm({
                   setFormData({ ...formData, city: e.target.value })
                 }
                 placeholder="Mumbai"
-                className="mt-1"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">State *</label>
+            <div className={fieldStyle}>
+              <Label>
+                State<span className={requiredMarkStyle}>*</span>
+              </Label>
               <Input
                 required
                 value={formData.state}
@@ -153,11 +182,12 @@ export default function AddressForm({
                   setFormData({ ...formData, state: e.target.value })
                 }
                 placeholder="Maharashtra"
-                className="mt-1"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Pincode *</label>
+            <div className={fieldStyle}>
+              <Label>
+                Pincode<span className={requiredMarkStyle}>*</span>
+              </Label>
               <Input
                 required
                 value={formData.pincode}
@@ -166,32 +196,35 @@ export default function AddressForm({
                 }
                 placeholder="400001"
                 pattern="[0-9]{6}"
-                className="mt-1"
               />
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="isDefault"
-              checked={formData.isDefault}
-              onCheckedChange={(checked) =>
-                setFormData({ ...formData, isDefault: checked as boolean })
-              }
-            />
-            <label
-              htmlFor="isDefault"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Set as default address
-            </label>
-          </div>
+          <Checkbox
+            checked={formData.isDefault}
+            onCheckedChange={(checked) =>
+              setFormData({ ...formData, isDefault: checked })
+            }
+          >
+            Set as default address
+          </Checkbox>
 
-          <div className="flex gap-2 pt-4">
-            <Button type="submit" disabled={loading} className="flex-1">
+          <div
+            className={css({
+              display: "flex",
+              flexDirection: { base: "column-reverse", sm: "row" },
+              gap: "2",
+              paddingTop: "2",
+            })}
+          >
+            <Button
+              type="submit"
+              disabled={loading}
+              className={css({ flex: { sm: "1" } })}
+            >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className={css({ h: "4", w: "4", animation: "spin" })} />
                   Saving...
                 </>
               ) : (

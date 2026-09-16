@@ -1,6 +1,7 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
-export async function getCategoryProducts(categorySlug: string, limit = 30) {
+async function fetchCategoryProducts(categorySlug: string, limit: number) {
   const normalizedSlug = categorySlug === "necklaces" ? "necklace" : categorySlug;
   const [products, totalCount] = await Promise.all([
     prisma.product.findMany({
@@ -68,9 +69,21 @@ export async function getCategoryProducts(categorySlug: string, limit = 30) {
   };
 }
 
+// Cached per (categorySlug, limit) pair. Tagged with a broad "products" tag
+// (busted by any admin product mutation) and a category-specific tag, plus a
+// 60s revalidate window as a safety net in case a tag invalidation is missed.
+export async function getCategoryProducts(categorySlug: string, limit = 30) {
+  const cached = unstable_cache(
+    () => fetchCategoryProducts(categorySlug, limit),
+    ["category-products", categorySlug, String(limit)],
+    { tags: ["products", `category-${categorySlug}`], revalidate: 60 }
+  );
+  return cached();
+}
+
 export type FilterType = "CHECKBOX" | "DROPDOWN" | "RANGE" | "COLOR";
 
-export async function getCategoryFilters(categorySlug: string) {
+async function fetchCategoryFilters(categorySlug: string) {
   const normalizedSlug = categorySlug === "necklaces" ? "necklace" : categorySlug;
   const filters = await prisma.filter.findMany({
     where: {
@@ -85,6 +98,15 @@ export async function getCategoryFilters(categorySlug: string) {
     ...filter,
     type: filter.type as FilterType,
   }));
+}
+
+export async function getCategoryFilters(categorySlug: string) {
+  const cached = unstable_cache(
+    () => fetchCategoryFilters(categorySlug),
+    ["category-filters", categorySlug],
+    { tags: ["filters", `category-${categorySlug}`], revalidate: 60 }
+  );
+  return cached();
 }
 
 export async function getCategoryPageData(categorySlug: string, limit = 30) {

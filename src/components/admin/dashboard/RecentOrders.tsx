@@ -1,7 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { formatDistanceToNow } from "date-fns";
+import { css } from "styled-system/css";
 
 async function getRecentOrders() {
   const orders = await prisma.order.findMany({
@@ -17,77 +26,85 @@ async function getRecentOrders() {
   return orders;
 }
 
-const statusColors: Record<string, string> = {
-  PENDING: "bg-yellow-100 text-yellow-800",
-  PROCESSING: "bg-blue-100 text-blue-800",
-  SHIPPED: "bg-purple-100 text-purple-800",
-  OUT_FOR_DELIVERY: "bg-indigo-100 text-indigo-800",
-  DELIVERED: "bg-green-100 text-green-800",
-  CANCELLED: "bg-red-100 text-red-800",
-  REFUNDED: "bg-gray-100 text-gray-800",
+type OrderStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "SHIPPED"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "REFUNDED";
+
+const statusVariant: Record<
+  OrderStatus,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  PENDING: "outline",
+  PROCESSING: "secondary",
+  SHIPPED: "default",
+  OUT_FOR_DELIVERY: "default",
+  DELIVERED: "default",
+  CANCELLED: "destructive",
+  REFUNDED: "destructive",
 };
+
+const emptyCellStyle = css({ textAlign: "center", paddingBlock: "8", color: "fg.muted" });
+const customerSubStyle = css({ fontSize: "xs", color: "fg.muted" });
 
 export async function RecentOrders() {
   const orders = await getRecentOrders();
 
   return (
-    <Card className="rounded-xl shadow-sm">
+    <Card className={css({ borderRadius: "xl" })}>
       <CardHeader>
         <CardTitle>Recent Orders</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b text-left text-sm text-gray-500">
-                <th className="pb-3 font-medium">Order ID</th>
-                <th className="pb-3 font-medium">Customer</th>
-                <th className="pb-3 font-medium">Total</th>
-                <th className="pb-3 font-medium">Status</th>
-                <th className="pb-3 font-medium">Date</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm">
-              {orders.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-gray-500">
-                    No orders yet
-                  </td>
-                </tr>
-              ) : (
-                orders.map((order) => (
-                  <tr key={order.id} className="border-b last:border-0">
-                    <td className="py-3 font-medium">{order.orderNumber}</td>
-                    <td className="py-3">
-                      <div>
-                        <div className="font-medium">{order.user.name}</div>
-                        <div className="text-xs text-gray-500">
-                          {order.user.email}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 font-medium">
-                      ₹{(order.totalCents / 100).toLocaleString()}
-                    </td>
-                    <td className="py-3">
-                      <Badge
-                        className={statusColors[order.status]}
-                        variant="secondary"
-                      >
-                        {order.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 text-gray-500">
-                      {formatDistanceToNow(new Date(order.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      <CardContent className={css({ paddingTop: "0" })}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Order ID</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Total</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orders.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className={emptyCellStyle}>
+                  No orders yet
+                </TableCell>
+              </TableRow>
+            ) : (
+              orders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell className={css({ fontWeight: "medium" })}>
+                    {order.orderNumber}
+                  </TableCell>
+                  <TableCell>
+                    <div className={css({ display: "flex", flexDirection: "column" })}>
+                      <span className={css({ fontWeight: "medium" })}>{order.user.name}</span>
+                      <span className={customerSubStyle}>{order.user.email}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className={css({ fontWeight: "medium" })}>
+                    ₹{(order.totalCents / 100).toLocaleString("en-IN")}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={statusVariant[order.status as OrderStatus]}>
+                      {order.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className={customerSubStyle}>
+                    {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </CardContent>
     </Card>
   );

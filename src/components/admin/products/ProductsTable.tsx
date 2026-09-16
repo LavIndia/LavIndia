@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -23,6 +24,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   Pencil,
   Trash2,
   Search,
@@ -30,8 +39,10 @@ import {
   Minus,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { css } from "styled-system/css";
 
 interface Product {
   id: string;
@@ -82,6 +93,11 @@ export function ProductsTable({
   const [editingStock, setEditingStock] = useState<{
     [key: string]: number;
   }>({});
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [bulkWorking, setBulkWorking] = useState(false);
 
   const applyFilters = (
     searchValue?: string,
@@ -165,11 +181,11 @@ export function ProductsTable({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
-
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/products/${id}`, {
+      const res = await fetch(`/api/admin/products/${deleteTarget.id}`, {
         method: "DELETE",
       });
 
@@ -181,9 +197,88 @@ export function ProductsTable({
           ? "Product archived because it has existing orders"
           : "Product deleted successfully",
       );
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(deleteTarget.id);
+        return next;
+      });
+      setDeleteTarget(null);
       router.refresh();
     } catch {
       toast.error("Failed to delete product");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const toggleSelected = (id: string, isSelected: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (isSelected) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = (isSelected: boolean) => {
+    setSelected(isSelected ? new Set(products.map((p) => p.id)) : new Set());
+  };
+
+  const selectedCount = selected.size;
+  const allSelected = products.length > 0 && selectedCount === products.length;
+  const someSelected = selectedCount > 0 && !allSelected;
+
+  const confirmBulkDelete = async () => {
+    setBulkWorking(true);
+    try {
+      const ids = Array.from(selected);
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/admin/products/${id}`, { method: "DELETE" }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        toast.error(`${failed} of ${ids.length} products failed to delete`);
+      } else {
+        toast.success(`${ids.length} products deleted`);
+      }
+      setSelected(new Set());
+      setBulkDeleteOpen(false);
+      router.refresh();
+    } catch {
+      toast.error("Failed to delete selected products");
+    } finally {
+      setBulkWorking(false);
+    }
+  };
+
+  const bulkSetPublished = async (isPublished: boolean) => {
+    setBulkWorking(true);
+    try {
+      const ids = Array.from(selected);
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          fetch(`/api/admin/products/${id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ isPublished }),
+          }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        toast.error(`${failed} of ${ids.length} products failed to update`);
+      } else {
+        toast.success(
+          `${ids.length} products ${isPublished ? "published" : "unpublished"}`,
+        );
+      }
+      router.refresh();
+    } catch {
+      toast.error("Failed to update selected products");
+    } finally {
+      setBulkWorking(false);
     }
   };
 
@@ -192,22 +287,45 @@ export function ProductsTable({
   };
 
   return (
-    <div className="space-y-4">
+    <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
       {/* Filters */}
-      <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm sm:flex-row sm:items-center">
-        <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div
+        className={css({
+          display: "flex",
+          flexDirection: "column",
+          gap: "3",
+          borderRadius: "xl",
+          border: "1px solid",
+          borderColor: "border.subtle",
+          background: "bg.surface",
+          padding: "3",
+          md: { flexDirection: "row", alignItems: "center" },
+        })}
+      >
+        <div className={css({ position: "relative", minWidth: 0, flex: "1" })}>
+          <Search
+            className={css({
+              position: "absolute",
+              left: "3",
+              top: "50%",
+              transform: "translateY(-50%)",
+              height: "4",
+              width: "4",
+              color: "fg.muted",
+              pointerEvents: "none",
+            })}
+          />
           <Input
             placeholder="Search products..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="pl-9"
+            className={css({ paddingLeft: "9" })}
           />
         </div>
 
         <Select value={category} onValueChange={handleCategoryChange}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger className={css({ width: "full", md: { width: "52" } })}>
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
@@ -221,7 +339,7 @@ export function ProductsTable({
         </Select>
 
         <Select value={sort} onValueChange={handleSortChange}>
-          <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectTrigger className={css({ width: "full", md: { width: "44" } })}>
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
@@ -235,42 +353,262 @@ export function ProductsTable({
           </SelectContent>
         </Select>
 
-        <Button onClick={handleSearch} className="w-full sm:w-auto">
+        <Button onClick={handleSearch} className={css({ width: "full", md: { width: "auto" } })}>
           Search
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="overflow-x-auto">
+      {/* Bulk action bar */}
+      {selectedCount > 0 && (
+        <div
+          className={css({
+            display: "flex",
+            flexDirection: "column",
+            gap: "3",
+            borderRadius: "xl",
+            border: "1px solid",
+            borderColor: "accent.default",
+            background: "gold.50",
+            padding: "3",
+            md: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+          })}
+        >
+          <span className={css({ fontSize: "sm", fontWeight: "medium", color: "fg.default" })}>
+            {selectedCount} product{selectedCount > 1 ? "s" : ""} selected
+          </span>
+          <div className={css({ display: "flex", flexWrap: "wrap", gap: "2" })}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={bulkWorking}
+              onClick={() => bulkSetPublished(true)}
+            >
+              {bulkWorking && <Loader2 className={css({ height: "3.5", width: "3.5", animation: "spin" })} />}
+              Publish
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={bulkWorking}
+              onClick={() => bulkSetPublished(false)}
+            >
+              Unpublish
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={bulkWorking}
+              onClick={() => setBulkDeleteOpen(true)}
+            >
+              <Trash2 className={css({ height: "3.5", width: "3.5" })} />
+              Delete
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile card list — no horizontal scroll, one product per card */}
+      <div className={css({ display: { base: "flex", md: "none" }, flexDirection: "column", gap: "3" })}>
+        {products.length === 0 ? (
+          <div
+            className={css({
+              borderRadius: "xl",
+              border: "1px solid",
+              borderColor: "border.subtle",
+              background: "bg.surface",
+              padding: "8",
+              textAlign: "center",
+              color: "fg.muted",
+            })}
+          >
+            No products found
+          </div>
+        ) : (
+          products.map((product) => (
+            <div
+              key={product.id}
+              className={css({
+                borderRadius: "xl",
+                border: "1px solid",
+                borderColor: "border.subtle",
+                background: "bg.surface",
+                padding: "3",
+                display: "flex",
+                flexDirection: "column",
+                gap: "3",
+              })}
+            >
+              <div className={css({ display: "flex", gap: "3", alignItems: "flex-start" })}>
+                <Checkbox
+                  aria-label={`Select ${product.name}`}
+                  isSelected={selected.has(product.id)}
+                  onChange={(isSelected) => toggleSelected(product.id, isSelected)}
+                  className={css({ marginTop: "1" })}
+                />
+                {product.images[0] ? (
+                  <Image
+                    src={product.images[0].url}
+                    alt={product.images[0].alt || product.name}
+                    width={56}
+                    height={56}
+                    className={css({ borderRadius: "md", objectFit: "cover", flexShrink: 0 })}
+                  />
+                ) : (
+                  <div
+                    className={css({
+                      width: "14",
+                      height: "14",
+                      flexShrink: 0,
+                      background: "ivory.100",
+                      borderRadius: "md",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "xs",
+                      color: "fg.muted",
+                    })}
+                  >
+                    No image
+                  </div>
+                )}
+                <div className={css({ flex: "1", minWidth: "0" })}>
+                  <p className={css({ fontWeight: "medium", color: "fg.default" })}>{product.name}</p>
+                  <p className={css({ fontSize: "xs", color: "fg.muted" })}>{product.category.name}</p>
+                  <div className={css({ display: "flex", alignItems: "baseline", gap: "2", marginTop: "1" })}>
+                    <span className={css({ fontWeight: "medium" })}>{formatPrice(product.priceCents)}</span>
+                    {product.compareAtCents && (
+                      <span className={css({ fontSize: "xs", color: "fg.muted", textDecoration: "line-through" })}>
+                        {formatPrice(product.compareAtCents)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
+                  <Button variant="ghost" size="icon" asChild>
+                    <Link href={`/admin/products/${product.id}/edit`} aria-label={`Edit ${product.name}`}>
+                      <Pencil className={css({ height: "4", width: "4" })} />
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Delete ${product.name}`}
+                    onClick={() => setDeleteTarget(product)}
+                  >
+                    <Trash2 className={css({ height: "4", width: "4", color: "danger" })} />
+                  </Button>
+                </div>
+              </div>
+
+              <div
+                className={css({
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  paddingTop: "2",
+                  borderTop: "1px solid",
+                  borderColor: "border.subtle",
+                })}
+              >
+                <div className={css({ display: "flex", alignItems: "center", gap: "1" })}>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => decrementStock(product.id, product.stock)}
+                  >
+                    <Minus className={css({ height: "3", width: "3" })} />
+                  </Button>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={
+                      editingStock[product.id] !== undefined
+                        ? editingStock[product.id]
+                        : product.stock
+                    }
+                    onChange={(e) => handleStockChange(product.id, e.target.value)}
+                    onBlur={() => handleStockBlur(product.id, product.stock)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur();
+                    }}
+                    className={css({ height: "7", width: "16", textAlign: "center", paddingInline: "1" })}
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => incrementStock(product.id, product.stock)}
+                  >
+                    <Plus className={css({ height: "3", width: "3" })} />
+                  </Button>
+                  <Badge
+                    variant={
+                      product.stock > 10 ? "default" : product.stock > 0 ? "outline" : "destructive"
+                    }
+                  >
+                    {product.stock > 10 ? "In Stock" : product.stock > 0 ? "Low" : "Out"}
+                  </Badge>
+                </div>
+                <Badge variant={product.isPublished ? "default" : "secondary"}>
+                  {product.isPublished ? "Published" : "Draft"}
+                </Badge>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Table — desktop/tablet only */}
+      <div
+        className={css({
+          display: { base: "none", md: "block" },
+          overflow: "hidden",
+          borderRadius: "xl",
+          border: "1px solid",
+          borderColor: "border.subtle",
+          background: "bg.surface",
+        })}
+      >
+        <div className={css({ overflowX: "auto" })}>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[80px]">Image</TableHead>
+                <TableHead className={css({ width: "10" })}>
+                  <Checkbox
+                    aria-label="Select all products"
+                    isSelected={allSelected}
+                    isIndeterminate={someSelected}
+                    onChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead className={css({ width: "20" })}>Image</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Category</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Stock</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className={css({ textAlign: "right" })}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {products.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
-                    className="text-center py-8 text-muted-foreground"
+                    colSpan={8}
+                    className={css({ textAlign: "center", paddingBlock: "8", color: "fg.muted" })}
                   >
                     No products found
                   </TableCell>
                 </TableRow>
               ) : (
                 products.map((product) => (
-                  <TableRow
-                    key={product.id}
-                    className="group hover:bg-muted/40"
-                  >
+                  <TableRow key={product.id}>
+                    <TableCell>
+                      <Checkbox
+                        aria-label={`Select ${product.name}`}
+                        isSelected={selected.has(product.id)}
+                        onChange={(isSelected) => toggleSelected(product.id, isSelected)}
+                      />
+                    </TableCell>
                     <TableCell>
                       {product.images[0] ? (
                         <Image
@@ -278,39 +616,54 @@ export function ProductsTable({
                           alt={product.images[0].alt || product.name}
                           width={50}
                           height={50}
-                          className="rounded object-cover"
+                          className={css({ borderRadius: "md", objectFit: "cover" })}
                         />
                       ) : (
-                        <div className="w-[50px] h-[50px] bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400">
+                        <div
+                          className={css({
+                            width: "[50px]",
+                            height: "[50px]",
+                            background: "ivory.100",
+                            borderRadius: "md",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "xs",
+                            color: "fg.muted",
+                          })}
+                        >
                           No image
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className={css({ fontWeight: "medium" })}>
                       {product.name}
                     </TableCell>
                     <TableCell>{product.category.name}</TableCell>
                     <TableCell>
-                      <div className="flex flex-col">
+                      <div className={css({ display: "flex", flexDirection: "column" })}>
                         <span>{formatPrice(product.priceCents)}</span>
                         {product.compareAtCents && (
-                          <span className="text-xs text-muted-foreground line-through">
+                          <span
+                            className={css({
+                              fontSize: "xs",
+                              color: "fg.muted",
+                              textDecoration: "line-through",
+                            })}
+                          >
                             {formatPrice(product.compareAtCents)}
                           </span>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
+                      <div className={css({ display: "flex", alignItems: "center", gap: "1" })}>
                         <Button
                           variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() =>
-                            decrementStock(product.id, product.stock)
-                          }
+                          size="icon-sm"
+                          onClick={() => decrementStock(product.id, product.stock)}
                         >
-                          <Minus className="h-3 w-3" />
+                          <Minus className={css({ height: "3", width: "3" })} />
                         </Button>
                         <Input
                           type="number"
@@ -320,28 +673,21 @@ export function ProductsTable({
                               ? editingStock[product.id]
                               : product.stock
                           }
-                          onChange={(e) =>
-                            handleStockChange(product.id, e.target.value)
-                          }
-                          onBlur={() =>
-                            handleStockBlur(product.id, product.stock)
-                          }
+                          onChange={(e) => handleStockChange(product.id, e.target.value)}
+                          onBlur={() => handleStockBlur(product.id, product.stock)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.currentTarget.blur();
                             }
                           }}
-                          className="h-7 w-16 text-center"
+                          className={css({ height: "7", width: "16", textAlign: "center", paddingInline: "1" })}
                         />
                         <Button
                           variant="outline"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() =>
-                            incrementStock(product.id, product.stock)
-                          }
+                          size="icon-sm"
+                          onClick={() => incrementStock(product.id, product.stock)}
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className={css({ height: "3", width: "3" })} />
                         </Button>
                         <Badge
                           variant={
@@ -351,36 +697,31 @@ export function ProductsTable({
                                 ? "outline"
                                 : "destructive"
                           }
-                          className="ml-1"
+                          className={css({ marginLeft: "1" })}
                         >
-                          {product.stock > 10
-                            ? "In Stock"
-                            : product.stock > 0
-                              ? "Low"
-                              : "Out"}
+                          {product.stock > 10 ? "In Stock" : product.stock > 0 ? "Low" : "Out"}
                         </Badge>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={product.isPublished ? "default" : "secondary"}
-                      >
+                      <Badge variant={product.isPublished ? "default" : "secondary"}>
                         {product.isPublished ? "Published" : "Draft"}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Link href={`/admin/products/${product.id}/edit`}>
-                          <Button variant="ghost" size="icon">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </Link>
+                    <TableCell className={css({ textAlign: "right" })}>
+                      <div className={css({ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "2" })}>
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link href={`/admin/products/${product.id}/edit`} aria-label={`Edit ${product.name}`}>
+                            <Pencil className={css({ height: "4", width: "4" })} />
+                          </Link>
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(product.id)}
+                          aria-label={`Delete ${product.name}`}
+                          onClick={() => setDeleteTarget(product)}
                         >
-                          <Trash2 className="h-4 w-4 text-red-500" />
+                          <Trash2 className={css({ height: "4", width: "4", color: "danger" })} />
                         </Button>
                       </div>
                     </TableCell>
@@ -394,26 +735,30 @@ export function ProductsTable({
 
       {/* Pagination */}
       {pagination.totalCount > 0 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
+        <div
+          className={css({
+            display: "flex",
+            flexDirection: "column",
+            gap: "3",
+            md: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+          })}
+        >
+          <p className={css({ fontSize: "sm", color: "fg.muted" })}>
             Showing {(pagination.page - 1) * pagination.pageSize + 1}–
-            {Math.min(
-              pagination.page * pagination.pageSize,
-              pagination.totalCount,
-            )}{" "}
+            {Math.min(pagination.page * pagination.pageSize, pagination.totalCount)}{" "}
             of {pagination.totalCount} products
           </p>
-          <div className="flex items-center gap-2">
+          <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
             <Button
               variant="outline"
               size="sm"
               disabled={pagination.page <= 1}
               onClick={() => goToPage(pagination.page - 1)}
             >
-              <ChevronLeft className="h-4 w-4 mr-1" />
+              <ChevronLeft className={css({ height: "4", width: "4" })} />
               Previous
             </Button>
-            <span className="text-sm text-muted-foreground px-2">
+            <span className={css({ fontSize: "sm", color: "fg.muted", paddingInline: "2" })}>
               Page {pagination.page} of {pagination.totalPages}
             </span>
             <Button
@@ -423,11 +768,56 @@ export function ProductsTable({
               onClick={() => goToPage(pagination.page + 1)}
             >
               Next
-              <ChevronRight className="h-4 w-4 ml-1" />
+              <ChevronRight className={css({ height: "4", width: "4" })} />
             </Button>
           </div>
         </div>
       )}
+
+      {/* Delete confirm dialog (single product) */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete product?</DialogTitle>
+            <DialogDescription>
+              {deleteTarget
+                ? `"${deleteTarget.name}" will be permanently deleted, unless it has existing orders in which case it will be archived instead. This cannot be undone.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
+              {deleting && <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />}
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk delete confirm dialog */}
+      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedCount} products?</DialogTitle>
+            <DialogDescription>
+              Products with existing orders will be archived instead of deleted. This cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteOpen(false)} disabled={bulkWorking}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmBulkDelete} disabled={bulkWorking}>
+              {bulkWorking && <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />}
+              Delete {selectedCount}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

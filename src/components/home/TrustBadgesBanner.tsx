@@ -1,4 +1,5 @@
 import { Package, Heart, PhoneCall } from "lucide-react";
+import { css } from "styled-system/css";
 
 type TrustBadgesSettings = {
   codAvailable: boolean;
@@ -7,6 +8,42 @@ type TrustBadgesSettings = {
   supportHoursStart: string | null;
   supportHoursEnd: string | null;
 };
+
+const sectionStyle = css({
+  paddingY: "10",
+  background: "linear-gradient(to right, {colors.gold.50}, {colors.ivory.50}, {colors.gold.50})",
+  borderTop: "1px solid",
+  borderBottom: "1px solid",
+  borderColor: "border.subtle",
+});
+
+const containerStyle = css({ marginX: "auto", paddingX: "4" });
+
+const gridStyle = css({
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  md: { gridTemplateColumns: "repeat(3, 1fr)" },
+  gap: "6",
+  maxWidth: "5xl",
+  marginX: "auto",
+});
+
+const cardStyle = css({
+  display: "flex",
+  alignItems: "center",
+  gap: "4",
+  padding: "5",
+  background: "bg.surface",
+  borderRadius: "lg",
+  boxShadow: "card",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  transition: "box-shadow 0.2s ease",
+  "&:hover": { boxShadow: "glass" },
+});
+
+const titleStyle = css({ fontWeight: "bold", color: "fg.default", fontSize: "md" });
+const descStyle = css({ fontSize: "sm", color: "fg.muted" });
 
 export function TrustBadgesBanner({
   settings,
@@ -38,39 +75,34 @@ export function TrustBadgesBanner({
   };
 
   return (
-    <section className="py-12 bg-gradient-to-r from-amber-50 via-white to-amber-50 border-y border-amber-200">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+    <section className={sectionStyle}>
+      <div className={containerStyle}>
+        <div className={gridStyle}>
           {/* COD Available */}
           {settings.codAvailable && (
-            <div className="flex items-center gap-4 p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-amber-100">
-              <div className="p-4 bg-green-100 rounded-full shrink-0">
-                <Package className="h-8 w-8 text-green-600" />
+            <div className={cardStyle}>
+              <div className={css({ padding: "4", borderRadius: "full", flexShrink: "0", background: "success" })}>
+                <Package className={css({ height: "8", width: "8", color: "white" })} />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-lg">
-                  COD Available
-                </h3>
-                <p className="text-sm text-gray-600">Cash on Delivery option</p>
+                <h3 className={titleStyle}>COD Available</h3>
+                <p className={descStyle}>Cash on Delivery option</p>
               </div>
             </div>
           )}
 
           {/* Loved by Customers */}
           {settings.customerCount && (
-            <div className="flex items-center gap-4 p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-amber-100">
-              <div className="p-4 bg-pink-100 rounded-full shrink-0">
-                <Heart className="h-8 w-8 text-pink-600 fill-pink-600" />
+            <div className={cardStyle}>
+              <div className={css({ padding: "4", borderRadius: "full", flexShrink: "0", background: "rose.300" })}>
+                <Heart className={css({ height: "8", width: "8", color: "white" })} fill="white" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-lg">
-                  Loved by {formatCustomerCount(settings.customerCount)}{" "}
-                  Customers
+                <h3 className={titleStyle}>
+                  Loved by {formatCustomerCount(settings.customerCount)} Customers
                 </h3>
                 {settings.rating && (
-                  <p className="text-sm text-gray-600">
-                    {settings.rating} ⭐ Google Rating
-                  </p>
+                  <p className={descStyle}>{settings.rating} ⭐ Google Rating</p>
                 )}
               </div>
             </div>
@@ -78,15 +110,13 @@ export function TrustBadgesBanner({
 
           {/* Customer Support */}
           {(settings.supportHoursStart || settings.supportHoursEnd) && (
-            <div className="flex items-center gap-4 p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-amber-100">
-              <div className="p-4 bg-blue-100 rounded-full shrink-0">
-                <PhoneCall className="h-8 w-8 text-blue-600" />
+            <div className={cardStyle}>
+              <div className={css({ padding: "4", borderRadius: "full", flexShrink: "0", background: "gold.400" })}>
+                <PhoneCall className={css({ height: "8", width: "8", color: "fg.onGold" })} />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-lg">
-                  Customer Support
-                </h3>
-                <p className="text-sm text-gray-600">
+                <h3 className={titleStyle}>Customer Support</h3>
+                <p className={descStyle}>
                   {formatTime(settings.supportHoursStart)} –{" "}
                   {formatTime(settings.supportHoursEnd)}
                 </p>

@@ -14,6 +14,8 @@ export type CartItem = {
   price: number; // in currency unit (₹)
   image?: string | null;
   variantId?: string | null;
+  /** Human-readable variant description (e.g. "Multi Color - Gold") shown in cart/checkout UI instead of the raw variant id. */
+  variantLabel?: string | null;
   qty: number;
 };
 

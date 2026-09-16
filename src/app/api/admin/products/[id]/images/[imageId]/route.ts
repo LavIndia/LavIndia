@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { removePublicAsset } from "@/lib/imagekit-admin";
@@ -29,6 +30,8 @@ export async function PATCH(
       where: { id: imageId },
       data: validatedData,
     });
+
+    revalidateTag("products");
 
     return NextResponse.json(image);
   } catch {
@@ -65,6 +68,8 @@ export async function DELETE(
     if (image.url.startsWith("/assets/")) {
       await removePublicAsset(image.url);
     }
+
+    revalidateTag("products");
 
     return NextResponse.json({ message: "Image deleted" });
   } catch {

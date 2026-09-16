@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { isScheduledActive } from "@/lib/scheduling";
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,10 +24,15 @@ export async function GET(request: NextRequest) {
       where.type = type;
     }
 
-    const banners = await prisma.promoBanner.findMany({
+    const candidates = await prisma.promoBanner.findMany({
       where,
       orderBy: { order: "asc" },
     });
+
+    // The DB query above narrows to the outer date window; recurrence
+    // (specific weekdays/time-of-day) is evaluated in JS since it isn't
+    // expressible as a simple SQL WHERE clause.
+    const banners = candidates.filter((banner) => isScheduledActive(banner, now));
 
     return NextResponse.json({ banners });
   } catch (error) {

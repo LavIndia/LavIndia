@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { css } from "styled-system/css";
 
 type PromoBanner = {
   id: string;
@@ -62,58 +63,66 @@ export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[60px]">Order</TableHead>
-          <TableHead>Title</TableHead>
-          <TableHead>Message</TableHead>
-          <TableHead>Colors</TableHead>
+          <TableHead className={css({ width: "15" })}>Order</TableHead>
+          <TableHead>Preview</TableHead>
           <TableHead>Validity</TableHead>
-          <TableHead className="w-[100px]">Status</TableHead>
-          <TableHead className="w-[100px] text-right">Actions</TableHead>
+          <TableHead className={css({ width: "25" })}>Status</TableHead>
+          <TableHead className={css({ width: "25", textAlign: "right" })}>
+            Actions
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {items.length === 0 ? (
           <TableRow>
             <TableCell
-              colSpan={7}
-              className="text-center py-8 text-muted-foreground"
+              colSpan={5}
+              className={css({ textAlign: "center", paddingBlock: "8", color: "fg.muted" })}
             >
               No banners found
             </TableCell>
           </TableRow>
         ) : (
           items.map((banner) => (
-            <TableRow key={banner.id} className="hover:bg-muted/40">
-              <TableCell className="font-medium">{banner.order}</TableCell>
-              <TableCell>{banner.title || "-"}</TableCell>
-              <TableCell className="max-w-md truncate">
-                {banner.message}
-              </TableCell>
+            <TableRow key={banner.id}>
+              <TableCell className={css({ fontWeight: "medium" })}>{banner.order}</TableCell>
               <TableCell>
-                <div className="flex gap-2">
-                  {banner.bgColor && (
-                    <div className="flex items-center gap-1">
-                      <div
-                        className="w-4 h-4 rounded border"
-                        style={{ backgroundColor: banner.bgColor }}
-                      />
-                      <span className="text-xs text-muted-foreground">BG</span>
-                    </div>
-                  )}
-                  {banner.textColor && (
-                    <div className="flex items-center gap-1">
-                      <div
-                        className="w-4 h-4 rounded border"
-                        style={{ backgroundColor: banner.textColor }}
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        Text
-                      </span>
-                    </div>
-                  )}
+                <div
+                  className={css({
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "2",
+                    maxWidth: "sm",
+                  })}
+                >
+                  <div
+                    className={css({
+                      display: "flex",
+                      alignItems: "center",
+                      borderRadius: "full",
+                      paddingInline: "3",
+                      paddingBlock: "1.5",
+                      fontSize: "xs",
+                      fontWeight: "medium",
+                      border: "1px solid",
+                      borderColor: "border.subtle",
+                      maxWidth: "full",
+                      overflow: "hidden",
+                    })}
+                    style={{
+                      background: banner.bgColor || undefined,
+                      color: banner.textColor || undefined,
+                    }}
+                    title="Live preview of banner colors"
+                  >
+                    <span className={css({ truncate: true })}>
+                      {banner.title ? `${banner.title} — ` : ""}
+                      {banner.message}
+                    </span>
+                  </div>
                 </div>
               </TableCell>
-              <TableCell className="text-sm">
+              <TableCell className={css({ fontSize: "sm" })}>
                 {banner.startDate || banner.endDate ? (
                   <div>
                     {banner.startDate &&
@@ -131,24 +140,33 @@ export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
                   {banner.isActive ? "Active" : "Inactive"}
                 </Badge>
               </TableCell>
-              <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-2">
+              <TableCell className={css({ textAlign: "right" })}>
+                <div
+                  className={css({
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "flex-end",
+                    gap: "2",
+                  })}
+                >
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() =>
                       router.push(`/admin/promo-banners/${banner.id}`)
                     }
+                    aria-label={`Edit banner ${banner.title || banner.message}`}
                   >
-                    <Edit className="h-4 w-4" />
+                    <Edit className={css({ width: "4", height: "4" })} />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => handleDelete(banner.id)}
                     disabled={isDeleting === banner.id}
+                    aria-label={`Delete banner ${banner.title || banner.message}`}
                   >
-                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <Trash2 className={css({ width: "4", height: "4", color: "danger" })} />
                   </Button>
                 </div>
               </TableCell>
@@ -160,7 +178,7 @@ export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
   );
 
   return (
-    <Tabs defaultValue="top_scroll" className="space-y-4">
+    <Tabs defaultValue="top_scroll" className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
       <TabsList>
         <TabsTrigger value="top_scroll">Top Scroll Messages</TabsTrigger>
         <TabsTrigger value="free_gifts">Free Gifts Banner</TabsTrigger>
@@ -169,21 +187,21 @@ export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
 
       <TabsContent
         value="top_scroll"
-        className="overflow-hidden rounded-xl border bg-card shadow-sm"
+        className={css({ overflow: "hidden", borderRadius: "xl", border: "1px solid", borderColor: "border.subtle", background: "bg.surface", boxShadow: "card" })}
       >
         {renderTable(topScrollBanners)}
       </TabsContent>
 
       <TabsContent
         value="free_gifts"
-        className="overflow-hidden rounded-xl border bg-card shadow-sm"
+        className={css({ overflow: "hidden", borderRadius: "xl", border: "1px solid", borderColor: "border.subtle", background: "bg.surface", boxShadow: "card" })}
       >
         {renderTable(freeGiftsBanners)}
       </TabsContent>
 
       <TabsContent
         value="special_offer"
-        className="overflow-hidden rounded-xl border bg-card shadow-sm"
+        className={css({ overflow: "hidden", borderRadius: "xl", border: "1px solid", borderColor: "border.subtle", background: "bg.surface", boxShadow: "card" })}
       >
         {renderTable(specialOfferBanners)}
       </TabsContent>

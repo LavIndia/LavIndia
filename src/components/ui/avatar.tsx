@@ -1,50 +1,116 @@
 "use client";
 
 import * as React from "react";
-import * as AvatarPrimitive from "@radix-ui/react-avatar";
+import { css, cx } from "styled-system/css";
 
-import { cn } from "@/lib/utils";
+type ImageLoadStatus = "idle" | "loaded" | "error";
 
-const Avatar = React.forwardRef<
-  React.ElementRef<typeof AvatarPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Root
-    ref={ref}
-    className={cn(
-      "relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full",
-      className
-    )}
-    {...props}
-  />
-));
-Avatar.displayName = AvatarPrimitive.Root.displayName;
+interface AvatarContextValue {
+  status: ImageLoadStatus;
+  setStatus: (status: ImageLoadStatus) => void;
+}
 
-const AvatarImage = React.forwardRef<
-  React.ElementRef<typeof AvatarPrimitive.Image>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Image>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Image
-    ref={ref}
-    className={cn("aspect-square h-full w-full", className)}
-    {...props}
-  />
-));
-AvatarImage.displayName = AvatarPrimitive.Image.displayName;
+const AvatarContext = React.createContext<AvatarContextValue | null>(null);
 
-const AvatarFallback = React.forwardRef<
-  React.ElementRef<typeof AvatarPrimitive.Fallback>,
-  React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Fallback>
->(({ className, ...props }, ref) => (
-  <AvatarPrimitive.Fallback
-    ref={ref}
-    className={cn(
-      "flex h-full w-full items-center justify-center rounded-full bg-muted",
-      className
-    )}
-    {...props}
-  />
-));
-AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName;
+function useAvatarContext() {
+  const ctx = React.useContext(AvatarContext);
+  if (!ctx) throw new Error("Avatar sub-components must be used within <Avatar>");
+  return ctx;
+}
+
+const avatarRootStyle = css({
+  position: "relative",
+  display: "flex",
+  height: "10",
+  width: "10",
+  flexShrink: 0,
+  overflow: "hidden",
+  borderRadius: "full",
+});
+
+const Avatar = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
+  ({ className, ...props }, ref) => {
+    const [status, setStatus] = React.useState<ImageLoadStatus>("idle");
+    return (
+      <AvatarContext.Provider value={{ status, setStatus }}>
+        <div
+          ref={ref}
+          data-slot="avatar"
+          className={cx(avatarRootStyle, className)}
+          {...props}
+        />
+      </AvatarContext.Provider>
+    );
+  }
+);
+Avatar.displayName = "Avatar";
+
+const avatarImageStyle = css({
+  aspectRatio: "1 / 1",
+  height: "full",
+  width: "full",
+  objectFit: "cover",
+});
+
+export interface AvatarImageProps
+  extends Omit<React.ComponentProps<"img">, "onError" | "onLoad"> {}
+
+const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
+  ({ className, src, ...props }, ref) => {
+    const { status, setStatus } = useAvatarContext();
+
+    // Reset load status whenever the image source changes, so switching avatars
+    // shows the fallback again until the new image finishes loading.
+    React.useEffect(() => {
+      setStatus("idle");
+    }, [src, setStatus]);
+
+    if (status === "error" || !src) return null;
+
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        ref={ref}
+        data-slot="avatar-image"
+        src={src}
+        className={cx(avatarImageStyle, className)}
+        onLoad={() => setStatus("loaded")}
+        onError={() => setStatus("error")}
+        {...props}
+      />
+    );
+  }
+);
+AvatarImage.displayName = "AvatarImage";
+
+const avatarFallbackStyle = css({
+  display: "flex",
+  height: "full",
+  width: "full",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "full",
+  background: "bg.surface",
+  color: "fg.muted",
+  fontFamily: "body",
+  fontSize: "sm",
+  fontWeight: "medium",
+});
+
+const AvatarFallback = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(
+  ({ className, ...props }, ref) => {
+    const { status } = useAvatarContext();
+    if (status === "loaded") return null;
+    return (
+      <div
+        ref={ref}
+        data-slot="avatar-fallback"
+        className={cx(avatarFallbackStyle, className)}
+        {...props}
+      />
+    );
+  }
+);
+AvatarFallback.displayName = "AvatarFallback";
 
 export { Avatar, AvatarImage, AvatarFallback };

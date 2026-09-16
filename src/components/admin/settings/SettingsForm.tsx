@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { css } from "styled-system/css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +47,19 @@ interface SettingsFormProps {
   initialSettings: SiteSettings;
 }
 
+const formStyle = css({ display: "flex", flexDirection: "column", gap: "6" });
+const cardBody = css({ display: "flex", flexDirection: "column", gap: "4" });
+const fieldStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
+const fieldRow = css({
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "4",
+  sm: { gridTemplateColumns: "repeat(2, 1fr)" },
+});
+const switchRow = css({ display: "flex", alignItems: "center", gap: "2" });
+const footerRow = css({ display: "flex", justifyContent: "flex-end" });
+const spinnerStyle = css({ height: "4", width: "4", animation: "spin" });
+
 export function SettingsForm({ initialSettings }: SettingsFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -78,15 +92,15 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className={formStyle}>
       {/* Business Information */}
       <Card>
         <CardHeader>
           <CardTitle>Business Information</CardTitle>
           <CardDescription>Basic details about your business</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
+        <CardContent className={cardBody}>
+          <div className={fieldStyle}>
             <Label htmlFor="businessName">Business Name *</Label>
             <Input
               id="businessName"
@@ -96,7 +110,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className={fieldStyle}>
             <Label htmlFor="address">Address</Label>
             <Input
               id="address"
@@ -106,8 +120,8 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
+          <div className={fieldRow}>
+            <div className={fieldStyle}>
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -118,7 +132,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               />
             </div>
 
-            <div className="grid gap-2">
+            <div className={fieldStyle}>
               <Label htmlFor="contactNumber">Contact Number</Label>
               <Input
                 id="contactNumber"
@@ -129,7 +143,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             </div>
           </div>
 
-          <div className="grid gap-2">
+          <div className={fieldStyle}>
             <Label htmlFor="gstNumber">GST Number</Label>
             <Input
               id="gstNumber"
@@ -147,9 +161,9 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           <CardTitle>Social Media Links</CardTitle>
           <CardDescription>Your social media presence</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
+        <CardContent className={cardBody}>
+          <div className={fieldRow}>
+            <div className={fieldStyle}>
               <Label htmlFor="facebook">Facebook</Label>
               <Input
                 id="facebook"
@@ -159,7 +173,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               />
             </div>
 
-            <div className="grid gap-2">
+            <div className={fieldStyle}>
               <Label htmlFor="instagram">Instagram</Label>
               <Input
                 id="instagram"
@@ -169,7 +183,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               />
             </div>
 
-            <div className="grid gap-2">
+            <div className={fieldStyle}>
               <Label htmlFor="twitter">Twitter</Label>
               <Input
                 id="twitter"
@@ -179,7 +193,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               />
             </div>
 
-            <div className="grid gap-2">
+            <div className={fieldStyle}>
               <Label htmlFor="linkedin">LinkedIn</Label>
               <Input
                 id="linkedin"
@@ -200,8 +214,8 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             Links to your products on other platforms
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
+        <CardContent className={cardBody}>
+          <div className={fieldStyle}>
             <Label htmlFor="amazonLink">Amazon Store</Label>
             <Input
               id="amazonLink"
@@ -211,7 +225,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className={fieldStyle}>
             <Label htmlFor="flipkartLink">Flipkart Store</Label>
             <Input
               id="flipkartLink"
@@ -221,7 +235,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className={fieldStyle}>
             <Label htmlFor="myntraLink">Myntra Store</Label>
             <Input
               id="myntraLink"
@@ -241,8 +255,8 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             Configure trust indicators displayed on the website
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
+        <CardContent className={cardBody}>
+          <div className={switchRow}>
             <Switch
               id="codAvailable"
               checked={settings.codAvailable}
@@ -253,7 +267,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             <Label htmlFor="codAvailable">Cash on Delivery Available</Label>
           </div>
 
-          <div className="grid gap-2">
+          <div className={fieldStyle}>
             <Label htmlFor="customerCount">Total Customers</Label>
             <Input
               id="customerCount"
@@ -269,7 +283,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className={fieldStyle}>
             <Label htmlFor="rating">Customer Rating (out of 5)</Label>
             <Input
               id="rating"
@@ -285,8 +299,8 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
+          <div className={fieldRow}>
+            <div className={fieldStyle}>
               <Label htmlFor="supportHoursStart">Support Start Time</Label>
               <Input
                 id="supportHoursStart"
@@ -298,7 +312,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               />
             </div>
 
-            <div className="grid gap-2">
+            <div className={fieldStyle}>
               <Label htmlFor="supportHoursEnd">Support End Time</Label>
               <Input
                 id="supportHoursEnd"
@@ -319,8 +333,8 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           <CardTitle>SEO Settings</CardTitle>
           <CardDescription>Search engine optimization metadata</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
+        <CardContent className={cardBody}>
+          <div className={fieldStyle}>
             <Label htmlFor="metaTitle">Meta Title</Label>
             <Input
               id="metaTitle"
@@ -330,7 +344,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className={fieldStyle}>
             <Label htmlFor="metaDescription">Meta Description</Label>
             <Textarea
               id="metaDescription"
@@ -341,7 +355,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
             />
           </div>
 
-          <div className="grid gap-2">
+          <div className={fieldStyle}>
             <Label htmlFor="metaKeywords">Meta Keywords</Label>
             <Input
               id="metaKeywords"
@@ -359,8 +373,8 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           <CardTitle>Footer Settings</CardTitle>
           <CardDescription>Configure footer content</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
+        <CardContent className={cardBody}>
+          <div className={fieldStyle}>
             <Label htmlFor="copyrightText">Copyright Text</Label>
             <Input
               id="copyrightText"
@@ -372,9 +386,9 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
+      <div className={footerRow}>
         <Button type="submit" disabled={loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {loading && <Loader2 className={spinnerStyle} />}
           Save Changes
         </Button>
       </div>

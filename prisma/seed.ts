@@ -139,6 +139,7 @@ async function seedUsers() {
       update: {},
       create: {
         email: userData.email,
+        username: userData.username,
         name: userData.name,
         password: hashedPassword,
         role: userData.role,

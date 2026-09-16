@@ -1,8 +1,23 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
+// Prisma call is memoized within a request via React's cache(), and cached
+// across requests/navigations via Next's unstable_cache() so that
+// src/app/layout.tsx (which wraps every route) doesn't hit the database on
+// every single navigation. Admin updates to site settings call
+// revalidateTag("site-settings") to bust this cache immediately.
+const getCachedSiteSettings = unstable_cache(
+  async () => {
+    const settings = await prisma.siteSettings.findFirst();
+    return settings;
+  },
+  ["site-settings"],
+  { tags: ["site-settings"], revalidate: 300 }
+);
+
 export const getSiteSettings = cache(async () => {
-  const settings = await prisma.siteSettings.findFirst();
+  const settings = await getCachedSiteSettings();
 
   if (settings) return settings;
 

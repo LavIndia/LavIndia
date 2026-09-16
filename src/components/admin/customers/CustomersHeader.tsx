@@ -2,6 +2,28 @@
 
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
+import { css } from "styled-system/css";
+
+const headerRowStyle = css({
+  display: "flex",
+  flexDirection: { base: "column", sm: "row" },
+  gap: "4",
+  sm: { alignItems: "flex-end", justifyContent: "space-between" },
+});
+
+const titleStyle = css({
+  fontFamily: "display",
+  fontSize: { base: "2xl", sm: "3xl" },
+  fontWeight: "semibold",
+  letterSpacing: "tight",
+  color: "fg.default",
+});
+
+const subtitleStyle = css({
+  marginTop: "2",
+  fontSize: "sm",
+  color: "fg.muted",
+});
 
 export function CustomersHeader() {
   const handleExport = () => {
@@ -9,15 +31,13 @@ export function CustomersHeader() {
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className={headerRowStyle}>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
-        <p className="text-muted-foreground mt-2">
-          View and manage customer information
-        </p>
+        <h1 className={titleStyle}>Customers</h1>
+        <p className={subtitleStyle}>View and manage customer information</p>
       </div>
       <Button variant="outline" onClick={handleExport}>
-        <Download className="h-4 w-4 mr-2" />
+        <Download className={css({ height: "4", width: "4" })} />
         Export CSV
       </Button>
     </div>

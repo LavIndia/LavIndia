@@ -1,31 +1,97 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as SwitchPrimitive from "@radix-ui/react-switch"
+import * as React from "react";
+import {
+  Switch as AriaSwitch,
+  type SwitchProps as AriaSwitchProps,
+} from "react-aria-components";
+import { css, cx } from "styled-system/css";
 
-import { cn } from "@/lib/utils"
+const switchStyle = css({
+  display: "inline-flex",
+  alignItems: "center",
+  cursor: "pointer",
+  outline: "none",
+  "& .track": {
+    display: "inline-flex",
+    alignItems: "center",
+    flexShrink: 0,
+    width: "8",
+    height: "4.5",
+    padding: "0.5",
+    borderRadius: "full",
+    background: "border.subtle",
+    border: "1px solid transparent",
+    transition: "background 0.18s ease",
+  },
+  "& .thumb": {
+    width: "3.5",
+    height: "3.5",
+    borderRadius: "full",
+    background: "bg.surface",
+    boxShadow: "card",
+    transform: "translateX(0)",
+    transition: "transform 0.18s ease, background 0.18s ease",
+  },
+  "&[data-selected] .track": {
+    background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+  },
+  "&[data-selected] .thumb": {
+    // track (8) minus its own padding (0.5 * 2) minus thumb width (3.5) = 3.5
+    transform: "translateX(token(sizes.3.5))",
+  },
+  "&[data-focus-visible] .track": {
+    boxShadow: "0 0 0 3px token(colors.gold.200)",
+  },
+  "&[data-disabled]": { cursor: "not-allowed", opacity: 0.5 },
+});
 
-function Switch({
-  className,
-  ...props
-}: React.ComponentProps<typeof SwitchPrimitive.Root>) {
-  return (
-    <SwitchPrimitive.Root
-      data-slot="switch"
-      className={cn(
-        "peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
-        className
-      )}
-      {...props}
-    >
-      <SwitchPrimitive.Thumb
-        data-slot="switch-thumb"
-        className={cn(
-          "bg-background dark:data-[state=unchecked]:bg-foreground dark:data-[state=checked]:bg-primary-foreground pointer-events-none block size-4 rounded-full ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0"
-        )}
-      />
-    </SwitchPrimitive.Root>
-  )
+export interface SwitchProps
+  extends Omit<
+    AriaSwitchProps,
+    "className" | "children" | "checked" | "defaultChecked"
+  > {
+  className?: string;
+  children?: React.ReactNode;
+  /** Back-compat alias for isSelected (old Radix/shadcn API). */
+  checked?: boolean;
+  /** Back-compat alias for defaultSelected. */
+  defaultChecked?: boolean;
+  /** Back-compat alias for onChange. */
+  onCheckedChange?: (checked: boolean) => void;
+  /** Back-compat alias for isDisabled. */
+  disabled?: boolean;
 }
 
-export { Switch }
+export function Switch({
+  className,
+  children,
+  checked,
+  defaultChecked,
+  onCheckedChange,
+  isSelected,
+  defaultSelected,
+  onChange,
+  disabled,
+  isDisabled,
+  ...props
+}: SwitchProps) {
+  return (
+    <AriaSwitch
+      className={cx(switchStyle, className)}
+      isSelected={isSelected ?? checked}
+      defaultSelected={defaultSelected ?? defaultChecked}
+      isDisabled={isDisabled ?? disabled}
+      onChange={(value) => {
+        onChange?.(value);
+        onCheckedChange?.(value);
+      }}
+      {...props}
+    >
+      <span className="track">
+        <span className="thumb" />
+      </span>
+      {children}
+    </AriaSwitch>
+  );
+}

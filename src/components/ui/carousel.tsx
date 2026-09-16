@@ -1,13 +1,19 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
-} from "embla-carousel-react"
-import { ArrowLeft, ArrowRight } from "lucide-react"
+} from "embla-carousel-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { css, cx } from "styled-system/css";
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
+
+type ButtonProps = React.ComponentProps<typeof Button>;
+
+// Embla carousel engine is kept as-is; only presentation (container/controls)
+// is restyled with Panda. Carousel motion/scroll physics stay with embla —
+// Motion isn't needed on top of it (golden rule 5: no redundant animation).
 
 type CarouselApi = UseEmblaCarouselType[1]
 type UseCarouselParameters = Parameters<typeof useEmblaCarousel>
@@ -120,7 +126,7 @@ function Carousel({
     >
       <div
         onKeyDownCapture={handleKeyDown}
-        className={cn("relative", className)}
+        className={cx(css({ position: "relative" }), className)}
         role="region"
         aria-roledescription="carousel"
         data-slot="carousel"
@@ -136,15 +142,20 @@ function CarouselContent({ className, ...props }: React.ComponentProps<"div">) {
   const { carouselRef, orientation } = useCarousel()
 
   return (
-    <div
-      ref={carouselRef}
-      className="overflow-hidden"
-      data-slot="carousel-content"
-    >
+    // `height: "full"` here so a consumer that sizes the Carousel root with
+    // `height: "full"` (percentage) can flow that height all the way down
+    // to CarouselItem — without it, this embla viewport div collapses to
+    // its auto/content height (0, since its own children are percentage
+    // sized too), breaking `next/image`'s `fill` on any percentage-sized
+    // slide. See HeroBanner.tsx, which historically routed around this by
+    // using literal pixel heights at every level instead.
+    <div ref={carouselRef} className={css({ overflow: "hidden", height: "full" })} data-slot="carousel-content">
       <div
-        className={cn(
-          "flex",
-          orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col",
+        className={cx(
+          css({ display: "flex" }),
+          orientation === "horizontal"
+            ? css({ marginLeft: "-4" })
+            : css({ marginTop: "-4", flexDirection: "column" }),
           className
         )}
         {...props}
@@ -161,9 +172,9 @@ function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
       role="group"
       aria-roledescription="slide"
       data-slot="carousel-item"
-      className={cn(
-        "min-w-0 shrink-0 grow-0 basis-full",
-        orientation === "horizontal" ? "pl-4" : "pt-4",
+      className={cx(
+        css({ minWidth: "0", flexShrink: "0", flexGrow: "0", flexBasis: "full" }),
+        orientation === "horizontal" ? css({ paddingLeft: "4" }) : css({ paddingTop: "4" }),
         className
       )}
       {...props}
@@ -171,12 +182,31 @@ function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+const carouselControlStyle = css({
+  position: "absolute",
+  borderRadius: "full",
+  width: "8",
+  height: "8",
+});
+
+const carouselControlPosition = {
+  prev: {
+    horizontal: css({ top: "50%", left: "-12", transform: "translateY(-50%)" }),
+    vertical: css({ top: "-12", left: "50%", transform: "translateX(-50%) rotate(90deg)" }),
+  },
+  next: {
+    horizontal: css({ top: "50%", right: "-12", transform: "translateY(-50%)" }),
+    vertical: css({ bottom: "-12", left: "50%", transform: "translateX(-50%) rotate(90deg)" }),
+  },
+};
+
 function CarouselPrevious({
   className,
   variant = "outline",
   size = "icon",
+  disabled,
   ...props
-}: React.ComponentProps<typeof Button>) {
+}: ButtonProps) {
   const { orientation, scrollPrev, canScrollPrev } = useCarousel()
 
   return (
@@ -184,19 +214,13 @@ function CarouselPrevious({
       data-slot="carousel-previous"
       variant={variant}
       size={size}
-      className={cn(
-        "absolute size-8 rounded-full",
-        orientation === "horizontal"
-          ? "top-1/2 -left-12 -translate-y-1/2"
-          : "-top-12 left-1/2 -translate-x-1/2 rotate-90",
-        className
-      )}
-      disabled={!canScrollPrev}
-      onClick={scrollPrev}
+      className={cx(carouselControlStyle, carouselControlPosition.prev[orientation ?? "horizontal"], className)}
+      disabled={disabled ?? !canScrollPrev}
+      onPress={scrollPrev}
       {...props}
     >
       <ArrowLeft />
-      <span className="sr-only">Previous slide</span>
+      <span className={css({ srOnly: true })}>Previous slide</span>
     </Button>
   )
 }
@@ -205,8 +229,9 @@ function CarouselNext({
   className,
   variant = "outline",
   size = "icon",
+  disabled,
   ...props
-}: React.ComponentProps<typeof Button>) {
+}: ButtonProps) {
   const { orientation, scrollNext, canScrollNext } = useCarousel()
 
   return (
@@ -214,19 +239,13 @@ function CarouselNext({
       data-slot="carousel-next"
       variant={variant}
       size={size}
-      className={cn(
-        "absolute size-8 rounded-full",
-        orientation === "horizontal"
-          ? "top-1/2 -right-12 -translate-y-1/2"
-          : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
-        className
-      )}
-      disabled={!canScrollNext}
-      onClick={scrollNext}
+      className={cx(carouselControlStyle, carouselControlPosition.next[orientation ?? "horizontal"], className)}
+      disabled={disabled ?? !canScrollNext}
+      onPress={scrollNext}
       {...props}
     >
       <ArrowRight />
-      <span className="sr-only">Next slide</span>
+      <span className={css({ srOnly: true })}>Next slide</span>
     </Button>
   )
 }

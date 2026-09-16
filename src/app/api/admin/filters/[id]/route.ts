@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -120,6 +121,8 @@ export async function PUT(request: NextRequest, props: RouteParams) {
       metadata: { name: filter.name },
     });
 
+    revalidateTag("filters");
+
     return NextResponse.json({ filter: updatedFilter });
   } catch (error) {
     console.error("Error updating filter:", error);
@@ -144,6 +147,8 @@ export async function PATCH(request: NextRequest, props: RouteParams) {
       where: { id: params.id },
       data: body,
     });
+
+    revalidateTag("filters");
 
     return NextResponse.json({ filter });
   } catch (error) {
@@ -183,6 +188,8 @@ export async function DELETE(request: NextRequest, props: RouteParams) {
       entityId: params.id,
       metadata: { name: filter.name },
     });
+
+    revalidateTag("filters");
 
     return NextResponse.json({ message: "Filter deleted successfully" });
   } catch (error) {

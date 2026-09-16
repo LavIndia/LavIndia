@@ -3,21 +3,40 @@
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import Link from "next/link";
+import { css } from "styled-system/css";
+
+const rowStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "4",
+  md: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
+});
+
+const titleStyle = css({
+  fontFamily: "display",
+  fontSize: "2xl",
+  fontWeight: "bold",
+  letterSpacing: "tight",
+  color: "fg.default",
+  md: { fontSize: "3xl" },
+});
+
+const subtitleStyle = css({
+  fontSize: "sm",
+  color: "fg.muted",
+  marginTop: "2",
+});
 
 export function BudgetTiersHeader() {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className={rowStyle}>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Budget Price Tiers
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Manage shopping budget categories
-        </p>
+        <h1 className={titleStyle}>Budget Price Tiers</h1>
+        <p className={subtitleStyle}>Manage shopping budget categories</p>
       </div>
       <Link href="/admin/budget-tiers/new">
         <Button>
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className={css({ height: "4", width: "4" })} />
           Add Tier
         </Button>
       </Link>

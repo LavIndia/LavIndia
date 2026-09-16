@@ -22,7 +22,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { css } from "styled-system/css";
 
 interface FilterWithCount {
   id: string;
@@ -36,6 +38,34 @@ interface FilterWithCount {
     categories: number;
   };
 }
+
+const containerStyle = css({
+  overflow: "hidden",
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  background: "bg.surface",
+  boxShadow: "card",
+});
+
+const scrollStyle = css({ overflowX: "auto" });
+
+const centerCellStyle = css({ textAlign: "center" });
+const rightHeadStyle = css({ textAlign: "right" });
+const actionsWidthStyle = css({ width: "6.25rem" });
+
+const emptyCellStyle = css({
+  textAlign: "center",
+  paddingBlock: "8",
+  color: "fg.muted",
+});
+
+const nameCellStyle = css({ fontWeight: "medium", color: "fg.default" });
+
+const actionsRowStyle = css({ display: "flex", justifyContent: "flex-end", gap: "2" });
+
+const iconStyle = css({ height: "4", width: "4" });
+const deleteIconStyle = css({ height: "4", width: "4", color: "danger" });
 
 export function FiltersTable({ filters }: { filters: FilterWithCount[] }) {
   const router = useRouter();
@@ -81,40 +111,37 @@ export function FiltersTable({ filters }: { filters: FilterWithCount[] }) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="overflow-x-auto">
+      <div className={containerStyle}>
+        <div className={scrollStyle}>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead className="text-center">Options</TableHead>
-                <TableHead className="text-center">Categories</TableHead>
-                <TableHead className="w-[100px]">Active</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className={centerCellStyle}>Options</TableHead>
+                <TableHead className={centerCellStyle}>Categories</TableHead>
+                <TableHead className={actionsWidthStyle}>Active</TableHead>
+                <TableHead className={rightHeadStyle}>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filters.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="text-center py-8 text-gray-500"
-                  >
+                  <TableCell colSpan={6} className={emptyCellStyle}>
                     No filters yet. Create one to get started.
                   </TableCell>
                 </TableRow>
               ) : (
                 filters.map((filter) => (
-                  <TableRow key={filter.id} className="hover:bg-muted/40">
-                    <TableCell className="font-medium">{filter.name}</TableCell>
+                  <TableRow key={filter.id}>
+                    <TableCell className={nameCellStyle}>{filter.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{filter.type}</Badge>
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className={centerCellStyle}>
                       {filter._count.options}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className={centerCellStyle}>
                       {filter._count.categories}
                     </TableCell>
                     <TableCell>
@@ -124,21 +151,23 @@ export function FiltersTable({ filters }: { filters: FilterWithCount[] }) {
                           handleToggleActive(filter.id, filter.isActive)
                         }
                         disabled={updating === filter.id}
+                        aria-label={`Toggle ${filter.name} active`}
                       />
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                    <TableCell className={rightHeadStyle}>
+                      <div className={actionsRowStyle}>
                         <Link href={`/admin/filters/${filter.id}/edit`}>
-                          <Button variant="ghost" size="sm">
-                            <Pencil className="h-4 w-4" />
+                          <Button variant="ghost" size="sm" aria-label={`Edit ${filter.name}`}>
+                            <Pencil className={iconStyle} />
                           </Button>
                         </Link>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => setDeleting(filter.id)}
+                          aria-label={`Delete ${filter.name}`}
                         >
-                          <Trash2 className="h-4 w-4 text-red-500" />
+                          <Trash2 className={deleteIconStyle} />
                         </Button>
                       </div>
                     </TableCell>
@@ -156,23 +185,23 @@ export function FiltersTable({ filters }: { filters: FilterWithCount[] }) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Filter</DialogTitle>
+            <DialogTitle>Delete filter?</DialogTitle>
             <DialogDescription>
-              Are you sure? This will delete the filter and all its options.
-              This action cannot be undone.
+              This will permanently delete the filter and all its options. This
+              action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-2">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Cancel
             </Button>
             <Button
+              variant="destructive"
               onClick={() => deleting && handleDelete(deleting)}
-              className="bg-red-500 hover:bg-red-600"
             >
               Delete
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

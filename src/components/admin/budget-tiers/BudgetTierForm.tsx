@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { css } from "styled-system/css";
 
 type BudgetTier = {
   id: string;
@@ -20,6 +21,19 @@ type BudgetTier = {
   order: number;
   isActive: boolean;
 };
+
+const pageStyle = css({ display: "flex", flexDirection: "column", gap: "6" });
+const headerRowStyle = css({ display: "flex", alignItems: "center", gap: "4" });
+const headingStyle = css({ fontFamily: "display", fontSize: "2xl", fontWeight: "bold", color: "fg.default", md: { fontSize: "3xl" } });
+const formStyle = css({ display: "flex", flexDirection: "column", gap: "6" });
+const fieldGroupStyle = css({ display: "flex", flexDirection: "column", gap: "4" });
+const fieldStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
+const requiredMarkStyle = css({ color: "danger" });
+const helpTextStyle = css({ fontSize: "sm", color: "fg.muted" });
+const gradientPreviewStyle = css({ width: "full", height: "16", borderRadius: "md", marginTop: "2", border: "1px solid", borderColor: "border.subtle" });
+const switchRowStyle = css({ display: "flex", alignItems: "center", gap: "3" });
+const actionsRowStyle = css({ display: "flex", flexDirection: "column", gap: "3", paddingTop: "4", sm: { flexDirection: "row" } });
+const actionButtonStyle = css({ width: "full", sm: { width: "auto" } });
 
 export function BudgetTierForm({ tier }: { tier?: BudgetTier }) {
   const router = useRouter();
@@ -70,28 +84,31 @@ export function BudgetTierForm({ tier }: { tier?: BudgetTier }) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className={pageStyle}>
+      <div className={headerRowStyle}>
         <Link href="/admin/budget-tiers">
-          <Button variant="outline" size="icon">
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="outline" size="icon" aria-label="Back to budget tiers">
+            <ArrowLeft className={css({ height: "4", width: "4" })} />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-3xl font-bold">
-            {tier ? "Edit Budget Tier" : "New Budget Tier"}
-          </h1>
-        </div>
+        <h1 className={headingStyle}>
+          {tier ? "Edit Budget Tier" : "New Budget Tier"}
+        </h1>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className={formStyle}>
         <Card>
           <CardHeader>
             <CardTitle>Tier Details</CardTitle>
+            <CardDescription>
+              Core information shown to shoppers browsing by budget.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
+          <CardContent className={fieldGroupStyle}>
+            <div className={fieldStyle}>
+              <Label htmlFor="title">
+                Title <span className={requiredMarkStyle}>*</span>
+              </Label>
               <Input
                 id="title"
                 value={formData.title}
@@ -103,8 +120,10 @@ export function BudgetTierForm({ tier }: { tier?: BudgetTier }) {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="maxPrice">Maximum Price (₹) *</Label>
+            <div className={fieldStyle}>
+              <Label htmlFor="maxPrice">
+                Maximum Price (₹) <span className={requiredMarkStyle}>*</span>
+              </Label>
               <Input
                 id="maxPrice"
                 type="number"
@@ -122,7 +141,28 @@ export function BudgetTierForm({ tier }: { tier?: BudgetTier }) {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className={switchRowStyle}>
+              <Switch
+                id="isActive"
+                checked={formData.isActive}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, isActive: checked })
+                }
+              />
+              <Label htmlFor="isActive">Active</Label>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription>
+              Optional styling for how this tier is presented on the storefront.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className={fieldGroupStyle}>
+            <div className={fieldStyle}>
               <Label htmlFor="gradient">Gradient CSS</Label>
               <Input
                 id="gradient"
@@ -134,13 +174,13 @@ export function BudgetTierForm({ tier }: { tier?: BudgetTier }) {
               />
               {formData.gradient && (
                 <div
-                  className="w-full h-16 rounded-md mt-2"
+                  className={gradientPreviewStyle}
                   style={{ background: formData.gradient }}
                 />
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className={fieldStyle}>
               <Label htmlFor="icon">Icon Name</Label>
               <Input
                 id="icon"
@@ -150,12 +190,20 @@ export function BudgetTierForm({ tier }: { tier?: BudgetTier }) {
                 }
                 placeholder="e.g., Tag, DollarSign, Gift"
               />
-              <p className="text-sm text-muted-foreground">
-                Lucide React icon name
-              </p>
+              <p className={helpTextStyle}>Lucide React icon name</p>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="space-y-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Ordering</CardTitle>
+            <CardDescription>
+              Controls the position of this tier among other budget tiers.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className={fieldGroupStyle}>
+            <div className={fieldStyle}>
               <Label htmlFor="order">Display Order</Label>
               <Input
                 id="order"
@@ -166,30 +214,19 @@ export function BudgetTierForm({ tier }: { tier?: BudgetTier }) {
                 }
               />
             </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, isActive: checked })
-                }
-              />
-              <Label htmlFor="isActive">Active</Label>
-            </div>
-
-            <div className="flex gap-4 pt-4">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : tier ? "Update" : "Create"}
-              </Button>
-              <Link href="/admin/budget-tiers">
-                <Button type="button" variant="outline">
-                  Cancel
-                </Button>
-              </Link>
-            </div>
           </CardContent>
         </Card>
+
+        <div className={actionsRowStyle}>
+          <Button type="submit" disabled={isSubmitting} className={actionButtonStyle}>
+            {isSubmitting ? "Saving..." : tier ? "Update" : "Create"}
+          </Button>
+          <Link href="/admin/budget-tiers" className={actionButtonStyle}>
+            <Button type="button" variant="outline" className={actionButtonStyle}>
+              Cancel
+            </Button>
+          </Link>
+        </div>
       </form>
     </div>
   );

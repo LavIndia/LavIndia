@@ -11,8 +11,40 @@ import {
 import { DashboardCharts } from "@/components/admin/dashboard/DashboardCharts";
 import { RecentOrders } from "@/components/admin/dashboard/RecentOrders";
 import { getSiteSettings } from "@/lib/site-settings";
+import { css, cx } from "styled-system/css";
 
 export const dynamic = "force-dynamic";
+
+const pageStyle = css({ display: "flex", flexDirection: "column", gap: "8" });
+const titleStyle = css({
+  fontFamily: "display",
+  fontSize: { base: "2xl", sm: "3xl" },
+  fontWeight: "semibold",
+  letterSpacing: "tight",
+  color: "fg.default",
+});
+const subtitleStyle = css({ marginTop: "2", fontSize: "sm", color: "fg.muted" });
+const statsGridStyle = css({
+  display: "grid",
+  gap: "4",
+  md: { gridTemplateColumns: "repeat(2, 1fr)" },
+  lg: { gridTemplateColumns: "repeat(4, 1fr)" },
+});
+const statCardStyle = css({ borderRadius: "xl" });
+const statHeaderStyle = css({
+  display: "flex",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  paddingBottom: "2",
+});
+const statLabelStyle = css({ fontSize: "sm", fontWeight: "medium", color: "fg.muted" });
+const statIconStyle = css({ height: "4", width: "4", color: "fg.muted" });
+const statValueStyle = css({ fontSize: "2xl", fontWeight: "bold", color: "fg.default" });
+const statSubRowStyle = css({ marginTop: "1", display: "flex", alignItems: "center", fontSize: "xs" });
+const statSubTextStyle = css({ marginTop: "1", fontSize: "xs", color: "fg.muted" });
+const trendUpStyle = css({ color: "success" });
+const trendDownStyle = css({ color: "danger" });
 
 async function getDashboardStats() {
   const [
@@ -76,95 +108,83 @@ export default async function AdminDashboard() {
   ]);
 
   return (
-    <div className="space-y-8">
+    <div className={pageStyle}>
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Dashboard
-        </h1>
-        <p className="mt-2 text-muted-foreground">
+        <h1 className={titleStyle}>Dashboard</h1>
+        <p className={subtitleStyle}>
           Welcome to {settings.businessName} Admin Dashboard
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={statsGridStyle}>
         {/* Total Revenue */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Total Revenue
-            </CardTitle>
-            <IndianRupee className="h-4 w-4 text-gray-500" />
+        <Card className={statCardStyle}>
+          <CardHeader className={statHeaderStyle}>
+            <CardTitle className={statLabelStyle}>Total Revenue</CardTitle>
+            <IndianRupee className={statIconStyle} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className={statValueStyle}>
               ₹{stats.revenue.toLocaleString()}
             </div>
-            <div className="mt-1 flex items-center text-xs">
+            <div className={statSubRowStyle}>
               {stats.revenueChange >= 0 ? (
                 <>
-                  <TrendingUp className="mr-1 h-3 w-3 text-green-500" />
-                  <span className="text-green-500">
+                  <TrendingUp className={cx(css({ marginRight: "1", height: "3", width: "3" }), trendUpStyle)} />
+                  <span className={trendUpStyle}>
                     +{stats.revenueChange.toFixed(1)}%
                   </span>
                 </>
               ) : (
                 <>
-                  <TrendingDown className="mr-1 h-3 w-3 text-red-500" />
-                  <span className="text-red-500">
+                  <TrendingDown className={cx(css({ marginRight: "1", height: "3", width: "3" }), trendDownStyle)} />
+                  <span className={trendDownStyle}>
                     {stats.revenueChange.toFixed(1)}%
                   </span>
                 </>
               )}
-              <span className="ml-1 text-gray-500">from last month</span>
+              <span className={css({ marginLeft: "1", color: "fg.muted" })}>from last month</span>
             </div>
           </CardContent>
         </Card>
 
         {/* Orders */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Orders
-            </CardTitle>
-            <ShoppingCart className="h-4 w-4 text-gray-500" />
+        <Card className={statCardStyle}>
+          <CardHeader className={statHeaderStyle}>
+            <CardTitle className={statLabelStyle}>Orders</CardTitle>
+            <ShoppingCart className={statIconStyle} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalOrders}</div>
-            <p className="mt-1 text-xs text-gray-500">
-              {stats.todayOrders} orders today
-            </p>
+            <div className={statValueStyle}>{stats.totalOrders}</div>
+            <p className={statSubTextStyle}>{stats.todayOrders} orders today</p>
           </CardContent>
         </Card>
 
         {/* Products */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Active Products
-            </CardTitle>
-            <Package className="h-4 w-4 text-gray-500" />
+        <Card className={statCardStyle}>
+          <CardHeader className={statHeaderStyle}>
+            <CardTitle className={statLabelStyle}>Active Products</CardTitle>
+            <Package className={statIconStyle} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.activeProducts}</div>
-            <p className="mt-1 text-xs text-gray-500">
+            <div className={statValueStyle}>{stats.activeProducts}</div>
+            <p className={statSubTextStyle}>
               {stats.totalProducts} total products
             </p>
           </CardContent>
         </Card>
 
         {/* Customers */}
-        <Card className="rounded-xl shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
-              Customers
-            </CardTitle>
-            <Users className="h-4 w-4 text-gray-500" />
+        <Card className={statCardStyle}>
+          <CardHeader className={statHeaderStyle}>
+            <CardTitle className={statLabelStyle}>Customers</CardTitle>
+            <Users className={statIconStyle} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCustomers}</div>
-            <p className="mt-1 text-xs text-gray-500">Total registered users</p>
+            <div className={statValueStyle}>{stats.totalCustomers}</div>
+            <p className={statSubTextStyle}>Total registered users</p>
           </CardContent>
         </Card>
       </div>

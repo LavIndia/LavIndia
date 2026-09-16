@@ -1,13 +1,20 @@
-import { cn } from "@/lib/utils"
+import { css, cx } from "styled-system/css";
 
 function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="skeleton"
-      className={cn("bg-accent animate-pulse rounded-md", className)}
+      className={cx(
+        css({
+          background: "bg.glass",
+          borderRadius: "md",
+          animation: "pulse",
+        }),
+        className
+      )}
       {...props}
     />
-  )
+  );
 }
 
-export { Skeleton }
+export { Skeleton };

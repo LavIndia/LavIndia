@@ -1,3 +1,5 @@
+import { css } from "styled-system/css";
+
 type PromoBanner = {
   id: string;
   type: string;
@@ -8,46 +10,98 @@ type PromoBanner = {
   isActive: boolean;
 };
 
+const sectionStyle = css({ paddingY: "12", md: { paddingY: "16" }, position: "relative", overflow: "hidden" });
+
+const decorTopStyle = css({
+  position: "absolute",
+  top: "0",
+  left: "0",
+  width: "64",
+  height: "64",
+  borderRadius: "full",
+  background: "gold.100",
+  opacity: "0.4",
+  transform: "translate(-50%, -50%)",
+});
+
+const decorBottomStyle = css({
+  position: "absolute",
+  bottom: "0",
+  right: "0",
+  width: "96",
+  height: "96",
+  borderRadius: "full",
+  background: "rose.300",
+  opacity: "0.25",
+  transform: "translate(50%, 50%)",
+});
+
+const containerStyle = css({ marginX: "auto", paddingX: "4", position: "relative", zIndex: "10" });
+const innerStyle = css({ maxWidth: "4xl", marginX: "auto", textAlign: "center" });
+
+const badgeStyle = css({
+  display: "inline-block",
+  marginBottom: "4",
+});
+
+const badgeTextStyle = css({
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  fontWeight: "bold",
+  paddingX: "5",
+  paddingY: "2",
+  borderRadius: "full",
+  fontSize: "sm",
+  boxShadow: "glass",
+  border: "1px solid",
+  borderColor: "border.glass",
+  color: "fg.default",
+});
+
+const messageStyle = css({
+  fontFamily: "display",
+  fontSize: "3xl",
+  sm: { fontSize: "4xl" },
+  md: { fontSize: "5xl" },
+  fontWeight: "semibold",
+  marginBottom: "4",
+  color: "fg.default",
+});
+
+const DEFAULT_BG = "linear-gradient(to right, {colors.rose.300}, {colors.gold.50}, {colors.ivory.100})";
+
 export function FreeGiftsBanner({ banner }: { banner: PromoBanner | null }) {
   if (!banner) {
     return null;
   }
 
-  const textColor = banner.textColor || "#1f2937";
+  const textColor = banner.textColor || undefined;
 
   return (
     <section
-      className="py-16 relative overflow-hidden"
-      style={{
-        background:
-          banner.bgColor ||
-          "linear-gradient(to right, #fce7f3, #f3e8ff, #dbeafe)",
-      }}
+      className={sectionStyle}
+      style={{ background: banner.bgColor || undefined }}
     >
       {!banner.bgColor && (
+        <div className={css({ position: "absolute", inset: "0", background: DEFAULT_BG })} />
+      )}
+      {!banner.bgColor && (
         <>
-          {/* Decorative elements - only show if using default gradient */}
-          <div className="absolute top-0 left-0 w-64 h-64 bg-pink-200 rounded-full opacity-30 -translate-x-32 -translate-y-32" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-200 rounded-full opacity-30 translate-x-48 translate-y-48" />
+          <div className={decorTopStyle} />
+          <div className={decorBottomStyle} />
         </>
       )}
 
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-4xl mx-auto text-center">
+      <div className={containerStyle}>
+        <div className={innerStyle}>
           {banner.title && (
-            <div className="inline-block mb-4">
-              <span
-                className="bg-white/80 backdrop-blur-sm font-bold px-6 py-2 rounded-full text-sm shadow-lg"
-                style={{ color: textColor }}
-              >
+            <div className={badgeStyle}>
+              <span className={badgeTextStyle} style={{ color: textColor }}>
                 {banner.title}
               </span>
             </div>
           )}
-          <h2
-            className="text-5xl md:text-6xl font-bold mb-4"
-            style={{ color: textColor }}
-          >
+          <h2 className={messageStyle} style={{ color: textColor }}>
             {banner.message}
           </h2>
         </div>

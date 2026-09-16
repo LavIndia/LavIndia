@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Ticket, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { css } from "styled-system/css";
 
 interface Discount {
   id: string;
@@ -16,7 +17,90 @@ interface Discount {
   endDate: string | Date;
 }
 
-export function CouponsSection({ coupons }: { coupons: Discount[] }) {
+const sectionStyle = css({
+  paddingY: "12",
+  md: { paddingY: "16" },
+  background: "linear-gradient(135deg, {colors.ivory.100}, {colors.gold.50})",
+});
+
+const containerStyle = css({ marginX: "auto", paddingX: "4" });
+const innerStyle = css({ maxWidth: "4xl", marginX: "auto" });
+const headerStyle = css({ textAlign: "center", marginBottom: "8", md: { marginBottom: "10" } });
+const headerTopStyle = css({ display: "inline-flex", alignItems: "center", gap: "2", marginBottom: "4" });
+const headingStyle = css({ fontFamily: "display", fontSize: "2xl", md: { fontSize: "3xl" }, fontWeight: "semibold", color: "fg.default" });
+const subheadingStyle = css({ color: "fg.muted" });
+
+const gridStyle = css({
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  md: { gridTemplateColumns: "repeat(2, 1fr)" },
+  gap: "5",
+});
+
+const cardStyle = css({
+  position: "relative",
+  background: "bg.surface",
+  borderRadius: "lg",
+  boxShadow: "card",
+  overflow: "hidden",
+  border: "1px dashed",
+  borderColor: "gold.200",
+  transition: "box-shadow 0.2s ease",
+  "&:hover": { boxShadow: "glass" },
+});
+
+const cardBodyStyle = css({ padding: "6", position: "relative" });
+const cardTopRowStyle = css({ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "3", marginBottom: "4" });
+const couponTitleStyle = css({ fontWeight: "bold", fontSize: "lg", color: "fg.default", marginBottom: "1" });
+const couponDescStyle = css({ fontSize: "sm", color: "fg.muted" });
+
+const discountBadgeStyle = css({
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+  color: "fg.onGold",
+  fontWeight: "bold",
+  paddingX: "4",
+  paddingY: "2",
+  borderRadius: "md",
+  fontSize: "sm",
+  boxShadow: "gold",
+  flexShrink: "0",
+  whiteSpace: "nowrap",
+});
+
+const codeRowStyle = css({ display: "flex", alignItems: "center", gap: "3" });
+const codeBoxStyle = css({
+  flex: "1",
+  background: "ivory.200",
+  borderRadius: "md",
+  paddingX: "4",
+  paddingY: "3",
+  border: "1px dashed",
+  borderColor: "border.subtle",
+});
+const codeLabelStyle = css({ fontSize: "xs", color: "fg.muted", marginBottom: "1" });
+const codeTextStyle = css({ fontFamily: "mono", fontWeight: "bold", fontSize: "lg", color: "fg.default" });
+
+const footerRowStyle = css({
+  marginTop: "4",
+  paddingTop: "4",
+  borderTop: "1px solid",
+  borderColor: "border.subtle",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  fontSize: "xs",
+  color: "fg.muted",
+  flexWrap: "wrap",
+  gap: "2",
+});
+
+export function CouponsSection({
+  coupons,
+  title = "Coupons for You",
+}: {
+  coupons: Discount[];
+  title?: string;
+}) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const copyCode = (code: string) => {
@@ -38,81 +122,59 @@ export function CouponsSection({ coupons }: { coupons: Discount[] }) {
   }
 
   return (
-    <section className="py-16 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
-      <div className="container mx-auto px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 mb-4">
-              <Ticket className="h-8 w-8 text-purple-600" />
-              <h2 className="text-3xl font-bold text-gray-900">
-                Coupons for You
-              </h2>
+    <section className={sectionStyle}>
+      <div className={containerStyle}>
+        <div className={innerStyle}>
+          <div className={headerStyle}>
+            <div className={headerTopStyle}>
+              <Ticket className={css({ height: "8", width: "8", color: "accent.pressed" })} />
+              <h2 className={headingStyle}>{title}</h2>
             </div>
-            <p className="text-gray-600">
-              Save more with our exclusive discount codes
-            </p>
+            <p className={subheadingStyle}>Save more with our exclusive discount codes</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className={gridStyle}>
             {coupons.map((coupon) => (
-              <div
-                key={coupon.id}
-                className="relative bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow overflow-hidden border-2 border-dashed border-purple-200"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-400 to-pink-400 rounded-bl-full opacity-10" />
-
-                <div className="p-6 relative">
-                  <div className="flex items-start justify-between mb-4">
+              <div key={coupon.id} className={cardStyle}>
+                <div className={cardBodyStyle}>
+                  <div className={cardTopRowStyle}>
                     <div>
-                      <h3 className="font-bold text-xl text-gray-900 mb-1">
-                        {coupon.title}
-                      </h3>
+                      <h3 className={couponTitleStyle}>{coupon.title}</h3>
                       {coupon.description && (
-                        <p className="text-sm text-gray-600">
-                          {coupon.description}
-                        </p>
+                        <p className={couponDescStyle}>{coupon.description}</p>
                       )}
                     </div>
-                    <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold px-4 py-2 rounded-lg text-sm shadow-md">
-                      {formatDiscount(
-                        coupon.discountType,
-                        coupon.discountValue
-                      )}
+                    <span className={discountBadgeStyle}>
+                      {formatDiscount(coupon.discountType, coupon.discountValue)}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 bg-gray-100 rounded-lg px-4 py-3 border-2 border-dashed border-gray-300">
-                      <p className="text-xs text-gray-500 mb-1">Coupon Code</p>
-                      <p className="font-mono font-bold text-lg text-gray-900">
-                        {coupon.code}
-                      </p>
+                  <div className={codeRowStyle}>
+                    <div className={codeBoxStyle}>
+                      <p className={codeLabelStyle}>Coupon Code</p>
+                      <p className={codeTextStyle}>{coupon.code}</p>
                     </div>
-                    <Button
-                      onClick={() => copyCode(coupon.code)}
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                    >
+                    <Button onClick={() => copyCode(coupon.code)}>
                       {copiedCode === coupon.code ? (
                         <>
-                          <Check className="h-4 w-4 mr-2" />
+                          <Check className={css({ height: "4", width: "4" })} />
                           Copied
                         </>
                       ) : (
                         <>
-                          <Copy className="h-4 w-4 mr-2" />
+                          <Copy className={css({ height: "4", width: "4" })} />
                           Copy
                         </>
                       )}
                     </Button>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
+                  <div className={footerRowStyle}>
                     {coupon.minPurchase && (
                       <span>Min. purchase: ₹{coupon.minPurchase / 100}</span>
                     )}
                     <span>
-                      Valid till:{" "}
-                      {new Date(coupon.endDate).toLocaleDateString()}
+                      Valid till: {new Date(coupon.endDate).toLocaleDateString()}
                     </span>
                   </div>
                 </div>

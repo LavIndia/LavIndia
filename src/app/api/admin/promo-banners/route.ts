@@ -48,6 +48,12 @@ export async function POST(request: NextRequest) {
       startDate,
       endDate,
       order,
+      isRecurring,
+      recurrenceType,
+      recurrenceDaysOfWeek,
+      recurrenceDayOfMonth,
+      recurrenceStartTime,
+      recurrenceEndTime,
     } = body;
 
     if (!type || !message) {
@@ -68,6 +74,12 @@ export async function POST(request: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
         order: order ?? 0,
+        isRecurring: isRecurring ?? false,
+        recurrenceType: isRecurring ? recurrenceType : null,
+        recurrenceDaysOfWeek: isRecurring ? recurrenceDaysOfWeek ?? [] : [],
+        recurrenceDayOfMonth: isRecurring ? recurrenceDayOfMonth : null,
+        recurrenceStartTime: isRecurring ? recurrenceStartTime : null,
+        recurrenceEndTime: isRecurring ? recurrenceEndTime : null,
       },
     });
 

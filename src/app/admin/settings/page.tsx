@@ -1,3 +1,4 @@
+import { css } from "styled-system/css";
 import { prisma } from "@/lib/prisma";
 import { SettingsForm } from "@/components/admin/settings/SettingsForm";
 
@@ -20,10 +21,20 @@ export default async function SettingsPage() {
   const settings = await getSettings();
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className={css({ maxWidth: "4xl", display: "flex", flexDirection: "column", gap: "6" })}>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1
+          className={css({
+            fontFamily: "display",
+            fontSize: "3xl",
+            fontWeight: "bold",
+            letterSpacing: "tight",
+            color: "fg.default",
+          })}
+        >
+          Settings
+        </h1>
+        <p className={css({ color: "fg.muted", marginTop: "2", fontSize: "sm" })}>
           Manage your site configuration and business details
         </p>
       </div>

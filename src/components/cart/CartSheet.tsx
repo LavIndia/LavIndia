@@ -14,6 +14,64 @@ import {
 import Image from "next/image";
 import { useCart } from "./useCart";
 import Link from "next/link";
+import { css } from "styled-system/css";
+
+const badgeStyle = css({
+  position: "absolute",
+  top: "-1",
+  right: "-1",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "full",
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+  color: "fg.onGold",
+  fontSize: "10px",
+  fontWeight: "semibold",
+  height: "4",
+  minWidth: "4",
+  paddingInline: "1",
+});
+
+const bodyStyle = css({
+  marginTop: "6",
+  display: "flex",
+  flexDirection: "column",
+  height: "calc(100% - 5rem)",
+});
+
+const emptyStyle = css({ fontSize: "sm", color: "fg.muted" });
+
+const listStyle = css({ flex: "1", overflow: "auto", display: "flex", flexDirection: "column", gap: "4", paddingRight: "2" });
+
+const itemRowStyle = css({
+  display: "flex",
+  gap: "3",
+  borderBottom: "1px solid",
+  borderColor: "border.subtle",
+  paddingBottom: "3",
+});
+
+const itemImageStyle = css({ borderRadius: "md", objectFit: "cover", width: "16", height: "16" });
+const itemImagePlaceholderStyle = css({ width: "16", height: "16", background: "bg.surface", borderRadius: "md" });
+const itemInfoStyle = css({ flex: "1", minWidth: "0" });
+const itemTopRowStyle = css({ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "2" });
+const itemNameStyle = css({ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: "medium", color: "fg.default" });
+const itemPriceStyle = css({ fontSize: "sm", color: "fg.muted" });
+const qtyRowStyle = css({ marginTop: "2", display: "flex", alignItems: "center", gap: "2" });
+const qtyInputStyle = css({ height: "8", width: "14", textAlign: "center" });
+
+const footerStyle = css({
+  paddingTop: "4",
+  borderTop: "1px solid",
+  borderColor: "border.subtle",
+  display: "flex",
+  flexDirection: "column",
+  gap: "3",
+});
+const subtotalRowStyle = css({ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "sm" });
+const subtotalValueStyle = css({ fontFamily: "display", fontWeight: "semibold", color: "fg.default" });
+const footerButtonsStyle = css({ display: "flex", gap: "2" });
 
 export default function CartSheet() {
   const [open, setOpen] = useState(false);
@@ -23,64 +81,56 @@ export default function CartSheet() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 relative">
-          <ShoppingCart className="h-4 w-4" />
-          {totalCount > 0 && (
-            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-amber-600 text-white text-[10px] font-semibold h-4 min-w-4 px-1">
-              {totalCount}
-            </span>
-          )}
-          <span className="sr-only">Cart</span>
+        <Button variant="ghost" size="icon" className={css({ position: "relative" })}>
+          <ShoppingCart className={css({ height: "4", width: "4" })} />
+          {totalCount > 0 && <span className={badgeStyle}>{totalCount}</span>}
+          <span className={css({ srOnly: true })}>Cart</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[400px] sm:w-[480px]">
+      <SheetContent side="right" className={css({ width: { base: "100vw", sm: "480px" }, maxWidth: "26rem" })}>
         <SheetHeader>
           <SheetTitle>Your Cart</SheetTitle>
         </SheetHeader>
-        <div className="mt-6 flex flex-col h-[calc(100%-5rem)]">
+        <div className={bodyStyle}>
           {/* Items */}
-          <div className="flex-1 overflow-auto space-y-4 pr-2">
-            {items.length === 0 && (
-              <div className="text-sm text-gray-500">Your cart is empty.</div>
-            )}
+          <div className={listStyle}>
+            {items.length === 0 && <div className={emptyStyle}>Your cart is empty.</div>}
             {items.map((item) => (
-              <div
-                key={`${item.id}:${item.variantId ?? "_"}`}
-                className="flex gap-3 border-b pb-3"
-              >
+              <div key={`${item.id}:${item.variantId ?? "_"}`} className={itemRowStyle}>
                 {item.image ? (
                   <Image
                     src={item.image}
                     alt={item.name}
                     width={64}
                     height={64}
-                    className="rounded object-cover w-16 h-16"
+                    className={itemImageStyle}
                   />
                 ) : (
-                  <div className="w-16 h-16 bg-gray-100 rounded" />
+                  <div className={itemImagePlaceholderStyle} />
                 )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="truncate font-medium text-gray-900">
-                      {item.name}
+                <div className={itemInfoStyle}>
+                  <div className={itemTopRowStyle}>
+                    <div>
+                      <div className={itemNameStyle}>{item.name}</div>
+                      {item.variantLabel && (
+                        <div className={itemPriceStyle}>{item.variantLabel}</div>
+                      )}
                     </div>
                     <Button
                       variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
+                      size="icon-sm"
                       onClick={() => removeItem(item.id, item.variantId)}
                     >
-                      <Trash2 className="h-4 w-4 text-gray-500" />
+                      <Trash2 className={css({ height: "4", width: "4", color: "fg.muted" })} />
                     </Button>
                   </div>
-                  <div className="text-sm text-gray-600">
+                  <div className={itemPriceStyle}>
                     ₹{item.price.toLocaleString()}
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className={qtyRowStyle}>
                     <Button
                       variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
+                      size="icon-sm"
                       onClick={() =>
                         updateQty(
                           item.id,
@@ -89,7 +139,7 @@ export default function CartSheet() {
                         )
                       }
                     >
-                      <Minus className="h-4 w-4" />
+                      <Minus className={css({ height: "4", width: "4" })} />
                     </Button>
                     <Input
                       value={item.qty}
@@ -98,19 +148,18 @@ export default function CartSheet() {
                         if (!Number.isNaN(n))
                           updateQty(item.id, Math.max(1, n), item.variantId);
                       }}
-                      className="h-8 w-14 text-center"
+                      className={qtyInputStyle}
                       type="number"
                       min={1}
                     />
                     <Button
                       variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
+                      size="icon-sm"
                       onClick={() =>
                         updateQty(item.id, item.qty + 1, item.variantId)
                       }
                     >
-                      <Plus className="h-4 w-4" />
+                      <Plus className={css({ height: "4", width: "4" })} />
                     </Button>
                   </div>
                 </div>
@@ -119,17 +168,17 @@ export default function CartSheet() {
           </div>
 
           {/* Footer */}
-          <div className="pt-4 border-t space-y-3">
-            <div className="flex items-center justify-between text-sm">
+          <div className={footerStyle}>
+            <div className={subtotalRowStyle}>
               <span>Subtotal</span>
-              <span className="font-semibold">
+              <span className={subtotalValueStyle}>
                 ₹{totalPrice.toLocaleString()}
               </span>
             </div>
-            <div className="flex gap-2">
+            <div className={footerButtonsStyle}>
               <Button
                 variant="outline"
-                className="flex-1"
+                className={css({ flex: "1" })}
                 onClick={clear}
                 disabled={items.length === 0}
               >
@@ -137,7 +186,7 @@ export default function CartSheet() {
               </Button>
               <Button
                 asChild
-                className="flex-1"
+                className={css({ flex: "1" })}
                 disabled={items.length === 0}
                 onClick={() => setOpen(false)}
               >

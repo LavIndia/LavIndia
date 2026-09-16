@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ProductsTable } from "@/components/admin/products/ProductsTable";
 import { ProductsHeader } from "@/components/admin/products/ProductsHeader";
 import { Skeleton } from "@/components/ui/skeleton";
+import { css } from "styled-system/css";
 
 const PAGE_SIZE = 20;
 
@@ -98,7 +99,7 @@ export default async function ProductsPage({
   ]);
 
   return (
-    <div className="space-y-6">
+    <div className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
       <ProductsHeader />
 
       <Suspense fallback={<ProductsTableSkeleton />}>
@@ -115,9 +116,9 @@ export default async function ProductsPage({
 
 function ProductsTableSkeleton() {
   return (
-    <div className="space-y-4">
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-[600px] w-full" />
+    <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+      <Skeleton className={css({ height: "10", width: "full" })} />
+      <Skeleton className={css({ height: "600px", width: "full" })} />
     </div>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import {
   DropdownMenu,
@@ -14,11 +13,34 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, Package, MapPin, Heart, LogOut } from "lucide-react";
 import Link from "next/link";
-import { AuthDialog } from "@/components/auth/AuthDialog";
+import { useAuthDialog } from "@/components/auth/AuthDialogProvider";
+import { css } from "styled-system/css";
+
+const triggerButtonStyle = css({
+  position: "relative",
+  height: "10",
+  width: "10",
+  borderRadius: "full",
+  padding: "0",
+});
+
+const avatarStyle = css({ height: "9", width: "9" });
+
+const fallbackStyle = css({
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+  color: "fg.onGold",
+  fontWeight: "medium",
+});
+
+const menuIconStyle = css({ marginRight: "2", height: "4", width: "4" });
+
+const menuLabelBlockStyle = css({ display: "flex", flexDirection: "column", gap: "1" });
+const menuLabelNameStyle = css({ fontSize: "sm", fontWeight: "medium", lineHeight: "none" });
+const menuLabelSubStyle = css({ fontSize: "xs", lineHeight: "none", color: "fg.muted" });
 
 export function UserMenu() {
   const { data: session, status } = useSession();
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const { requireAuth } = useAuthDialog();
 
   const handleSignOut = async () => {
     await signOut({ redirect: false });
@@ -28,8 +50,8 @@ export function UserMenu() {
   // Show loading state
   if (status === "loading") {
     return (
-      <Button variant="ghost" size="icon" className="relative" disabled>
-        <User className="h-5 w-5 text-gray-600" />
+      <Button variant="ghost" size="icon" disabled>
+        <User className={css({ height: "5", width: "5", color: "fg.muted" })} />
       </Button>
     );
   }
@@ -37,95 +59,70 @@ export function UserMenu() {
   // User is not logged in
   if (!session?.user) {
     return (
-      <>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative hover:bg-gray-100"
-          onClick={() => setShowAuthDialog(true)}
-        >
-          <User className="h-5 w-5 text-gray-600" />
-          <span className="sr-only">Login</span>
-        </Button>
-        <AuthDialog
-          isOpen={showAuthDialog}
-          onClose={() => setShowAuthDialog(false)}
-        />
-      </>
+      <Button variant="ghost" size="icon" onClick={() => requireAuth()}>
+        <User className={css({ height: "5", width: "5", color: "fg.muted" })} />
+        <span className={css({ srOnly: true })}>Login</span>
+      </Button>
     );
   }
 
   // User is logged in
   return (
-    <>
-      <DropdownMenu>
+    <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="relative h-10 w-10 rounded-full p-0 hover:bg-gray-100"
-          >
-            <Avatar className="h-9 w-9">
+          <Button variant="ghost" className={triggerButtonStyle}>
+            <Avatar className={avatarStyle}>
               <AvatarImage
                 src={session.user.image || undefined}
                 alt={session.user.name || "User"}
               />
-              <AvatarFallback className="bg-gradient-to-br from-amber-400 to-orange-500 text-white font-medium">
+              <AvatarFallback className={fallbackStyle}>
                 {session.user.name?.charAt(0).toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
-            <span className="sr-only">User menu</span>
+            <span className={css({ srOnly: true })}>User menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className={css({ width: "56" })}>
           <DropdownMenuLabel>
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">
-                {session.user.name || "User"}
-              </p>
-              <p className="text-xs leading-none text-muted-foreground">
+            <div className={menuLabelBlockStyle}>
+              <p className={menuLabelNameStyle}>{session.user.name || "User"}</p>
+              <p className={menuLabelSubStyle}>
                 {session.user.email || session.user.mobile || ""}
               </p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
-            <Link href="/profile" className="cursor-pointer">
-              <User className="mr-2 h-4 w-4" />
+            <Link href="/profile">
+              <User className={menuIconStyle} />
               <span>Profile</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/orders" className="cursor-pointer">
-              <Package className="mr-2 h-4 w-4" />
+            <Link href="/orders">
+              <Package className={menuIconStyle} />
               <span>Orders</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/addresses" className="cursor-pointer">
-              <MapPin className="mr-2 h-4 w-4" />
+            <Link href="/addresses">
+              <MapPin className={menuIconStyle} />
               <span>Addresses</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/wishlist" className="cursor-pointer">
-              <Heart className="mr-2 h-4 w-4" />
+            <Link href="/wishlist">
+              <Heart className={menuIconStyle} />
               <span>Wishlist</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={handleSignOut}
-            className="cursor-pointer text-red-600"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
+          <DropdownMenuItem onClick={handleSignOut} variant="destructive">
+            <LogOut className={menuIconStyle} />
             <span>Logout</span>
           </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      <AuthDialog
-        isOpen={showAuthDialog}
-        onClose={() => setShowAuthDialog(false)}
-      />
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

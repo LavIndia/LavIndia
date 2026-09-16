@@ -10,8 +10,7 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
-import colors from "@/styles/colors";
-import { designSystem } from "@/styles/design-system";
+import { css, cx } from "styled-system/css";
 
 type HeroBannerSlide = {
   id: string;
@@ -28,6 +27,96 @@ type HeroBannerProps = {
   intervalMs?: number;
   className?: string;
 };
+
+// Literal pixel heights (not `height:"full"`) at every level from section
+// down to CarouselItem: next/image's `fill` needs a concrete-height ancestor
+// chain, and a percentage height only resolves against an ancestor that
+// itself has a concrete height — the embla viewport div in CarouselContent
+// has no explicit height, which breaks that chain if items only use `full`.
+const HERO_HEIGHT = { base: "340px", md: "480px", lg: "620px" };
+
+const sectionStyle = css({
+  position: "relative",
+  width: "full",
+  overflow: "hidden",
+  background: "onyx.900",
+  height: HERO_HEIGHT.base,
+  md: { height: HERO_HEIGHT.md },
+  lg: { height: HERO_HEIGHT.lg },
+});
+
+const itemHeightStyle = css({
+  height: HERO_HEIGHT.base,
+  md: { height: HERO_HEIGHT.md },
+  lg: { height: HERO_HEIGHT.lg },
+});
+
+const slideLinkStyle = css({
+  display: "block",
+  height: "full",
+  width: "full",
+});
+
+const navButtonStyle = css({
+  position: "absolute",
+  top: "1/2",
+  zIndex: "10",
+  transform: "translateY(-50%)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "full",
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  border: "1px solid",
+  borderColor: "border.glass",
+  color: "fg.default",
+  boxShadow: "glass",
+  cursor: "pointer",
+  width: "9",
+  height: "9",
+  md: { width: "11", height: "11" },
+  transition: "transform 0.18s ease, background 0.18s ease",
+  "&:hover": { background: "bg.glass", transform: "translateY(-50%) scale(1.06)" },
+  "&:active": { transform: "translateY(-50%) scale(0.96)" },
+});
+
+const dotsWrapStyle = css({
+  position: "absolute",
+  bottom: "3",
+  md: { bottom: "5" },
+  left: "1/2",
+  zIndex: "10",
+  transform: "translateX(-50%)",
+  display: "flex",
+  alignItems: "center",
+  gap: "2",
+  paddingX: "3",
+  paddingY: "1.5",
+  borderRadius: "full",
+  background: "bg.glass",
+  backdropBlur: "glassSm",
+  border: "1px solid",
+  borderColor: "border.glass",
+});
+
+const dotStyle = cx(
+  css({
+    borderRadius: "full",
+    cursor: "pointer",
+    transition: "all 0.25s ease",
+    height: "2",
+    width: "2",
+    background: "rgba(255,255,255,0.5)",
+    "&:hover": { background: "rgba(255,255,255,0.75)" },
+  })
+);
+
+const dotActiveStyle = css({
+  width: "6",
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+  boxShadow: "gold",
+});
 
 export function HeroBanner({
   banners,
@@ -51,18 +140,25 @@ export function HeroBanner({
     });
   }, [api]);
 
-  const baseClassName = "relative w-full overflow-hidden bg-black";
-  const heightClassName = "h-[400px] sm:h-[500px] lg:h-[600px]";
-  const composedClassName = [baseClassName, heightClassName, className]
-    .filter(Boolean)
-    .join(" ");
+  const composedClassName = cx(sectionStyle, className);
 
   // Empty state
   if (banners.length === 0) {
     return (
       <section className={composedClassName}>
-        <div className="w-full h-full flex items-center justify-center bg-gray-900">
-          <p className="text-white text-lg">No banners available</p>
+        <div
+          className={css({
+            width: "full",
+            height: "full",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "onyx.800",
+          })}
+        >
+          <p className={css({ color: "ivory.50", fontSize: "lg" })}>
+            No banners available
+          </p>
         </div>
       </section>
     );
@@ -73,27 +169,24 @@ export function HeroBanner({
       <Carousel
         setApi={setApi}
         plugins={[Autoplay({ delay: intervalMs })]}
-        className="w-full h-full"
+        className={css({ width: "full", height: "full" })}
         opts={{
           align: "start",
           loop: true,
         }}
       >
-        <CarouselContent className={`h-full ${heightClassName}`}>
+        <CarouselContent className={cx(css({ height: "full" }), itemHeightStyle)}>
           {banners.map((slide, index) => (
             <CarouselItem
               key={slide.id}
-              className={`relative h-full ${heightClassName}`}
+              className={cx(css({ position: "relative" }), itemHeightStyle)}
             >
-              <Link
-                href={slide.linkUrl || "#"}
-                className={`block h-full w-full ${heightClassName}`}
-              >
+              <Link href={slide.linkUrl || "#"} className={slideLinkStyle}>
                 <Image
                   src={slide.imagePath}
                   alt={slide.title}
                   fill
-                  className="object-cover select-none"
+                  className={css({ objectFit: "cover", userSelect: "none" })}
                   draggable={false}
                   priority={index === 0}
                 />
@@ -105,40 +198,36 @@ export function HeroBanner({
           <>
             <button
               type="button"
-              className={`absolute left-2 sm:left-4 top-1/2 z-10 -translate-y-1/2 ${designSystem.borderRadius.full} bg-[${colors.accentGold}] ${designSystem.padding.sm} sm:${designSystem.padding.md} text-black ${designSystem.shadow.lg} ${designSystem.transition.normal} hover:bg-[${colors.accentGoldHover}] hover:scale-105`}
+              className={cx(navButtonStyle, css({ left: "2", md: { left: "4" } }))}
               onClick={() => {
                 api?.scrollPrev();
                 api?.plugins().autoplay?.reset();
               }}
               aria-label="Previous slide"
             >
-              <ChevronLeft className="h-4 w-4 sm:h-6 sm:w-6" />
+              <ChevronLeft className={css({ height: "4", width: "4", md: { height: "5", width: "5" } })} />
             </button>
             <button
               type="button"
-              className={`absolute right-2 sm:right-4 top-1/2 z-10 -translate-y-1/2 ${designSystem.borderRadius.full} bg-[${colors.accentGold}] ${designSystem.padding.sm} sm:${designSystem.padding.md} text-black ${designSystem.shadow.lg} ${designSystem.transition.normal} hover:bg-[${colors.accentGoldHover}] hover:scale-105`}
+              className={cx(navButtonStyle, css({ right: "2", md: { right: "4" } }))}
               onClick={() => {
                 api?.scrollNext();
                 api?.plugins().autoplay?.reset();
               }}
               aria-label="Next slide"
             >
-              <ChevronRight className="h-4 w-4 sm:h-6 sm:w-6" />
+              <ChevronRight className={css({ height: "4", width: "4", md: { height: "5", width: "5" } })} />
             </button>
           </>
         )}
       </Carousel>
       {count > 1 && (
-        <div className="absolute bottom-2 sm:bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1 sm:gap-2">
+        <div className={dotsWrapStyle}>
           {Array.from({ length: count }, (_, index) => (
             <button
               key={index}
               type="button"
-              className={`h-2 w-2 sm:h-3 sm:w-3 rounded-full transition ${
-                index === current - 1
-                  ? `bg-[${colors.accentGold}]`
-                  : "bg-white/50 hover:bg-white/70"
-              }`}
+              className={cx(dotStyle, index === current - 1 && dotActiveStyle)}
               onClick={() => {
                 api?.scrollTo(index);
                 api?.plugins().autoplay?.reset();

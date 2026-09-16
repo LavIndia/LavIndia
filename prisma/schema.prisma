@@ -61,8 +61,58 @@ model Product {
   collections   ProductCollection[]
   wishlistItems WishlistItem[]
   orderItems    OrderItem[]
+  reviews       Review[]
+  events        ProductEvent[]
 
   @@map("products")
+}
+
+// ---------------------------------------------------------
+// Product engagement analytics (real, admin-visible: see
+// Admin > Analytics > Product Engagement) — not a stub.
+// ---------------------------------------------------------
+enum ProductEventType {
+  VIEW
+  ADD_TO_CART
+}
+
+model ProductEvent {
+  id         String           @id @default(cuid())
+  type       ProductEventType
+  // Anonymous per-browser-session id (a client-generated UUID kept in
+  // sessionStorage), NOT a user id — this tracks engagement for both
+  // signed-in and anonymous shoppers without needing an account.
+  sessionId  String
+  // Only set for VIEW events: how long the product page stayed visible,
+  // measured client-side and sent via sendBeacon on unload/tab-hide.
+  durationMs Int?
+  createdAt  DateTime         @default(now())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, type])
+  @@map("product_events")
+}
+
+// ---------------------------------------------------------
+// Product Reviews
+// ---------------------------------------------------------
+model Review {
+  id                 String   @id @default(cuid())
+  rating             Int
+  comment            String
+  isVerifiedPurchase Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@map("reviews")
 }
 
 // ---------------------------------------------------------
@@ -129,13 +179,25 @@ model ProductCollection {
 // Hero Banners for homepage
 // ---------------------------------------------------------
 model HeroBanner {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   title      String
   subtitle   String?
   imagePath  String
   linkUrl    String?
-  order      Int      @default(0)
-  active     Boolean  @default(true)
+  order      Int       @default(0)
+  active     Boolean   @default(true)
+
+  // Optional scheduling — same convention/logic as Discount and
+  // PromoBanner (see src/lib/scheduling.ts). Null dates = no bound.
+  startDate            DateTime?
+  endDate              DateTime?
+  isRecurring          Boolean   @default(false)
+  recurrenceType       String?
+  recurrenceDaysOfWeek Int[]     @default([])
+  recurrenceDayOfMonth Int?
+  recurrenceStartTime  String?
+  recurrenceEndTime    String?
+
   createdAt  DateTime @default(now())
 
   @@map("hero_banners")
@@ -152,6 +214,7 @@ enum Role {
 model User {
   id            String    @id @default(cuid())
   name          String?
+  username      String    @unique
   email         String?   @unique
   emailVerified DateTime?
   mobile        String?   @unique
@@ -169,8 +232,34 @@ model User {
   carts         Cart[]
   wishlistItems WishlistItem[]
   orders        Order[]
+  reviews       Review[]
+  loginEvents   LoginEvent[]
 
   @@map("users")
+}
+
+// ---------------------------------------------------------
+// Login history / device info — shown to the user on their
+// own "Active Sessions" / login-activity page. Only stores
+// standard, non-invasive fields (no precise geolocation).
+// ---------------------------------------------------------
+model LoginEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  ipAddress   String?
+  userAgent   String?
+  browser     String?  // parsed from user agent, e.g. "Chrome"
+  os          String?  // parsed from user agent, e.g. "Windows"
+  deviceType  String?  // "Desktop", "Mobile", "Tablet"
+  city        String?  // coarse, derived from IP (not GPS)
+  region      String?
+  country     String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("login_events")
 }
 
 // ---------------------------------------------------------
@@ -312,6 +401,11 @@ model Order {
   paymentProvider String?       // razorpay, stripe, etc.
   shippingCents   Int           @default(0)
   taxCents        Int           @default(0)
+  // Snapshot of an applied coupon at order time — a code, not a relation,
+  // same convention as OrderItem's name/image snapshots — so the order's
+  // history stays accurate even if the Discount record is later edited.
+  discountCode    String?
+  discountCents   Int           @default(0)
   notes           String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -414,7 +508,7 @@ model SiteSettings {
   
   // Footer
   copyrightText     String   @default("© 2025 lavindia. All rights reserved.")
-  
+
   updatedAt         DateTime @updatedAt
 
   @@map("site_settings")
@@ -448,11 +542,21 @@ model Discount {
   discountValue Int      // percentage (10 = 10%) or fixed amount in paisa
   minPurchase   Int?     // minimum purchase amount in paisa
   maxDiscount   Int?     // maximum discount amount in paisa (for percentage type)
-  startDate     DateTime
+  startDate     DateTime // overall campaign window the recurrence (if any) is bounded by
   endDate       DateTime
   isActive      Boolean  @default(true)
   usageLimit    Int?     // null = unlimited
   usedCount     Int      @default(0)
+
+  // Recurring activation: the coupon is only live during startDate..endDate
+  // AND, when isRecurring is true, only on the matching recurrence slice.
+  isRecurring          Boolean  @default(false)
+  recurrenceType       String?  // "DAILY" | "WEEKLY" | "MONTHLY"
+  recurrenceDaysOfWeek Int[]    @default([]) // WEEKLY: 0=Sun..6=Sat
+  recurrenceDayOfMonth Int?     // MONTHLY: 1-31
+  recurrenceStartTime  String?  // "HH:MM" 24h — optional time-of-day window
+  recurrenceEndTime    String?  // "HH:MM" 24h
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -472,6 +576,15 @@ model PromoBanner {
   isActive   Boolean   @default(true)
   startDate  DateTime?
   endDate    DateTime?
+
+  // See src/lib/scheduling.ts — same recurrence convention as Discount/HeroBanner.
+  isRecurring          Boolean  @default(false)
+  recurrenceType       String?
+  recurrenceDaysOfWeek Int[]    @default([])
+  recurrenceDayOfMonth Int?
+  recurrenceStartTime  String?
+  recurrenceEndTime    String?
+
   order      Int       @default(0)
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -557,4 +670,15 @@ model FilterCategory {
 
   @@id([filterId, categoryId])
   @@map("filter_categories")
+}
+
+// ---------------------------------------------------------
+// Newsletter
+// ---------------------------------------------------------
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("newsletter_subscribers")
 }

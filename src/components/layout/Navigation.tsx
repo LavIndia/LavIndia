@@ -1,7 +1,3 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   NavigationMenu,
@@ -9,79 +5,58 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
 } from "@/components/ui/navigation-menu";
+import { css, cx } from "styled-system/css";
 
-type Category = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  image: string | null;
-  isFeatured: boolean;
-  featuredOrder: number;
-};
+const listStyle = css({ display: "flex", gap: "8" });
+
+const linkStyle = css({
+  position: "relative",
+  fontFamily: "body",
+  fontSize: "sm",
+  fontWeight: "medium",
+  letterSpacing: "wide",
+  color: "fg.muted",
+  paddingBlock: "1",
+  transition: "color 0.2s ease",
+  "&::after": {
+    content: "''",
+    position: "absolute",
+    left: "0",
+    right: "0",
+    bottom: "-2px",
+    height: "1px",
+    background: "accent.default",
+    transform: "scaleX(0)",
+    transformOrigin: "center",
+    transition: "transform 0.2s ease",
+  },
+  "&:hover, &[data-hovered]": { color: "fg.default" },
+  "&:hover::after, &[data-hovered]::after": { transform: "scaleX(1)" },
+});
+
+// Static — this is fixed top-level navigation for the three collections
+// featured site-wide. It previously round-tripped to /api/categories/featured
+// on every single page load just to re-render the same three links; that was
+// pure waste (an extra request + client JS + a loading flash for content that
+// never actually changed), so this is now a plain server component with zero
+// client-side fetch. If featured categories ever need to be truly dynamic
+// here, thread them down as a prop from a server-rendered parent instead of
+// re-introducing a client fetch.
+const CATEGORIES = [
+  { id: "earrings", name: "Earrings", slug: "earrings" },
+  { id: "necklaces", name: "Necklaces", slug: "necklaces" },
+  { id: "rings", name: "Rings", slug: "rings" },
+];
 
 export function Navigation() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchCategories() {
-      try {
-        const response = await fetch("/api/categories/featured");
-        if (response.ok) {
-          const data = await response.json();
-          setCategories(data.categories || []);
-        }
-      } catch (error) {
-        console.error("Failed to fetch featured categories:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchCategories();
-  }, []);
-
-  if (loading) {
-    return (
-      <NavigationMenu>
-        <NavigationMenuList className="flex gap-6">
-          {[1, 2, 3].map((i) => (
-            <NavigationMenuItem key={i}>
-              <div className="flex flex-col items-center gap-2 p-2">
-                <div className="w-16 h-16 rounded-full bg-gray-200 animate-pulse" />
-                <div className="w-16 h-4 bg-gray-200 animate-pulse rounded" />
-              </div>
-            </NavigationMenuItem>
-          ))}
-        </NavigationMenuList>
-      </NavigationMenu>
-    );
-  }
-
   return (
     <NavigationMenu>
-      <NavigationMenuList className="flex gap-6">
-        {categories.map((category) => (
+      <NavigationMenuList className={listStyle}>
+        {CATEGORIES.map((category) => (
           <NavigationMenuItem key={category.id}>
             <NavigationMenuLink asChild>
-              <Link
-                href={`/${category.slug}`}
-                className="flex flex-col items-center gap-2 p-2 rounded-lg transition-all duration-300 group"
-              >
-                <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200 group-hover:border-amber-600 group-hover:scale-105 transition-all duration-300">
-                  <Image
-                    src={
-                      category.image ||
-                      `/assets/pictures/collections/${category.slug}/thumbnail.jpg`
-                    }
-                    alt={`${category.name} collection`}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <span className="text-sm font-medium text-gray-700 group-hover:text-amber-600 transition-colors duration-300">
-                  {category.name}
-                </span>
+              <Link href={`/${category.slug}`} className={cx(linkStyle, "linkHover")}>
+                {category.name}
               </Link>
             </NavigationMenuLink>
           </NavigationMenuItem>

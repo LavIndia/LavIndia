@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +22,99 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, GripVertical } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Wand2,
+  CheckCircle2,
+  Circle,
+  X,
+} from "lucide-react";
 import { ImageUpload } from "@/components/admin/products/ImageUpload";
+import { css, cx } from "styled-system/css";
+
+const requiredMarkStyle = css({ color: "danger", marginLeft: "0.5" });
+const fieldStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
+const fieldGrid3Style = css({
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "4",
+  sm: { gridTemplateColumns: "repeat(3, 1fr)" },
+});
+
+const layoutStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", lg: "1fr 21rem" },
+  gap: "6",
+  alignItems: "start",
+});
+
+const mainColumnStyle = css({ display: "flex", flexDirection: "column", gap: "6" });
+const sidebarColumnStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "4",
+  lg: { position: "sticky", top: "6" },
+});
+
+const checklistItemStyle = css({ display: "flex", alignItems: "center", gap: "2", fontSize: "sm" });
+const checklistDoneStyle = css({ color: "fg.default" });
+const checklistPendingStyle = css({ color: "fg.muted" });
+
+const optionRowStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
+const optionInputRowStyle = css({ display: "flex", gap: "2" });
+const chipsWrapStyle = css({ display: "flex", flexWrap: "wrap", gap: "1.5" });
+const chipStyle = css({
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "1",
+  background: "gold.50",
+  color: "gold.700",
+  border: "1px solid",
+  borderColor: "gold.200",
+  borderRadius: "full",
+  paddingInline: "2.5",
+  paddingBlock: "1",
+  fontSize: "xs",
+  fontWeight: "medium",
+});
+const chipRemoveStyle = css({
+  cursor: "pointer",
+  display: "inline-flex",
+  "&:hover": { color: "danger" },
+});
+
+const curatedPillStyle = css({
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "1.5",
+  background: "bg.surface",
+  color: "fg.muted",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  borderRadius: "full",
+  paddingInline: "2.5",
+  paddingBlock: "1",
+  fontSize: "xs",
+  fontWeight: "medium",
+  cursor: "pointer",
+  transition: "background 0.15s ease, border-color 0.15s ease, color 0.15s ease",
+  "&:hover": { borderColor: "accent.default" },
+});
+const curatedPillActiveStyle = css({
+  background: "gold.50",
+  color: "gold.700",
+  borderColor: "gold.300",
+});
+const colorSwatchStyle = css({
+  display: "inline-block",
+  height: "2.5",
+  width: "2.5",
+  borderRadius: "full",
+  border: "1px solid",
+  borderColor: "border.subtle",
+});
 
 interface ProductImage {
   id?: string;
@@ -38,6 +129,7 @@ interface ProductVariant {
   name: string;
   color: string | null;
   size: string | null;
+  material: string | null;
   priceCents: number | null;
   stock: number;
 }
@@ -64,6 +156,104 @@ interface ProductFormProps {
   categories: Array<{ id: string; name: string }>;
 }
 
+type OptionDimension = "color" | "size" | "material";
+const OPTION_DIMENSIONS: { key: OptionDimension; label: string; placeholder: string }[] = [
+  { key: "color", label: "Color", placeholder: "e.g. Gold" },
+  { key: "size", label: "Size", placeholder: "e.g. Small" },
+  { key: "material", label: "Material", placeholder: "e.g. Sterling Silver" },
+];
+
+type CuratedValue = { label: string; value: string; color: string | null };
+
+function OptionChipInput({
+  label,
+  placeholder,
+  values,
+  curatedValues,
+  onAdd,
+  onRemove,
+}: {
+  label: string;
+  placeholder: string;
+  values: string[];
+  curatedValues?: CuratedValue[];
+  onAdd: (value: string) => void;
+  onRemove: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const commit = () => {
+    const trimmed = draft.trim();
+    if (trimmed) onAdd(trimmed);
+    setDraft("");
+  };
+
+  return (
+    <div className={optionRowStyle}>
+      <Label>{label}</Label>
+
+      {curatedValues && curatedValues.length > 0 && (
+        <div className={chipsWrapStyle}>
+          {curatedValues.map((curated) => {
+            const active = values.some(
+              (v) => v.toLowerCase() === curated.label.toLowerCase(),
+            );
+            return (
+              <button
+                key={curated.value}
+                type="button"
+                onClick={() => (active ? onRemove(curated.label) : onAdd(curated.label))}
+                className={cx(
+                  curatedPillStyle,
+                  active && curatedPillActiveStyle,
+                )}
+              >
+                {curated.color && (
+                  <span
+                    className={colorSwatchStyle}
+                    style={{ background: curated.color }}
+                  />
+                )}
+                {curated.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className={optionInputRowStyle}>
+        <Input
+          placeholder={placeholder}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              commit();
+            }
+          }}
+        />
+        <Button type="button" variant="outline" onClick={commit}>
+          Add custom
+        </Button>
+      </div>
+      {values.length > 0 && (
+        <div className={chipsWrapStyle}>
+          {values.map((value) => (
+            <span key={value} className={chipStyle}>
+              {value}
+              <X
+                className={cx(chipRemoveStyle, css({ height: "3", width: "3" }))}
+                onClick={() => onRemove(value)}
+              />
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ProductForm({ product, categories }: ProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -87,6 +277,27 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const [variants, setVariants] = useState<ProductVariant[]>(
     product?.variants || [],
   );
+  const [optionValues, setOptionValues] = useState<Record<OptionDimension, string[]>>({
+    color: [],
+    size: [],
+    material: [],
+  });
+  const [curatedOptions, setCuratedOptions] = useState<Record<OptionDimension, CuratedValue[]>>({
+    color: [],
+    size: [],
+    material: [],
+  });
+
+  useEffect(() => {
+    fetch("/api/admin/filters/option-values")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setCuratedOptions(data);
+      })
+      .catch(() => {
+        // Curated list is a convenience — free-text entry still works if this fails.
+      });
+  }, []);
 
   const handleChange = (field: string, value: string | boolean) => {
     setFormData((prev) => {
@@ -104,10 +315,79 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     });
   };
 
-  const addVariant = () => {
+  const addOptionValue = (dim: OptionDimension, value: string) => {
+    setOptionValues((prev) =>
+      prev[dim].some((v) => v.toLowerCase() === value.toLowerCase())
+        ? prev
+        : { ...prev, [dim]: [...prev[dim], value] },
+    );
+  };
+
+  const removeOptionValue = (dim: OptionDimension, value: string) => {
+    setOptionValues((prev) => ({
+      ...prev,
+      [dim]: prev[dim].filter((v) => v !== value),
+    }));
+  };
+
+  const generateVariants = () => {
+    const activeDims = OPTION_DIMENSIONS.map((d) => d.key).filter(
+      (dim) => optionValues[dim].length > 0,
+    );
+
+    if (activeDims.length === 0) {
+      toast.info("Add at least one Color, Size, or Material value first");
+      return;
+    }
+
+    let combos: Partial<Record<OptionDimension, string>>[] = [{}];
+    for (const dim of activeDims) {
+      const next: Partial<Record<OptionDimension, string>>[] = [];
+      for (const combo of combos) {
+        for (const value of optionValues[dim]) {
+          next.push({ ...combo, [dim]: value });
+        }
+      }
+      combos = next;
+    }
+
+    const existingKeys = new Set(
+      variants.map((v) => `${v.color ?? ""}|${v.size ?? ""}|${v.material ?? ""}`),
+    );
+
+    const newRows: ProductVariant[] = combos
+      .map((c) => ({
+        color: c.color ?? null,
+        size: c.size ?? null,
+        material: c.material ?? null,
+      }))
+      .filter(
+        (c) => !existingKeys.has(`${c.color ?? ""}|${c.size ?? ""}|${c.material ?? ""}`),
+      )
+      .map((c) => ({
+        name: [c.color, c.size, c.material].filter(Boolean).join(" / "),
+        color: c.color,
+        size: c.size,
+        material: c.material,
+        priceCents: null,
+        stock: 0,
+      }));
+
+    if (newRows.length === 0) {
+      toast.info("All those combinations are already added");
+      return;
+    }
+
+    setVariants([...variants, ...newRows]);
+    toast.success(
+      `${newRows.length} variant${newRows.length > 1 ? "s" : ""} generated`,
+    );
+  };
+
+  const addBlankVariant = () => {
     setVariants([
       ...variants,
-      { name: "", color: null, size: null, priceCents: null, stock: 0 },
+      { name: "", color: null, size: null, material: null, priceCents: null, stock: 0 },
     ]);
   };
 
@@ -117,7 +397,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
 
   const updateVariant = (
     index: number,
-    field: string,
+    field: keyof ProductVariant,
     value: string | number,
   ) => {
     setVariants(
@@ -125,12 +405,26 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     );
   };
 
+  const checklist = useMemo(
+    () => [
+      { label: "Product name", done: formData.name.trim().length > 0 },
+      { label: "Category selected", done: !!formData.categoryId },
+      {
+        label: "Price set",
+        done: !!formData.price && parseFloat(formData.price) > 0,
+      },
+      { label: "At least one image", done: images.length > 0 },
+    ],
+    [formData.name, formData.categoryId, formData.price, images.length],
+  );
+  const readyToPublish = checklist.every((c) => c.done);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const productData = {
+      const payload = {
         name: formData.name,
         slug: formData.slug,
         description: formData.description || null,
@@ -144,35 +438,41 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         isPublished: formData.isPublished,
         isFeatured: formData.isFeatured,
         discountPercent: null,
+        images: images.map((img, i) => ({
+          id: img.id,
+          url: img.url,
+          alt: img.alt,
+          isPrimary: img.isPrimary,
+          position: i,
+        })),
+        variants: variants
+          .filter((v) => v.name)
+          .map((v) => ({
+            id: v.id,
+            name: v.name,
+            color: v.color,
+            size: v.size,
+            material: v.material,
+            priceCents: v.priceCents,
+            stock: v.stock,
+          })),
       };
 
-      let productId = product?.id;
-
-      // Create or update product
-      if (product) {
-        const res = await fetch(`/api/admin/products/${product.id}`, {
-          method: "PATCH",
+      // A single request carrying the whole product (images + variants
+      // included) instead of create-then-N-sequential-saves — this is what
+      // makes saving fast regardless of how many images/variants there are.
+      const res = await fetch(
+        product ? `/api/admin/products/${product.id}` : "/api/admin/products",
+        {
+          method: product ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(productData),
-        });
+          body: JSON.stringify(payload),
+        },
+      );
 
-        if (!res.ok) throw new Error("Failed to update product");
-      } else {
-        const res = await fetch("/api/admin/products", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(productData),
-        });
-
-        if (!res.ok) throw new Error("Failed to create product");
-        const created = await res.json();
-        productId = created.id;
-      }
-
-      // Save images
-      if (productId) {
-        await saveImages(productId);
-        await saveVariants(productId);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || "Request failed");
       }
 
       toast.success(product ? "Product updated" : "Product created");
@@ -187,127 +487,345 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     }
   };
 
-  const saveImages = async (productId: string) => {
-    // Delete removed images
-    if (product) {
-      const existingIds = new Set(
-        images.filter((img) => img.id).map((img) => img.id),
-      );
-      const removedImages = product.images.filter(
-        (img) => !existingIds.has(img.id),
-      );
-
-      for (const img of removedImages) {
-        await fetch(`/api/admin/products/${productId}/images/${img.id}`, {
-          method: "DELETE",
-        });
-      }
-    }
-
-    // Update image order and primary status
-    for (let i = 0; i < images.length; i++) {
-      const img = images[i];
-      if (img.id) {
-        await fetch(`/api/admin/products/${productId}/images/${img.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            position: i,
-            isPrimary: img.isPrimary,
-            alt: img.alt,
-          }),
-        });
-      } else {
-        await fetch(`/api/admin/products/${productId}/images`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            url: img.url,
-            alt: img.alt,
-            isPrimary: img.isPrimary,
-            position: i,
-          }),
-        });
-      }
-    }
-  };
-
-  const saveVariants = async (productId: string) => {
-    // For simplicity, delete all variants and recreate
-    // In production, you'd want smarter diffing
-    if (product) {
-      for (const variant of product.variants) {
-        await fetch(`/api/admin/products/${productId}/variants/${variant.id}`, {
-          method: "DELETE",
-        });
-      }
-    }
-
-    for (const variant of variants) {
-      if (variant.name) {
-        await fetch(`/api/admin/products/${productId}/variants`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: variant.name,
-            color: variant.color || null,
-            size: variant.size || null,
-            priceCents: variant.priceCents || null,
-            stock: variant.stock,
-          }),
-        });
-      }
-    }
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Basic Information */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Basic Information</CardTitle>
-          <CardDescription>Essential product details</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="name">Product Name *</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => handleChange("name", e.target.value)}
-              required
-            />
-          </div>
+    <form onSubmit={handleSubmit} className={layoutStyle}>
+      <div className={mainColumnStyle}>
+        {/* Basic Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Information</CardTitle>
+            <CardDescription>Essential product details</CardDescription>
+          </CardHeader>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <div className={fieldStyle}>
+              <Label htmlFor="name">
+                Product Name<span className={requiredMarkStyle}>*</span>
+              </Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => handleChange("name", e.target.value)}
+                required
+              />
+            </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="slug">Slug *</Label>
-            <Input
-              id="slug"
-              value={formData.slug}
-              onChange={(e) => handleChange("slug", e.target.value)}
-              required
-            />
-          </div>
+            <div className={fieldStyle}>
+              <Label htmlFor="slug">
+                Slug<span className={requiredMarkStyle}>*</span>
+              </Label>
+              <Input
+                id="slug"
+                value={formData.slug}
+                onChange={(e) => handleChange("slug", e.target.value)}
+                required
+              />
+            </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleChange("description", e.target.value)}
-              rows={4}
-            />
-          </div>
+            <div className={fieldStyle}>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => handleChange("description", e.target.value)}
+                rows={4}
+              />
+            </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="category">Category *</Label>
+            <div className={fieldStyle}>
+              <Label htmlFor="sku">SKU</Label>
+              <Input
+                id="sku"
+                value={formData.sku}
+                onChange={(e) => handleChange("sku", e.target.value)}
+                placeholder="PROD-001"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pricing & Inventory */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Pricing & Inventory</CardTitle>
+            <CardDescription>Set the price customers pay and how much stock is available</CardDescription>
+          </CardHeader>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <div className={fieldGrid3Style}>
+              <div className={fieldStyle}>
+                <Label htmlFor="price">
+                  Price (₹)<span className={requiredMarkStyle}>*</span>
+                </Label>
+                <Input
+                  id="price"
+                  type="number"
+                  step="0.01"
+                  value={formData.price}
+                  onChange={(e) => handleChange("price", e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className={fieldStyle}>
+                <Label htmlFor="compareAtPrice">Compare At Price (₹)</Label>
+                <Input
+                  id="compareAtPrice"
+                  type="number"
+                  step="0.01"
+                  value={formData.compareAtPrice}
+                  onChange={(e) => handleChange("compareAtPrice", e.target.value)}
+                />
+              </div>
+
+              <div className={fieldStyle}>
+                <Label htmlFor="stock">
+                  Stock<span className={requiredMarkStyle}>*</span>
+                </Label>
+                <Input
+                  id="stock"
+                  type="number"
+                  value={formData.stock}
+                  onChange={(e) => handleChange("stock", e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Images */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Product Images</CardTitle>
+            <CardDescription>Upload and manage product images</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ImageUpload
+              images={images}
+              setImages={setImages}
+              productName={formData.name}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Options & Variants */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Options & Variants</CardTitle>
+            <CardDescription>
+              Add the Color, Size, or Material values this product comes in,
+              then generate every combination as a variant instead of typing
+              each one by hand.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "5" })}>
+            <div className={fieldGrid3Style}>
+              {OPTION_DIMENSIONS.map((dim) => (
+                <OptionChipInput
+                  key={dim.key}
+                  label={dim.label}
+                  placeholder={dim.placeholder}
+                  values={optionValues[dim.key]}
+                  curatedValues={curatedOptions[dim.key]}
+                  onAdd={(value) => addOptionValue(dim.key, value)}
+                  onRemove={(value) => removeOptionValue(dim.key, value)}
+                />
+              ))}
+            </div>
+
+            <Button type="button" variant="outline" onClick={generateVariants}>
+              <Wand2 className={css({ height: "4", width: "4" })} />
+              Generate Variants
+            </Button>
+
+            {variants.length > 0 && (
+              <div className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
+                {variants.map((variant, index) => (
+                  <div
+                    key={index}
+                    className={css({
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "2",
+                      borderTop: "1px solid",
+                      borderColor: "border.subtle",
+                      paddingTop: "3",
+                    })}
+                  >
+                    <div
+                      className={css({
+                        flex: "1",
+                        display: "grid",
+                        gridTemplateColumns: "1fr",
+                        gap: "2",
+                        sm: { gridTemplateColumns: "2fr 1fr 1fr 1fr" },
+                      })}
+                    >
+                      <Input
+                        placeholder="Variant name"
+                        value={variant.name}
+                        onChange={(e) => updateVariant(index, "name", e.target.value)}
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Price override"
+                        value={variant.priceCents ? variant.priceCents / 100 : ""}
+                        onChange={(e) =>
+                          updateVariant(
+                            index,
+                            "priceCents",
+                            e.target.value ? parseFloat(e.target.value) * 100 : 0,
+                          )
+                        }
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Stock"
+                        value={variant.stock}
+                        onChange={(e) =>
+                          updateVariant(index, "stock", parseInt(e.target.value) || 0)
+                        }
+                      />
+                      <p
+                        className={css({
+                          fontSize: "xs",
+                          color: "fg.muted",
+                          alignSelf: "center",
+                        })}
+                      >
+                        {[variant.color, variant.size, variant.material]
+                          .filter(Boolean)
+                          .join(" · ") || "Custom variant"}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove variant"
+                      onClick={() => removeVariant(index)}
+                    >
+                      <Trash2 className={css({ height: "4", width: "4", color: "danger" })} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={addBlankVariant}
+              className={css({ alignSelf: "flex-start" })}
+            >
+              <Plus className={css({ height: "3.5", width: "3.5" })} />
+              Add a one-off variant
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Sidebar */}
+      <div className={sidebarColumnStyle}>
+        <Card>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "3", paddingTop: "6" })}>
+            <Button type="submit" disabled={loading} className={css({ width: "full" })}>
+              {loading && <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />}
+              {product ? "Save Changes" : "Create Product"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push("/admin/products")}
+              className={css({ width: "full" })}
+            >
+              Cancel
+            </Button>
+
+            <div
+              className={css({
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.5",
+                marginTop: "2",
+                paddingTop: "4",
+                borderTop: "1px solid",
+                borderColor: "border.subtle",
+              })}
+            >
+              <p className={css({ fontSize: "xs", fontWeight: "medium", color: "fg.muted", textTransform: "uppercase", letterSpacing: "wide", marginBottom: "1" })}>
+                {readyToPublish ? "Ready to publish" : "Before you publish"}
+              </p>
+              {checklist.map((item) => (
+                <div
+                  key={item.label}
+                  className={cx(
+                    checklistItemStyle,
+                    item.done ? checklistDoneStyle : checklistPendingStyle,
+                  )}
+                >
+                  {item.done ? (
+                    <CheckCircle2 className={css({ height: "4", width: "4", color: "success", flexShrink: 0 })} />
+                  ) : (
+                    <Circle className={css({ height: "4", width: "4", flexShrink: 0 })} />
+                  )}
+                  {item.label}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className={css({ fontSize: "md" })}>Status</CardTitle>
+          </CardHeader>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4" })}>
+              <div className={css({ display: "flex", flexDirection: "column", gap: "0.5" })}>
+                <Label htmlFor="published">Published</Label>
+                <p className={css({ fontSize: "xs", color: "fg.muted" })}>
+                  Visible on the storefront
+                </p>
+              </div>
+              <Switch
+                id="published"
+                checked={formData.isPublished}
+                onCheckedChange={(checked) => handleChange("isPublished", checked)}
+              />
+            </div>
+
+            <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4" })}>
+              <div className={css({ display: "flex", flexDirection: "column", gap: "0.5" })}>
+                <Label htmlFor="featured">Featured</Label>
+                <p className={css({ fontSize: "xs", color: "fg.muted" })}>
+                  Shown in featured sections
+                </p>
+              </div>
+              <Switch
+                id="featured"
+                checked={formData.isFeatured}
+                onCheckedChange={(checked) => handleChange("isFeatured", checked)}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className={css({ fontSize: "md" })}>Organization</CardTitle>
+          </CardHeader>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <div className={fieldStyle}>
+              <Label htmlFor="category">
+                Category<span className={requiredMarkStyle}>*</span>
+              </Label>
               <Select
                 value={formData.categoryId}
                 onValueChange={(value) => handleChange("categoryId", value)}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger id="category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -319,197 +837,8 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="sku">SKU</Label>
-              <Input
-                id="sku"
-                value={formData.sku}
-                onChange={(e) => handleChange("sku", e.target.value)}
-                placeholder="PROD-001"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Pricing & Inventory */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pricing & Inventory</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="price">Price (₹) *</Label>
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => handleChange("price", e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="compareAtPrice">Compare At Price (₹)</Label>
-              <Input
-                id="compareAtPrice"
-                type="number"
-                step="0.01"
-                value={formData.compareAtPrice}
-                onChange={(e) => handleChange("compareAtPrice", e.target.value)}
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="stock">Stock *</Label>
-              <Input
-                id="stock"
-                type="number"
-                value={formData.stock}
-                onChange={(e) => handleChange("stock", e.target.value)}
-                required
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Images */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Product Images</CardTitle>
-          <CardDescription>Upload and manage product images</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ImageUpload
-            images={images}
-            setImages={setImages}
-            productName={formData.name}
-          />
-        </CardContent>
-      </Card>
-
-      {/* Variants */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Variants</CardTitle>
-          <CardDescription>Optional product variations</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {variants.map((variant, index) => (
-            <div key={index} className="flex items-start gap-2 border-b pb-4">
-              <GripVertical className="h-5 w-5 text-muted-foreground mt-2" />
-              <div className="flex-1 grid grid-cols-5 gap-2">
-                <Input
-                  placeholder="Variant name"
-                  value={variant.name}
-                  onChange={(e) => updateVariant(index, "name", e.target.value)}
-                />
-                <Input
-                  placeholder="Color"
-                  value={variant.color || ""}
-                  onChange={(e) =>
-                    updateVariant(index, "color", e.target.value)
-                  }
-                />
-                <Input
-                  placeholder="Size"
-                  value={variant.size || ""}
-                  onChange={(e) => updateVariant(index, "size", e.target.value)}
-                />
-                <Input
-                  type="number"
-                  placeholder="Price override"
-                  value={variant.priceCents ? variant.priceCents / 100 : ""}
-                  onChange={(e) =>
-                    updateVariant(
-                      index,
-                      "priceCents",
-                      parseFloat(e.target.value) * 100,
-                    )
-                  }
-                />
-                <Input
-                  type="number"
-                  placeholder="Stock"
-                  value={variant.stock}
-                  onChange={(e) =>
-                    updateVariant(index, "stock", parseInt(e.target.value))
-                  }
-                />
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => removeVariant(index)}
-              >
-                <Trash2 className="h-4 w-4 text-red-500" />
-              </Button>
-            </div>
-          ))}
-
-          <Button type="button" variant="outline" onClick={addVariant}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Variant
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="published">Published</Label>
-              <p className="text-sm text-muted-foreground">
-                Make this product visible on the storefront
-              </p>
-            </div>
-            <Switch
-              id="published"
-              checked={formData.isPublished}
-              onCheckedChange={(checked) =>
-                handleChange("isPublished", checked)
-              }
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="featured">Featured</Label>
-              <p className="text-sm text-muted-foreground">
-                Show this product in featured sections
-              </p>
-            </div>
-            <Switch
-              id="featured"
-              checked={formData.isFeatured}
-              onCheckedChange={(checked) => handleChange("isFeatured", checked)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Submit */}
-      <div className="flex justify-end gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.push("/admin/products")}
-        >
-          Cancel
-        </Button>
-        <Button type="submit" disabled={loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {product ? "Update Product" : "Create Product"}
-        </Button>
+          </CardContent>
+        </Card>
       </div>
     </form>
   );

@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { css } from "styled-system/css";
 
 interface Product {
   id: string;
@@ -37,6 +38,110 @@ interface Category {
   name: string;
   slug: string;
 }
+
+const heroStyle = css({
+  background: "linear-gradient(135deg, {colors.onyx.800}, {colors.onyx.900})",
+  color: "fg.onGold",
+  paddingBlock: { base: "8", md: "12" },
+});
+
+const heroInnerStyle = css({
+  maxWidth: "7xl",
+  marginInline: "auto",
+  paddingInline: "4",
+});
+
+const heroIconWrapStyle = css({
+  display: "inline-flex",
+  padding: "3",
+  borderRadius: "full",
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+});
+
+const heroTitleRowStyle = css({
+  display: "flex",
+  alignItems: "center",
+  gap: "3",
+  marginBottom: "3",
+});
+
+const heroTitleStyle = css({
+  fontFamily: "display",
+  fontSize: { base: "3xl", md: "4xl" },
+  fontWeight: "bold",
+});
+
+const heroSubtitleStyle = css({
+  fontSize: { base: "md", md: "lg" },
+  color: "rgba(255,255,255,0.85)",
+});
+
+const containerStyle = css({
+  maxWidth: "7xl",
+  marginInline: "auto",
+  paddingInline: "4",
+  paddingBlock: "8",
+});
+
+const filterBarStyle = css({
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.glass",
+  background: "bg.glass",
+  backdropBlur: "glass",
+  boxShadow: "glass",
+  padding: "4",
+  marginBottom: "8",
+});
+
+const filterBarHeaderStyle = css({
+  display: "flex",
+  alignItems: "center",
+  gap: "2",
+  marginBottom: "4",
+});
+
+const filterBarTitleStyle = css({
+  fontFamily: "body",
+  fontWeight: "semibold",
+  color: "fg.default",
+});
+
+const filterGridStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", md: "1fr 1fr" },
+  gap: "4",
+});
+
+const fieldLabelStyle = css({
+  display: "block",
+  fontSize: "sm",
+  fontWeight: "medium",
+  color: "fg.muted",
+  marginBottom: "2",
+});
+
+const resultsCountStyle = css({
+  marginTop: "4",
+  fontSize: "sm",
+  color: "fg.muted",
+});
+
+const gridStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" },
+  gap: "6",
+});
+
+const emptyStateStyle = css({
+  textAlign: "center",
+  paddingBlock: "16",
+});
+
+const emptyTextStyle = css({
+  color: "fg.muted",
+  fontSize: "lg",
+});
 
 export default function NewArrivalsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -97,44 +202,42 @@ export default function NewArrivalsPage() {
     });
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={css({ minHeight: "100vh", background: "bg.canvas" })}>
       <TopPromoBanner />
       <HeaderSection />
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-3 bg-white/20 rounded-full">
-              <Sparkles className="h-8 w-8" />
+      <div className={heroStyle}>
+        <div className={heroInnerStyle}>
+          <div className={heroTitleRowStyle}>
+            <div className={heroIconWrapStyle}>
+              <Sparkles className={css({ height: "8", width: "8", color: "fg.onGold" })} />
             </div>
-            <h1 className="text-4xl font-bold">New Arrivals</h1>
+            <h1 className={heroTitleStyle}>New Arrivals</h1>
           </div>
-          <p className="text-lg text-white/90">
+          <p className={heroSubtitleStyle}>
             Discover our latest jewelry collection
           </p>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className={containerStyle}>
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <SlidersHorizontal className="h-5 w-5 text-gray-600" />
-            <h2 className="font-semibold text-gray-900">Filter & Sort</h2>
+        <div className={filterBarStyle}>
+          <div className={filterBarHeaderStyle}>
+            <SlidersHorizontal className={css({ height: "5", width: "5", color: "fg.muted" })} />
+            <h2 className={filterBarTitleStyle}>Filter &amp; Sort</h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={filterGridStyle}>
             {/* Category Filter */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
-                Category
-              </label>
+              <label className={fieldLabelStyle}>Category</label>
               <Select
                 value={selectedCategory}
                 onValueChange={setSelectedCategory}
               >
-                <SelectTrigger suppressHydrationWarning>
+                <SelectTrigger suppressHydrationWarning className={css({ width: "full" })}>
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
@@ -150,11 +253,9 @@ export default function NewArrivalsPage() {
 
             {/* Sort By */}
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
-                Sort By
-              </label>
+              <label className={fieldLabelStyle}>Sort By</label>
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger suppressHydrationWarning>
+                <SelectTrigger suppressHydrationWarning className={css({ width: "full" })}>
                   <SelectValue placeholder="Newest First" />
                 </SelectTrigger>
                 <SelectContent>
@@ -168,7 +269,7 @@ export default function NewArrivalsPage() {
           </div>
 
           {/* Results Count */}
-          <div className="mt-4 text-sm text-gray-600">
+          <div className={resultsCountStyle}>
             Showing {filteredProducts.length} product
             {filteredProducts.length !== 1 ? "s" : ""}
           </div>
@@ -176,21 +277,21 @@ export default function NewArrivalsPage() {
 
         {/* Products Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className={gridStyle}>
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="space-y-3">
-                <Skeleton className="h-64 w-full rounded-lg" />
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
+              <div key={i} className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
+                <Skeleton className={css({ height: "64", width: "full", borderRadius: "lg" })} />
+                <Skeleton className={css({ height: "4", width: "75%" })} />
+                <Skeleton className={css({ height: "4", width: "50%" })} />
               </div>
             ))}
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-500 text-lg">No products found</p>
+          <div className={emptyStateStyle}>
+            <p className={emptyTextStyle}>No products found</p>
             <Button
               variant="outline"
-              className="mt-4"
+              className={css({ marginTop: "4" })}
               onClick={() => {
                 setSelectedCategory("all");
                 setSortBy("default");
@@ -200,7 +301,7 @@ export default function NewArrivalsPage() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className={gridStyle}>
             {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}

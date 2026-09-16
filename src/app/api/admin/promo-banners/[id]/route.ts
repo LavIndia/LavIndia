@@ -32,6 +32,22 @@ export async function PUT(
           endDate: body.endDate ? new Date(body.endDate) : null,
         }),
         ...(body.order !== undefined && { order: body.order }),
+        ...(body.isRecurring !== undefined && { isRecurring: body.isRecurring }),
+        ...(body.recurrenceType !== undefined && {
+          recurrenceType: body.isRecurring ? body.recurrenceType : null,
+        }),
+        ...(body.recurrenceDaysOfWeek !== undefined && {
+          recurrenceDaysOfWeek: body.isRecurring ? body.recurrenceDaysOfWeek : [],
+        }),
+        ...(body.recurrenceDayOfMonth !== undefined && {
+          recurrenceDayOfMonth: body.isRecurring ? body.recurrenceDayOfMonth : null,
+        }),
+        ...(body.recurrenceStartTime !== undefined && {
+          recurrenceStartTime: body.isRecurring ? body.recurrenceStartTime : null,
+        }),
+        ...(body.recurrenceEndTime !== undefined && {
+          recurrenceEndTime: body.isRecurring ? body.recurrenceEndTime : null,
+        }),
       },
     });
 

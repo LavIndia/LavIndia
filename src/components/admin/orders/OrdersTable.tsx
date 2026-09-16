@@ -21,15 +21,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Search, Eye } from "lucide-react";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { Search, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { css, cx } from "styled-system/css";
 
 type OrderStatus =
   | "PENDING"
@@ -79,6 +79,82 @@ interface OrdersTableProps {
   };
 }
 
+const filterBarStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "3",
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  background: "bg.surface",
+  padding: "3",
+  boxShadow: "card",
+  lg: { flexDirection: "row", alignItems: "center" },
+});
+
+const searchWrapStyle = css({ position: "relative", minWidth: 0, flex: "1" });
+
+const searchIconStyle = css({
+  position: "absolute",
+  left: "3",
+  top: "50%",
+  transform: "translateY(-50%)",
+  height: "4",
+  width: "4",
+  color: "fg.muted",
+  pointerEvents: "none",
+});
+
+const tableWrapStyle = css({
+  overflow: "hidden",
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  background: "bg.surface",
+  boxShadow: "card",
+});
+
+const emptyCellStyle = css({
+  textAlign: "center",
+  paddingBlock: "8",
+  color: "fg.muted",
+});
+
+const customerNameStyle = css({ fontWeight: "medium", color: "fg.default" });
+const customerSubStyle = css({ fontSize: "xs", color: "fg.muted" });
+const paymentColStyle = css({ display: "flex", flexDirection: "column", gap: "1" });
+
+const sectionTitleStyle = css({
+  fontFamily: "display",
+  fontSize: "md",
+  fontWeight: "semibold",
+  color: "fg.default",
+  marginBottom: "2",
+});
+
+const infoTextStyle = css({ fontSize: "sm", color: "fg.default" });
+const infoMutedStyle = css({ fontSize: "sm", color: "fg.muted" });
+
+const itemRowStyle = css({
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "3",
+  fontSize: "sm",
+  borderBottom: "1px solid",
+  borderColor: "border.subtle",
+  paddingBottom: "2",
+});
+
+const totalRowStyle = css({
+  display: "flex",
+  justifyContent: "space-between",
+  fontWeight: "bold",
+  fontSize: "lg",
+  borderTop: "1px solid",
+  borderColor: "border.subtle",
+  paddingTop: "4",
+});
+
 export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
   const router = useRouter();
   const [search, setSearch] = useState(searchParams.search || "");
@@ -89,7 +165,7 @@ export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
     searchParams.paymentStatus || "all",
   );
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -103,7 +179,7 @@ export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
     orderId: string,
     newStatus: OrderStatus,
   ) => {
-    setUpdatingStatus(true);
+    setUpdatingOrderId(orderId);
     try {
       const res = await fetch(`/api/admin/orders/${orderId}`, {
         method: "PATCH",
@@ -118,7 +194,7 @@ export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
     } catch {
       toast.error("Failed to update status");
     } finally {
-      setUpdatingStatus(false);
+      setUpdatingOrderId(null);
     }
   };
 
@@ -167,22 +243,22 @@ export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
 
   return (
     <>
-      <div className="space-y-4">
+      <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
         {/* Filters */}
-        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 shadow-sm lg:flex-row lg:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className={filterBarStyle}>
+          <div className={searchWrapStyle}>
+            <Search className={searchIconStyle} />
             <Input
               placeholder="Search by order number, customer name, or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className="pl-9"
+              className={css({ paddingLeft: "9" })}
             />
           </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full lg:w-[180px]">
+            <SelectTrigger className={css({ width: "full", lg: { width: "45" } })}>
               <SelectValue placeholder="Order Status" />
             </SelectTrigger>
             <SelectContent>
@@ -197,7 +273,7 @@ export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
           </Select>
 
           <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-            <SelectTrigger className="w-full lg:w-[180px]">
+            <SelectTrigger className={css({ width: "full", lg: { width: "45" } })}>
               <SelectValue placeholder="Payment Status" />
             </SelectTrigger>
             <SelectContent>
@@ -208,145 +284,211 @@ export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
             </SelectContent>
           </Select>
 
-          <Button onClick={handleSearch} className="w-full lg:w-auto">
+          <Button onClick={handleSearch} className={css({ width: "full", lg: { width: "auto" } })}>
             Apply
           </Button>
         </div>
 
-        {/* Table */}
-        <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
+        {/* Mobile card list — no horizontal scroll, one order per card */}
+        <div className={css({ display: { base: "flex", md: "none" }, flexDirection: "column", gap: "3" })}>
+          {orders.length === 0 ? (
+            <div className={cx(tableWrapStyle, css({ padding: "8", textAlign: "center", color: "fg.muted" }))}>
+              No orders found
+            </div>
+          ) : (
+            orders.map((order) => (
+              <button
+                key={order.id}
+                type="button"
+                onClick={() => setSelectedOrder(order)}
+                className={css({
+                  textAlign: "left",
+                  borderRadius: "xl",
+                  border: "1px solid",
+                  borderColor: "border.subtle",
+                  background: "bg.surface",
+                  boxShadow: "card",
+                  padding: "3",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "2",
+                })}
+              >
+                <div className={css({ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "2" })}>
+                  <div>
+                    <p className={css({ fontWeight: "medium", color: "fg.default" })}>{order.orderNumber}</p>
+                    <p className={customerSubStyle}>
+                      {new Date(order.createdAt).toLocaleDateString("en-IN")} · {order.items.length} items
+                    </p>
+                  </div>
+                  <p className={css({ fontWeight: "medium", color: "fg.default", whiteSpace: "nowrap" })}>
+                    {formatPrice(order.totalCents)}
+                  </p>
+                </div>
+
+                <div>
+                  <span className={customerNameStyle}>{order.user.name || "N/A"}</span>
+                  <span className={customerSubStyle}> · {order.user.email || order.user.mobile}</span>
+                </div>
+
+                <div
+                  className={css({
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    paddingTop: "2",
+                    borderTop: "1px solid",
+                    borderColor: "border.subtle",
+                  })}
+                >
+                  <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
+                    {getPaymentBadge(order.paymentStatus)}
+                    {getStatusBadge(order.status)}
+                  </div>
+                  <Eye className={css({ height: "4", width: "4", color: "fg.muted" })} />
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        {/* Table — desktop/tablet only */}
+        <div className={cx(tableWrapStyle, css({ display: { base: "none", md: "block" } }))}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order #</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Items</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead className={css({ textAlign: "right" })}>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orders.length === 0 ? (
                 <TableRow>
-                  <TableHead>Order #</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableCell colSpan={8} className={emptyCellStyle}>
+                    No orders found
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center py-8 text-muted-foreground"
-                    >
-                      No orders found
+              ) : (
+                orders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className={css({ fontWeight: "medium" })}>
+                      {order.orderNumber}
+                    </TableCell>
+                    <TableCell>
+                      <div className={css({ display: "flex", flexDirection: "column" })}>
+                        <span className={customerNameStyle}>
+                          {order.user.name || "N/A"}
+                        </span>
+                        <span className={customerSubStyle}>
+                          {order.user.email || order.user.mobile}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{order.items.length} items</TableCell>
+                    <TableCell className={css({ fontWeight: "medium" })}>
+                      {formatPrice(order.totalCents)}
+                    </TableCell>
+                    <TableCell>
+                      <div className={paymentColStyle}>
+                        {getPaymentBadge(order.paymentStatus)}
+                        <span className={customerSubStyle}>
+                          {order.paymentMethod === "cod"
+                            ? "Cash on Delivery"
+                            : "Online Payment"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={order.status}
+                        onValueChange={(value) =>
+                          handleStatusUpdate(order.id, value as OrderStatus)
+                        }
+                        disabled={updatingOrderId === order.id}
+                      >
+                        <SelectTrigger className={css({ width: "40" })}>
+                          <SelectValue>
+                            <div className={css({ display: "flex", alignItems: "center", gap: "1.5" })}>
+                              {updatingOrderId === order.id && (
+                                <Loader2
+                                  className={css({ height: "3", width: "3", animation: "spin" })}
+                                />
+                              )}
+                              {getStatusBadge(order.status)}
+                            </div>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PENDING">Pending</SelectItem>
+                          <SelectItem value="PROCESSING">
+                            Processing
+                          </SelectItem>
+                          <SelectItem value="SHIPPED">Shipped</SelectItem>
+                          <SelectItem value="OUT_FOR_DELIVERY">
+                            Out for Delivery
+                          </SelectItem>
+                          <SelectItem value="DELIVERED">Delivered</SelectItem>
+                          <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                          <SelectItem value="REFUNDED">Refunded</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(order.createdAt).toLocaleDateString("en-IN")}
+                    </TableCell>
+                    <TableCell className={css({ textAlign: "right" })}>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setSelectedOrder(order)}
+                        aria-label={`View order ${order.orderNumber}`}
+                      >
+                        <Eye className={css({ height: "4", width: "4" })} />
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  orders.map((order) => (
-                    <TableRow key={order.id} className="hover:bg-muted/40">
-                      <TableCell className="font-medium">
-                        {order.orderNumber}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium">
-                            {order.user.name || "N/A"}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {order.user.email || order.user.mobile}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{order.items.length} items</TableCell>
-                      <TableCell className="font-medium">
-                        {formatPrice(order.totalCents)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col gap-1">
-                          {getPaymentBadge(order.paymentStatus)}
-                          <span className="text-xs text-muted-foreground">
-                            {order.paymentMethod === "cod"
-                              ? "Cash on Delivery"
-                              : "Online Payment"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={order.status}
-                          onValueChange={(value) =>
-                            handleStatusUpdate(order.id, value as OrderStatus)
-                          }
-                          disabled={updatingStatus}
-                        >
-                          <SelectTrigger className="w-[150px]">
-                            <SelectValue>
-                              {getStatusBadge(order.status)}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PENDING">Pending</SelectItem>
-                            <SelectItem value="PROCESSING">
-                              Processing
-                            </SelectItem>
-                            <SelectItem value="SHIPPED">Shipped</SelectItem>
-                            <SelectItem value="OUT_FOR_DELIVERY">
-                              Out for Delivery
-                            </SelectItem>
-                            <SelectItem value="DELIVERED">Delivered</SelectItem>
-                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                            <SelectItem value="REFUNDED">Refunded</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(order.createdAt).toLocaleDateString("en-IN")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setSelectedOrder(order)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
-      {/* Order Details Dialog */}
-      <Dialog
+      {/* Order quick-view: a slide-over Sheet instead of a full page nav keeps
+          "check an order's items" to a single click, using data already fetched
+          for the row. */}
+      <Sheet
         open={!!selectedOrder}
-        onOpenChange={() => setSelectedOrder(null)}
+        onOpenChange={(open) => !open && setSelectedOrder(null)}
       >
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Order Details</DialogTitle>
-            <DialogDescription>
-              Order #{selectedOrder?.orderNumber}
-            </DialogDescription>
-          </DialogHeader>
+        <SheetContent side="right" className={css({ maxWidth: "28rem" })}>
+          <SheetHeader>
+            <SheetTitle>Order #{selectedOrder?.orderNumber}</SheetTitle>
+            <SheetDescription>
+              Placed {selectedOrder && new Date(selectedOrder.createdAt).toLocaleDateString("en-IN")}
+            </SheetDescription>
+          </SheetHeader>
 
           {selectedOrder && (
-            <div className="space-y-6">
-              {/* Customer Info */}
+            <div className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
               <div>
-                <h3 className="font-semibold mb-2">Customer Information</h3>
-                <div className="text-sm space-y-1">
-                  <p>Name: {selectedOrder.user.name}</p>
-                  <p>Email: {selectedOrder.user.email}</p>
-                  <p>Mobile: {selectedOrder.user.mobile}</p>
+                <h3 className={sectionTitleStyle}>Customer</h3>
+                <div className={css({ display: "flex", flexDirection: "column", gap: "0.5" })}>
+                  <p className={infoTextStyle}>{selectedOrder.user.name}</p>
+                  <p className={infoMutedStyle}>{selectedOrder.user.email}</p>
+                  <p className={infoMutedStyle}>{selectedOrder.user.mobile}</p>
                 </div>
               </div>
 
-              {/* Shipping Address */}
               <div>
-                <h3 className="font-semibold mb-2">Shipping Address</h3>
-                <div className="text-sm">
+                <h3 className={sectionTitleStyle}>Shipping Address</h3>
+                <div className={infoTextStyle}>
                   <p>{selectedOrder.address.fullName}</p>
                   <p>{selectedOrder.address.addressLine1}</p>
                   <p>
@@ -356,22 +498,18 @@ export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
                 </div>
               </div>
 
-              {/* Order Items */}
               <div>
-                <h3 className="font-semibold mb-2">Order Items</h3>
-                <div className="space-y-2">
+                <h3 className={sectionTitleStyle}>Order Items</h3>
+                <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
                   {selectedOrder.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex justify-between text-sm border-b pb-2"
-                    >
+                    <div key={item.id} className={itemRowStyle}>
                       <div>
-                        <p className="font-medium">{item.name}</p>
-                        <p className="text-muted-foreground">
-                          Qty: {item.quantity}
+                        <p className={css({ fontWeight: "medium", color: "fg.default" })}>
+                          {item.name}
                         </p>
+                        <p className={infoMutedStyle}>Qty: {item.quantity}</p>
                       </div>
-                      <p className="font-medium">
+                      <p className={css({ fontWeight: "medium", color: "fg.default" })}>
                         {formatPrice(item.priceCents * item.quantity)}
                       </p>
                     </div>
@@ -379,23 +517,14 @@ export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
                 </div>
               </div>
 
-              {/* Total */}
-              <div className="border-t pt-4">
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total</span>
-                  <span>{formatPrice(selectedOrder.totalCents)}</span>
-                </div>
+              <div className={totalRowStyle}>
+                <span>Total</span>
+                <span>{formatPrice(selectedOrder.totalCents)}</span>
               </div>
             </div>
           )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedOrder(null)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -38,6 +39,8 @@ export async function PATCH(
         metadata: { categoryName: category.name },
       },
     });
+
+    revalidateTag("products");
 
     return NextResponse.json(category);
   } catch {
@@ -84,6 +87,8 @@ export async function DELETE(
         metadata: { categoryName: category.name },
       },
     });
+
+    revalidateTag("products");
 
     return NextResponse.json({ message: "Category deleted successfully" });
   } catch {

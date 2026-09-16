@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import colors from "../../styles/colors";
+import { css } from "styled-system/css";
 
 type PromoBanner = {
   id: string;
@@ -15,6 +15,23 @@ type PromoBanner = {
   endDate: Date | null;
   order: number;
 };
+
+const wrapStyle = css({
+  position: "relative",
+  width: "full",
+  background: "bg.surface",
+  borderBottom: "1px solid",
+  borderColor: "border.subtle",
+});
+const trackStyle = css({ overflow: "hidden" });
+const marqueeRowStyle = css({ display: "flex", alignItems: "center", paddingY: "4", willChange: "transform" });
+const marqueeGroupStyle = css({ display: "flex", gap: "10", whiteSpace: "nowrap" });
+const messageStyle = css({
+  marginX: "10",
+  fontWeight: "semibold",
+  fontSize: "lg",
+  md: { fontSize: "xl" },
+});
 
 export default function TopPromoBanner({
   banners: providedBanners,
@@ -53,55 +70,48 @@ export default function TopPromoBanner({
   }
 
   const marqueeStyle: React.CSSProperties = {
-    animation: `marquee ${speed}s linear infinite`,
+    animation: `lav-marquee ${speed}s linear infinite`,
     animationPlayState: paused ? "paused" : "running",
     willChange: "transform",
     WebkitTransform: "translate3d(0,0,0)",
   };
 
-  const bgColor = banners[0]?.bgColor || colors.background;
+  const bgColor = banners[0]?.bgColor || undefined;
 
   return (
     <div
-      className="relative w-full"
+      className={wrapStyle}
       role="region"
       aria-label="Top promotional banner"
-      style={{
-        background: bgColor,
-        borderBottom: `1px solid ${colors.border}`,
-      }}
+      style={{ background: bgColor }}
     >
       <div
-        className="overflow-hidden"
+        className={trackStyle}
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
         onFocus={() => setPaused(true)}
         onBlur={() => setPaused(false)}
         tabIndex={0}
       >
-        <div className="marquee py-4" style={marqueeStyle}>
-          <div className="marquee-group">
+        <div className={marqueeRowStyle} style={marqueeStyle}>
+          <div className={marqueeGroupStyle}>
             {banners.map((banner) => (
               <span
                 key={`a-${banner.id}`}
-                className="mx-10 font-semibold text-xl md:text-2xl"
-                style={{
-                  color: banner.textColor || colors.primaryText,
-                }}
+                className={messageStyle}
+                style={{ color: banner.textColor || undefined }}
               >
                 {banner.message}
               </span>
             ))}
           </div>
 
-          <div className="marquee-group" aria-hidden>
+          <div className={marqueeGroupStyle} aria-hidden>
             {banners.map((banner) => (
               <span
                 key={`b-${banner.id}`}
-                className="mx-10 font-semibold text-xl md:text-2xl"
-                style={{
-                  color: banner.textColor || colors.primaryText,
-                }}
+                className={messageStyle}
+                style={{ color: banner.textColor || undefined }}
               >
                 {banner.message}
               </span>
@@ -111,22 +121,13 @@ export default function TopPromoBanner({
       </div>
 
       <style>{`
-        .marquee { display: flex; align-items: center; }
-  .marquee-group { display: flex; gap: 2.5rem; white-space: nowrap; }
-
-        @keyframes marquee {
+        @keyframes lav-marquee {
           from { transform: translate3d(0, 0, 0); }
           to { transform: translate3d(-50%, 0, 0); }
         }
 
-        .marquee { will-change: transform; }
-
         @media (prefers-reduced-motion: reduce) {
-          .marquee { animation: none !important; }
-        }
-
-        @supports (transform: translate3d(0,0,0)) {
-          .marquee { transform: translate3d(0,0,0); }
+          [aria-label="Top promotional banner"] > div > div { animation: none !important; }
         }
       `}</style>
     </div>

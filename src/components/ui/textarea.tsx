@@ -1,18 +1,55 @@
-import * as React from "react"
+"use client";
 
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { TextArea as AriaTextArea, type TextAreaProps as AriaTextAreaProps } from "react-aria-components";
+import { css, cx } from "styled-system/css";
 
-function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
-  return (
-    <textarea
-      data-slot="textarea"
-      className={cn(
-        "border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 flex field-sizing-content min-h-16 w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-        className
-      )}
-      {...props}
-    />
-  )
+const textareaStyle = css({
+  display: "flex",
+  width: "full",
+  minHeight: "16",
+  borderRadius: "md",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  background: "bg.surface",
+  color: "fg.default",
+  fontFamily: "body",
+  fontSize: "sm",
+  paddingInline: "3",
+  paddingBlock: "2",
+  outline: "none",
+  transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+  "&::placeholder": { color: "fg.muted" },
+  "&[data-hovered]": { borderColor: "border.glass" },
+  "&[data-focused], &:focus-visible, &[data-focus-visible]": {
+    borderColor: "accent.default",
+    boxShadow: "0 0 0 3px token(colors.gold.200)",
+  },
+  "&[data-disabled], &:disabled": {
+    opacity: 0.5,
+    cursor: "not-allowed",
+  },
+  "&[aria-invalid='true'], &[data-invalid]": {
+    borderColor: "danger",
+  },
+});
+
+export interface TextareaProps
+  extends Omit<AriaTextAreaProps, "className">,
+    React.RefAttributes<HTMLTextAreaElement> {
+  className?: string;
 }
 
-export { Textarea }
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <AriaTextArea
+        ref={ref}
+        data-slot="textarea"
+        className={cx(textareaStyle, className)}
+        {...props}
+      />
+    );
+  }
+);
+Textarea.displayName = "Textarea";

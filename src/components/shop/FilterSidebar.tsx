@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { css } from "styled-system/css";
 
 interface FilterOption {
   id: string;
@@ -25,6 +33,91 @@ export interface AppliedFilters {
   priceMin?: number;
   priceMax?: number;
   attrValues: string[];
+}
+
+const panelStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "6",
+  width: "full",
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.glass",
+  background: "bg.glass",
+  backdropBlur: "glass",
+  boxShadow: "glass",
+  padding: "6",
+});
+
+const sectionStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "3",
+  borderTop: "1px solid",
+  borderColor: "border.subtle",
+  paddingTop: "4",
+  "&:first-of-type": { borderTop: "none", paddingTop: "0" },
+});
+
+const sectionHeadingStyle = css({
+  fontFamily: "body",
+  fontSize: "sm",
+  fontWeight: "semibold",
+  color: "fg.default",
+});
+
+const swatchStyle = css({
+  display: "inline-block",
+  width: "4",
+  height: "4",
+  borderRadius: "full",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  flexShrink: 0,
+});
+
+function FilterOptions({ filters, selectedRange, selectedAttrs, onRangeSelect, onAttrToggle }: {
+  filters: FilterData[];
+  selectedRange: string | null;
+  selectedAttrs: string[];
+  onRangeSelect: (value: string) => void;
+  onAttrToggle: (value: string, checked: boolean) => void;
+}) {
+  return (
+    <>
+      {filters.map((filter) => (
+        <div key={filter.id} className={sectionStyle}>
+          <h4 className={sectionHeadingStyle}>{filter.name}</h4>
+          <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
+            {filter.type === "RANGE"
+              ? filter.options.map((option) => (
+                  <Checkbox
+                    key={option.id}
+                    checked={selectedRange === option.value}
+                    onCheckedChange={() => onRangeSelect(option.value)}
+                  >
+                    {option.label}
+                  </Checkbox>
+                ))
+              : filter.options.map((option) => (
+                  <Checkbox
+                    key={option.id}
+                    checked={selectedAttrs.includes(option.value)}
+                    onCheckedChange={(checked) => onAttrToggle(option.value, checked)}
+                  >
+                    <span className={css({ display: "inline-flex", alignItems: "center", gap: "2" })}>
+                      {filter.type === "COLOR" && option.color && (
+                        <span className={swatchStyle} style={{ backgroundColor: option.color }} />
+                      )}
+                      {option.label}
+                    </span>
+                  </Checkbox>
+                ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
 }
 
 export function FilterSidebar({
@@ -85,13 +178,14 @@ export function FilterSidebar({
   };
 
   const hasActiveFilters = selectedRange !== null || selectedAttrs.length > 0;
+  const activeCount = (selectedRange ? 1 : 0) + selectedAttrs.length;
 
   if (loading) {
     return (
-      <div className="space-y-4 w-full">
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-24 w-full" />
+      <div className={css({ display: "flex", flexDirection: "column", gap: "4", width: "full" })}>
+        <Skeleton className={css({ height: "6", width: "32" })} />
+        <Skeleton className={css({ height: "24", width: "full" })} />
+        <Skeleton className={css({ height: "24", width: "full" })} />
       </div>
     );
   }
@@ -101,56 +195,81 @@ export function FilterSidebar({
   }
 
   return (
-    <div className="w-full space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">Filters</h3>
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={handleClearAll}>
-            Clear all
-          </Button>
-        )}
+    <>
+      {/* Mobile: bottom sheet trigger */}
+      <div className={css({ display: { base: "block", lg: "none" }, width: "full" })}>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" className={css({ width: "full" })}>
+              <SlidersHorizontal size={16} aria-hidden />
+              Filters
+              {hasActiveFilters && (
+                <span
+                  className={css({
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: "5",
+                    height: "5",
+                    paddingInline: "1.5",
+                    borderRadius: "full",
+                    background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+                    color: "fg.onGold",
+                    fontSize: "xs",
+                    fontWeight: "semibold",
+                  })}
+                >
+                  {activeCount}
+                </span>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom">
+            <SheetHeader>
+              <SheetTitle>Filters</SheetTitle>
+            </SheetHeader>
+            <div className={css({ display: "flex", flexDirection: "column", gap: "6", marginTop: "2" })}>
+              <FilterOptions
+                filters={filters}
+                selectedRange={selectedRange}
+                selectedAttrs={selectedAttrs}
+                onRangeSelect={handleRangeSelect}
+                onAttrToggle={handleAttrToggle}
+              />
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={handleClearAll}>
+                  Clear all filters
+                </Button>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
 
-      {filters.map((filter) => (
-        <div key={filter.id} className="border-t pt-4">
-          <h4 className="font-medium text-gray-800 mb-3">{filter.name}</h4>
-          <div className="space-y-2">
-            {filter.type === "RANGE"
-              ? filter.options.map((option) => (
-                  <div key={option.id} className="flex items-center gap-2">
-                    <Checkbox
-                      id={option.id}
-                      checked={selectedRange === option.value}
-                      onCheckedChange={() => handleRangeSelect(option.value)}
-                    />
-                    <Label htmlFor={option.id} className="cursor-pointer font-normal">
-                      {option.label}
-                    </Label>
-                  </div>
-                ))
-              : filter.options.map((option) => (
-                  <div key={option.id} className="flex items-center gap-2">
-                    <Checkbox
-                      id={option.id}
-                      checked={selectedAttrs.includes(option.value)}
-                      onCheckedChange={(checked) =>
-                        handleAttrToggle(option.value, checked as boolean)
-                      }
-                    />
-                    {filter.type === "COLOR" && option.color && (
-                      <span
-                        className="w-4 h-4 rounded-full border border-gray-300 inline-block"
-                        style={{ backgroundColor: option.color }}
-                      />
-                    )}
-                    <Label htmlFor={option.id} className="cursor-pointer font-normal">
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
+      {/* Desktop: inline glass panel */}
+      <div className={css({ display: { base: "none", lg: "block" }, width: "64", flexShrink: 0 })}>
+        <div className={css({ position: "sticky", top: "24" })}>
+          <div className={panelStyle}>
+            <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between" })}>
+              <h3 className={css({ fontFamily: "display", fontSize: "lg", fontWeight: "semibold", color: "fg.default" })}>
+                Filters
+              </h3>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={handleClearAll}>
+                  Clear all
+                </Button>
+              )}
+            </div>
+            <FilterOptions
+              filters={filters}
+              selectedRange={selectedRange}
+              selectedAttrs={selectedAttrs}
+              onRangeSelect={handleRangeSelect}
+              onAttrToggle={handleAttrToggle}
+            />
           </div>
         </div>
-      ))}
-    </div>
+      </div>
+    </>
   );
 }

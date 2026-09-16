@@ -42,7 +42,22 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { title, subtitle, imagePath, linkUrl, order, active } = body;
+    const {
+      title,
+      subtitle,
+      imagePath,
+      linkUrl,
+      order,
+      active,
+      startDate,
+      endDate,
+      isRecurring,
+      recurrenceType,
+      recurrenceDaysOfWeek,
+      recurrenceDayOfMonth,
+      recurrenceStartTime,
+      recurrenceEndTime,
+    } = body;
 
     const banner = await prisma.heroBanner.update({
       where: { id },
@@ -53,6 +68,22 @@ export async function PUT(
         ...(linkUrl !== undefined && { linkUrl }),
         ...(order !== undefined && { order }),
         ...(active !== undefined && { active }),
+        ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
+        ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
+        ...(isRecurring !== undefined && { isRecurring }),
+        ...(recurrenceType !== undefined && { recurrenceType: isRecurring ? recurrenceType : null }),
+        ...(recurrenceDaysOfWeek !== undefined && {
+          recurrenceDaysOfWeek: isRecurring ? recurrenceDaysOfWeek : [],
+        }),
+        ...(recurrenceDayOfMonth !== undefined && {
+          recurrenceDayOfMonth: isRecurring ? recurrenceDayOfMonth : null,
+        }),
+        ...(recurrenceStartTime !== undefined && {
+          recurrenceStartTime: isRecurring ? recurrenceStartTime : null,
+        }),
+        ...(recurrenceEndTime !== undefined && {
+          recurrenceEndTime: isRecurring ? recurrenceEndTime : null,
+        }),
       },
     });
 

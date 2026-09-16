@@ -28,7 +28,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, subtitle, imagePath, linkUrl, order, active } = body;
+    const {
+      title,
+      subtitle,
+      imagePath,
+      linkUrl,
+      order,
+      active,
+      startDate,
+      endDate,
+      isRecurring,
+      recurrenceType,
+      recurrenceDaysOfWeek,
+      recurrenceDayOfMonth,
+      recurrenceStartTime,
+      recurrenceEndTime,
+    } = body;
 
     if (!title || !imagePath) {
       return NextResponse.json(
@@ -45,6 +60,14 @@ export async function POST(request: NextRequest) {
         linkUrl,
         order: order ?? 0,
         active: active ?? true,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        isRecurring: isRecurring ?? false,
+        recurrenceType: isRecurring ? recurrenceType : null,
+        recurrenceDaysOfWeek: isRecurring ? recurrenceDaysOfWeek ?? [] : [],
+        recurrenceDayOfMonth: isRecurring ? recurrenceDayOfMonth : null,
+        recurrenceStartTime: isRecurring ? recurrenceStartTime : null,
+        recurrenceEndTime: isRecurring ? recurrenceEndTime : null,
       },
     });
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -18,6 +19,8 @@ export async function DELETE(
     await prisma.productVariant.delete({
       where: { id: variantId },
     });
+
+    revalidateTag("products");
 
     return NextResponse.json({ message: "Variant deleted" });
   } catch {

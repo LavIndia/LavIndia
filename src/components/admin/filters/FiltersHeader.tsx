@@ -3,19 +3,42 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { css } from "styled-system/css";
+
+const wrapStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "4",
+  md: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
+});
+
+const titleStyle = css({
+  fontFamily: "display",
+  fontSize: "2xl",
+  fontWeight: "bold",
+  color: "fg.default",
+});
+
+const subtitleStyle = css({
+  marginTop: "1",
+  fontSize: "sm",
+  color: "fg.muted",
+});
+
+const iconStyle = css({ marginRight: "2", height: "4", width: "4" });
 
 export function FiltersHeader() {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className={wrapStyle}>
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Filters</h2>
-        <p className="mt-1 text-sm text-gray-600">
+        <h2 className={titleStyle}>Filters</h2>
+        <p className={subtitleStyle}>
           Manage product filters like Price Range, Metal Type, Stone Type, etc.
         </p>
       </div>
       <Link href="/admin/filters/new">
         <Button>
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className={iconStyle} />
           New Filter
         </Button>
       </Link>

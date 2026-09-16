@@ -8,6 +8,7 @@ import { Heart } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import AddToCartButton from "@/components/cart/AddToCartButton";
+import { css, cx } from "styled-system/css";
 
 interface ProductCardProps {
   id: string;
@@ -31,18 +32,94 @@ interface ProductCardProps {
   }>;
 }
 
+// Restrained, editorial treatment (per 2026 luxury e-commerce research: quiet
+// whitespace-led grids, no decorative framing, large imagery, minimal text)
+// — the card itself carries no border/background; separation between cards
+// comes from grid gutter spacing (set by the parent grid), not a box.
+const cardStyle = css({ background: "transparent" });
+
+const imageBoxStyle = css({
+  display: "block",
+  position: "relative",
+  width: "full",
+  aspectRatio: "1 / 1",
+  overflow: "hidden",
+  borderRadius: "lg",
+  background: "bg.surface",
+  boxShadow: "0 1px 2px rgba(31,29,27,0.06)",
+  transition: "box-shadow 0.35s ease",
+  "&:hover": { boxShadow: "card" },
+  "&:hover img": { transform: "scale(1.045)" },
+});
+
+const imageStyle = css({
+  objectFit: "cover",
+  transition: "transform 0.6s cubic-bezier(0.22,1,0.36,1)",
+});
+
+const wishlistButtonStyle = cx(
+  css({
+    position: "absolute",
+    top: "3",
+    right: "3",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "full",
+    padding: "2",
+    cursor: "pointer",
+    background: "bg.glassStrong",
+    backdropBlur: "glassSm",
+    color: "fg.muted",
+    transition: "all 0.2s ease",
+    "&:hover": { background: "danger", color: "white" },
+    "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
+  })
+);
+
+const wishlistActiveStyle = css({
+  background: "danger",
+  color: "white",
+});
+
+const bodyStyle = css({ paddingTop: "3.5" });
+
+const titleStyle = css({
+  fontFamily: "display",
+  fontSize: "md",
+  fontWeight: "medium",
+  letterSpacing: "wide",
+  color: "fg.default",
+  "&:hover": { color: "accent.pressed" },
+});
+
+const priceRowStyle = css({
+  marginTop: "1.5",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "2",
+});
+
+const priceGroupStyle = css({ display: "flex", alignItems: "baseline", gap: "2", flexWrap: "wrap" });
+
+const priceStyle = css({ fontFamily: "display", fontSize: "md", fontWeight: "semibold", color: "fg.default" });
+
+const compareAtStyle = css({ fontSize: "xs", color: "fg.muted", textDecoration: "line-through" });
+
+
+const lowStockStyle = css({ marginTop: "1", fontSize: "xs", fontWeight: "medium", color: "gold.600" });
+
 export function ProductCard({
   id,
   name,
   slug,
-  description,
   price,
   compareAtPrice,
   images,
   isFeatured,
   isWishlisted = false,
   stock = 0,
-  variants,
 }: ProductCardProps) {
   const mainImage = images[0];
   const { data: session } = useSession();
@@ -62,7 +139,6 @@ export function ProductCard({
 
     try {
       if (wishlisted) {
-        // Remove from wishlist
         const response = await fetch(`/api/user/wishlist?productId=${id}`, {
           method: "DELETE",
         });
@@ -74,7 +150,6 @@ export function ProductCard({
           throw new Error("Failed to remove from wishlist");
         }
       } else {
-        // Add to wishlist
         const response = await fetch("/api/user/wishlist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -97,60 +172,56 @@ export function ProductCard({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-xl hover:scale-[1.02] transition-all duration-300 group">
-      <div className="relative">
-        <Link href={`/product/${slug}`}>
+    <div className={cardStyle}>
+      <div className={css({ position: "relative" })}>
+        <Link href={`/product/${slug}`} className={imageBoxStyle}>
           <Image
             src={mainImage?.url || "/placeholder.jpg"}
             alt={mainImage?.alt || name}
-            width={400}
-            height={400}
-            className="w-full h-64 object-cover cursor-pointer group-hover:scale-105 transition-transform duration-500"
+            fill
+            sizes="(min-width: 1280px) 22vw, (min-width: 768px) 30vw, 45vw"
+            className={imageStyle}
           />
         </Link>
 
-        {/* Wishlist Button */}
         <button
           onClick={handleWishlistToggle}
           disabled={isLoading}
-          className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-300 ${
-            wishlisted
-              ? "bg-red-500 text-white"
-              : "bg-white/90 text-gray-600 hover:bg-red-500 hover:text-white"
-          } shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
+          className={cx(wishlistButtonStyle, wishlisted && wishlistActiveStyle)}
           aria-label={wishlisted ? "Remove from wishlist" : "Add to wishlist"}
         >
           <Heart
-            className={`w-5 h-5 transition-transform ${
-              wishlisted ? "fill-current scale-110" : ""
-            }`}
+            className={css({ width: "4.5", height: "4.5" })}
+            fill={wishlisted ? "currentColor" : "none"}
           />
         </button>
 
         {isFeatured && (
-          <Badge className="absolute top-3 left-3 bg-amber-500">Featured</Badge>
+          <Badge
+            className={css({ position: "absolute", top: "3", left: "3" })}
+          >
+            Featured
+          </Badge>
         )}
 
         {stock === 0 && (
-          <Badge className="absolute bottom-3 left-3 bg-red-500">
+          <Badge
+            variant="destructive"
+            className={css({ position: "absolute", bottom: "3", left: "3" })}
+          >
             Out of Stock
           </Badge>
         )}
       </div>
-      <div className="p-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">
-          <Link href={`/product/${slug}`} className="hover:text-amber-600">
-            {name}
-          </Link>
+      <div className={bodyStyle}>
+        <h3 className={titleStyle}>
+          <Link href={`/product/${slug}`}>{name}</Link>
         </h3>
-        <p className="text-sm text-gray-600 mb-2 line-clamp-2">{description}</p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-bold text-gray-900">
-              ₹{price.toLocaleString()}
-            </span>
+        <div className={priceRowStyle}>
+          <div className={priceGroupStyle}>
+            <span className={priceStyle}>₹{price.toLocaleString()}</span>
             {compareAtPrice && (
-              <span className="text-sm text-gray-500 line-through">
+              <span className={compareAtStyle}>
                 ₹{compareAtPrice.toLocaleString()}
               </span>
             )}
@@ -161,18 +232,12 @@ export function ProductCard({
             price={price}
             image={mainImage?.url}
             stock={stock}
-            className="h-9"
+            iconOnly
+            shine
           />
         </div>
         {stock > 0 && stock <= 10 && (
-          <div className="mt-1 text-xs text-orange-600 font-medium">
-            Only {stock} left in stock!
-          </div>
-        )}
-        {variants && variants.length > 0 && (
-          <div className="mt-1 text-xs text-gray-600">
-            {variants.length} options available
-          </div>
+          <div className={lowStockStyle}>Only {stock} left in stock!</div>
         )}
       </div>
     </div>

@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Filter } from "lucide-react";
+import { css } from "styled-system/css";
 
 interface Product {
   id: string;
@@ -34,6 +35,20 @@ interface Category {
   slug: string;
   description: string | null;
 }
+
+const pageStyle = css({ minHeight: "100vh", background: "bg.canvas" });
+
+const containerStyle = css({
+  maxWidth: "7xl",
+  marginInline: "auto",
+  paddingInline: "4",
+});
+
+const gridStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" },
+  gap: "6",
+});
 
 export default function DynamicCategoryPage() {
   const params = useParams();
@@ -80,18 +95,18 @@ export default function DynamicCategoryPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className={pageStyle}>
         <HeaderSection />
-        <main className="py-8">
-          <div className="container mx-auto px-4">
-            <Skeleton className="h-8 w-64 mb-4" />
-            <Skeleton className="h-4 w-96 mb-8" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <main className={css({ paddingBlock: "8" })}>
+          <div className={containerStyle}>
+            <Skeleton className={css({ height: "8", width: "64", marginBottom: "4" })} />
+            <Skeleton className={css({ height: "4", width: "96", marginBottom: "8" })} />
+            <div className={gridStyle}>
               {[...Array(8)].map((_, i) => (
-                <div key={i} className="space-y-4">
-                  <Skeleton className="h-64 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
+                <div key={i} className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+                  <Skeleton className={css({ height: "64", width: "full" })} />
+                  <Skeleton className={css({ height: "4", width: "75%" })} />
+                  <Skeleton className={css({ height: "4", width: "50%" })} />
                 </div>
               ))}
             </div>
@@ -104,12 +119,14 @@ export default function DynamicCategoryPage() {
 
   if (!category) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className={pageStyle}>
         <HeaderSection />
-        <main className="py-8">
-          <div className="container mx-auto px-4 text-center">
-            <h1 className="text-3xl font-bold mb-4">Category Not Found</h1>
-            <p className="text-gray-600">
+        <main className={css({ paddingBlock: "8" })}>
+          <div className={css({ maxWidth: "7xl", marginInline: "auto", paddingInline: "4", textAlign: "center" })}>
+            <h1 className={css({ fontFamily: "display", fontSize: "3xl", fontWeight: "bold", marginBottom: "4", color: "fg.default" })}>
+              Category Not Found
+            </h1>
+            <p className={css({ color: "fg.muted" })}>
               The category you&apos;re looking for doesn&apos;t exist.
             </p>
           </div>
@@ -120,32 +137,32 @@ export default function DynamicCategoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={pageStyle}>
       <HeaderSection />
-      <main className="py-8">
-        <div className="container mx-auto px-4">
-          <div className="mb-6">
+      <main className={css({ paddingBlock: "8" })}>
+        <div className={containerStyle}>
+          <div className={css({ marginBottom: "6" })}>
             <BreadcrumbNavigation />
           </div>
 
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2 capitalize">
+          <div className={css({ marginBottom: "8" })}>
+            <h1 className={css({ fontFamily: "display", fontSize: { base: "3xl", md: "4xl" }, fontWeight: "bold", color: "fg.default", marginBottom: "2", textTransform: "capitalize" })}>
               {category.name}
             </h1>
             {category.description && (
-              <p className="text-gray-600">{category.description}</p>
+              <p className={css({ color: "fg.muted" })}>{category.description}</p>
             )}
           </div>
 
           {/* Sorting */}
-          <div className="mb-8 flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-gray-500" />
-              <span className="font-medium text-gray-700">Sort by:</span>
+          <div className={css({ marginBottom: "8", display: "flex", alignItems: "center", gap: "4", flexWrap: "wrap" })}>
+            <div className={css({ display: "flex", alignItems: "center", gap: "2", fontWeight: "medium", color: "fg.default" })}>
+              <Filter className={css({ height: "5", width: "5", color: "fg.muted" })} />
+              <span>Sort by:</span>
             </div>
 
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className={css({ width: "48" })}>
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -164,11 +181,11 @@ export default function DynamicCategoryPage() {
           {/* Products Grid */}
           {products.length > 0 ? (
             <>
-              <p className="text-sm text-gray-600 mb-6">
+              <p className={css({ fontSize: "sm", color: "fg.muted", marginBottom: "6" })}>
                 Showing {products.length}{" "}
                 {products.length === 1 ? "product" : "products"}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className={gridStyle}>
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -189,8 +206,8 @@ export default function DynamicCategoryPage() {
               </div>
             </>
           ) : (
-            <div className="text-center py-16">
-              <p className="text-xl text-gray-600">
+            <div className={css({ textAlign: "center", paddingBlock: "16" })}>
+              <p className={css({ fontSize: "xl", color: "fg.muted" })}>
                 No products found in this category.
               </p>
             </div>

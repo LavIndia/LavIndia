@@ -1,66 +1,99 @@
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { css, cva, cx } from "styled-system/css";
+import type { RecipeVariantProps } from "styled-system/types";
 
-import { cn } from "@/lib/utils"
-
-const alertVariants = cva(
-  "relative w-full rounded-lg border px-4 py-3 text-sm grid has-[>svg]:grid-cols-[calc(var(--spacing)*4)_1fr] grid-cols-[0_1fr] has-[>svg]:gap-x-3 gap-y-0.5 items-start [&>svg]:size-4 [&>svg]:translate-y-0.5 [&>svg]:text-current",
-  {
-    variants: {
-      variant: {
-        default: "bg-card text-card-foreground",
-        destructive:
-          "text-destructive bg-card [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
+const alertStyle = cva({
+  base: {
+    position: "relative",
+    width: "100%",
+    borderRadius: "lg",
+    border: "1px solid",
+    borderColor: "border.subtle",
+    paddingInline: "4",
+    paddingBlock: "3",
+    fontFamily: "body",
+    fontSize: "sm",
+    display: "grid",
+    gridTemplateColumns: "0 1fr",
+    columnGap: "3",
+    rowGap: "0.5",
+    alignItems: "start",
+    "&:has(> svg)": { gridTemplateColumns: "4 1fr" },
+    "& svg": { width: "4", height: "4", transform: "translateY(2px)", color: "currentColor" },
+  },
+  variants: {
+    variant: {
+      default: {
+        background: "bg.surface",
+        color: "fg.default",
+      },
+      destructive: {
+        background: "bg.surface",
+        color: "danger",
       },
     },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-)
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
 
-function Alert({
-  className,
-  variant,
-  ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
+export type AlertVariants = RecipeVariantProps<typeof alertStyle>;
+
+export type AlertProps = React.ComponentProps<"div"> & AlertVariants;
+
+function Alert({ className, variant, ...props }: AlertProps) {
   return (
     <div
       data-slot="alert"
       role="alert"
-      className={cn(alertVariants({ variant }), className)}
+      className={cx(alertStyle({ variant }), className)}
       {...props}
     />
-  )
+  );
 }
 
 function AlertTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-title"
-      className={cn(
-        "col-start-2 line-clamp-1 min-h-4 font-medium tracking-tight",
+      className={cx(
+        css({
+          gridColumnStart: "2",
+          minHeight: "4",
+          fontFamily: "body",
+          fontWeight: "medium",
+          letterSpacing: "tight",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }),
         className
       )}
       {...props}
     />
-  )
+  );
 }
 
-function AlertDescription({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function AlertDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="alert-description"
-      className={cn(
-        "text-muted-foreground col-start-2 grid justify-items-start gap-1 text-sm [&_p]:leading-relaxed",
+      className={cx(
+        css({
+          gridColumnStart: "2",
+          display: "grid",
+          justifyItems: "start",
+          gap: "1",
+          fontSize: "sm",
+          color: "fg.muted",
+          "& p": { lineHeight: "relaxed" },
+        }),
         className
       )}
       {...props}
     />
-  )
+  );
 }
 
-export { Alert, AlertTitle, AlertDescription }
+export { Alert, AlertTitle, AlertDescription };

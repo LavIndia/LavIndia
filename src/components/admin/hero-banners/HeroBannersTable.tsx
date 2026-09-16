@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { css } from "styled-system/css";
 
 type HeroBanner = {
   id: string;
@@ -179,24 +180,39 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex min-h-12 items-center justify-between gap-3 rounded-xl border bg-card px-4 py-2 shadow-sm">
-        <div className="flex items-center gap-3">
+    <div className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
+      <div
+        className={css({
+          display: "flex",
+          minHeight: "12",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "3",
+          borderRadius: "xl",
+          border: "1px solid",
+          borderColor: "border.subtle",
+          background: "bg.surface",
+          paddingInline: "4",
+          paddingBlock: "2",
+          boxShadow: "card",
+        })}
+      >
+        <div className={css({ display: "flex", alignItems: "center", gap: "3" })}>
           <Checkbox
             checked={allSelected}
             onCheckedChange={(checked) => toggleAll(checked === true)}
             aria-label="Select all banners"
           />
-          <div className="flex items-center gap-2 text-sm">
-            <Layers3 className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium">
+          <div className={css({ display: "flex", alignItems: "center", gap: "2", fontSize: "sm" })}>
+            <Layers3 className={css({ width: "4", height: "4", color: "fg.muted" })} />
+            <span className={css({ fontWeight: "medium" })}>
               {selectedIds.length > 0
                 ? `${selectedIds.length} selected`
                 : `${banners.length} banners`}
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
           {Object.keys(destinationChanges).length > 0 && (
             <Button
               type="button"
@@ -204,7 +220,7 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
               onClick={handleSaveChanges}
               disabled={isSavingChanges}
             >
-              <Save className="mr-2 h-4 w-4" />
+              <Save className={css({ marginRight: "2", width: "4", height: "4" })} />
               {isSavingChanges
                 ? "Saving..."
                 : `Save ${Object.keys(destinationChanges).length} change${Object.keys(destinationChanges).length === 1 ? "" : "s"}`}
@@ -219,7 +235,7 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
                 onClick={() => setSelectedIds([])}
                 disabled={isBulkDeleting}
               >
-                <X className="mr-2 h-4 w-4" />
+                <X className={css({ marginRight: "2", width: "4", height: "4" })} />
                 Clear
               </Button>
               <Button
@@ -229,27 +245,38 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
                 onClick={handleBulkDelete}
                 disabled={isBulkDeleting}
               >
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2 className={css({ marginRight: "2", width: "4", height: "4" })} />
                 {isBulkDeleting ? "Deleting..." : "Delete selected"}
               </Button>
             </>
           )}
         </div>
       </div>
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+      <div
+        className={css({
+          overflow: "hidden",
+          borderRadius: "xl",
+          border: "1px solid",
+          borderColor: "border.subtle",
+          background: "bg.surface",
+          boxShadow: "card",
+        })}
+      >
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[48px]">
-                <span className="sr-only">Select</span>
+              <TableHead className={css({ width: "12" })}>
+                <span className={css({ srOnly: true })}>Select</span>
               </TableHead>
-              <TableHead className="w-[50px]">Order</TableHead>
-              <TableHead className="w-[100px]">Image</TableHead>
+              <TableHead className={css({ width: "12.5" })}>Order</TableHead>
+              <TableHead className={css({ width: "25" })}>Image</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Subtitle</TableHead>
               <TableHead>Link</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[100px] text-right">Actions</TableHead>
+              <TableHead className={css({ width: "25" })}>Status</TableHead>
+              <TableHead className={css({ width: "25", textAlign: "right" })}>
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -257,7 +284,11 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
               <TableRow>
                 <TableCell
                   colSpan={8}
-                  className="text-center text-muted-foreground py-8"
+                  className={css({
+                    textAlign: "center",
+                    color: "fg.muted",
+                    paddingBlock: "8",
+                  })}
                 >
                   No banners found. Create your first banner to get started.
                 </TableCell>
@@ -275,29 +306,43 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
                     />
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
-                      <span className="font-medium">{banner.order}</span>
+                    <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
+                      <GripVertical
+                        className={css({ width: "4", height: "4", color: "fg.muted", cursor: "move" })}
+                      />
+                      <span className={css({ fontWeight: "medium" })}>{banner.order}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="relative w-16 h-10 rounded overflow-hidden">
+                    <div
+                      className={css({
+                        position: "relative",
+                        width: "16",
+                        height: "10",
+                        borderRadius: "sm",
+                        overflow: "hidden",
+                        border: "1px solid",
+                        borderColor: "border.subtle",
+                      })}
+                    >
                       <Image
                         src={banner.imagePath}
                         alt={banner.title}
                         fill
-                        className="object-cover"
+                        className={css({ objectFit: "cover" })}
                         sizes="64px"
                       />
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{banner.title}</span>
+                  <TableCell className={css({ fontWeight: "medium" })}>
+                    <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
+                      <ImageIcon
+                        className={css({ width: "4", height: "4", flexShrink: 0, color: "fg.muted" })}
+                      />
+                      <span className={css({ truncate: true })}>{banner.title}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
+                  <TableCell className={css({ fontSize: "sm", color: "fg.muted" })}>
                     {banner.subtitle || "-"}
                   </TableCell>
                   <TableCell>
@@ -307,7 +352,7 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
                         handleDestinationChange(banner.id, value)
                       }
                     >
-                      <SelectTrigger className="h-9 w-[170px]">
+                      <SelectTrigger className={css({ height: "9", width: "42.5" })}>
                         <SelectValue placeholder="Loading destinations..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -327,24 +372,35 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
                       {banner.active ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <TableCell className={css({ textAlign: "right" })}>
+                    <div
+                      className={css({
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        gap: "2",
+                      })}
+                    >
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() =>
                           router.push(`/admin/hero-banners/${banner.id}`)
                         }
+                        aria-label={`Edit ${banner.title}`}
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className={css({ width: "4", height: "4" })} />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDelete(banner.id)}
                         disabled={isDeleting === banner.id}
+                        aria-label={`Delete ${banner.title}`}
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <Trash2
+                          className={css({ width: "4", height: "4", color: "danger" })}
+                        />
                       </Button>
                     </div>
                   </TableCell>

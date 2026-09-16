@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { HeroBannersTable } from "@/components/admin/hero-banners/HeroBannersTable";
 import { HeroBannersHeader } from "@/components/admin/hero-banners/HeroBannersHeader";
 import { syncHeroBannersFromStorage } from "@/lib/hero-banners";
+import { css } from "styled-system/css";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,7 +19,7 @@ export default async function HeroBannersPage() {
   const banners = await getHeroBanners();
 
   return (
-    <div className="space-y-6">
+    <div className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
       <HeroBannersHeader />
       <HeroBannersTable banners={banners} />
     </div>

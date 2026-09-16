@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -12,7 +12,6 @@ import { BreadcrumbNavigation } from "@/components/layout/BreadcrumbNavigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Package,
@@ -24,6 +23,7 @@ import {
   AlertCircle,
   PackageCheck,
 } from "lucide-react";
+import { css, cva } from "styled-system/css";
 
 interface OrderItem {
   id: string;
@@ -45,96 +45,114 @@ interface Order {
   items: OrderItem[];
 }
 
+// Status pill — tone-based so order status reads at a glance (neutral = pending,
+// gold = active/in-progress, success = delivered, danger = cancelled/failed).
+const statusPillStyle = cva({
+  base: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "1.5",
+    borderRadius: "full",
+    border: "1px solid",
+    paddingInline: "3",
+    paddingBlock: "1.5",
+    fontSize: "xs",
+    fontWeight: "semibold",
+    fontFamily: "body",
+    whiteSpace: "nowrap",
+  },
+  variants: {
+    tone: {
+      neutral: { background: "bg.surface", color: "fg.muted", borderColor: "border.subtle" },
+      gold: { background: "gold.50", color: "gold.700", borderColor: "gold.200" },
+      success: {
+        background: "rgba(47,107,88,0.1)",
+        color: "success",
+        borderColor: "rgba(47,107,88,0.25)",
+      },
+      danger: {
+        background: "rgba(138,44,59,0.1)",
+        color: "danger",
+        borderColor: "rgba(138,44,59,0.25)",
+      },
+    },
+  },
+  defaultVariants: { tone: "neutral" },
+});
+
+type Tone = "neutral" | "gold" | "success" | "danger";
+
 // Order Status Badge Helper
 const getOrderStatusBadge = (status: string) => {
   const statusMap: Record<
     string,
-    { label: string; className: string; icon: React.ReactElement }
+    { label: string; tone: Tone; icon: React.ReactElement }
   > = {
     PENDING: {
       label: "Pending",
-      className: "bg-amber-100 text-amber-800 border-amber-200",
-      icon: <Clock className="h-3.5 w-3.5" />,
+      tone: "neutral",
+      icon: <Clock className={css({ h: "3.5", w: "3.5" })} />,
     },
     CONFIRMED: {
       label: "Confirmed",
-      className: "bg-blue-100 text-blue-800 border-blue-200",
-      icon: <PackageCheck className="h-3.5 w-3.5" />,
+      tone: "gold",
+      icon: <PackageCheck className={css({ h: "3.5", w: "3.5" })} />,
     },
     PROCESSING: {
       label: "Being Prepared",
-      className: "bg-purple-100 text-purple-800 border-purple-200",
-      icon: <Package className="h-3.5 w-3.5" />,
+      tone: "gold",
+      icon: <Package className={css({ h: "3.5", w: "3.5" })} />,
     },
     SHIPPED: {
       label: "Shipped",
-      className: "bg-indigo-100 text-indigo-800 border-indigo-200",
-      icon: <Truck className="h-3.5 w-3.5" />,
+      tone: "gold",
+      icon: <Truck className={css({ h: "3.5", w: "3.5" })} />,
     },
     DELIVERED: {
       label: "Delivered",
-      className: "bg-green-100 text-green-800 border-green-200",
-      icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+      tone: "success",
+      icon: <CheckCircle2 className={css({ h: "3.5", w: "3.5" })} />,
     },
     CANCELLED: {
       label: "Cancelled",
-      className: "bg-red-100 text-red-800 border-red-200",
-      icon: <XCircle className="h-3.5 w-3.5" />,
+      tone: "danger",
+      icon: <XCircle className={css({ h: "3.5", w: "3.5" })} />,
     },
   };
 
   const config = statusMap[status] || {
     label: status,
-    className: "bg-gray-100 text-gray-800 border-gray-200",
-    icon: <AlertCircle className="h-3.5 w-3.5" />,
+    tone: "neutral" as Tone,
+    icon: <AlertCircle className={css({ h: "3.5", w: "3.5" })} />,
   };
 
   return (
-    <Badge
-      className={`${config.className} border font-medium px-3 py-1 gap-1.5`}
-      variant="outline"
-    >
+    <span className={statusPillStyle({ tone: config.tone })}>
       {config.icon}
       <span>{config.label}</span>
-    </Badge>
+    </span>
   );
 };
 
 // Payment Status Badge Helper
 const getPaymentStatusBadge = (status: string) => {
-  const statusMap: Record<string, { label: string; className: string }> = {
-    COMPLETED: {
-      label: "Paid",
-      className: "bg-emerald-100 text-emerald-800 border-emerald-200",
-    },
-    PENDING: {
-      label: "Payment Pending",
-      className: "bg-yellow-100 text-yellow-800 border-yellow-200",
-    },
-    FAILED: {
-      label: "Payment Failed",
-      className: "bg-red-100 text-red-800 border-red-200",
-    },
-    REFUNDED: {
-      label: "Refunded",
-      className: "bg-orange-100 text-orange-800 border-orange-200",
-    },
+  const statusMap: Record<string, { label: string; tone: Tone }> = {
+    COMPLETED: { label: "Paid", tone: "success" },
+    PENDING: { label: "Payment Pending", tone: "gold" },
+    FAILED: { label: "Payment Failed", tone: "danger" },
+    REFUNDED: { label: "Refunded", tone: "neutral" },
   };
 
-  const config = statusMap[status] || {
-    label: status,
-    className: "bg-gray-100 text-gray-800 border-gray-200",
-  };
+  const config = statusMap[status] || { label: status, tone: "neutral" as Tone };
 
-  return (
-    <Badge
-      className={`${config.className} border font-medium px-3 py-1`}
-      variant="outline"
-    >
-      {config.label}
-    </Badge>
-  );
+  return <span className={statusPillStyle({ tone: config.tone })}>{config.label}</span>;
 };
+
+const summaryRowStyle = css({
+  display: "flex",
+  justifyContent: "space-between",
+  fontSize: "sm",
+});
 
 export default function OrdersPage() {
   const { status } = useSession();
@@ -168,15 +186,15 @@ export default function OrdersPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className={css({ minHeight: "100vh", background: "bg.canvas" })}>
         <TopPromoBanner />
         <HeaderSection />
-        <main className="py-8">
-          <div className="container mx-auto px-4 max-w-5xl">
-            <Skeleton className="h-10 w-48 mb-6" />
-            <div className="space-y-4">
+        <main className={css({ paddingBlock: "8" })}>
+          <div className={css({ marginInline: "auto", paddingInline: "4", maxWidth: "5xl" })}>
+            <Skeleton className={css({ h: "10", w: "48", marginBottom: "6" })} />
+            <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
               {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-64 w-full" />
+                <Skeleton key={i} className={css({ h: "64", w: "full" })} />
               ))}
             </div>
           </div>
@@ -187,17 +205,35 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={css({ minHeight: "100vh", background: "bg.canvas" })}>
       <TopPromoBanner />
       <HeaderSection />
-      <main className="py-8">
-        <div className="container mx-auto px-4 max-w-5xl">
-          <div className="mb-6">
+      <main className={css({ paddingBlock: "8" })}>
+        <div className={css({ marginInline: "auto", paddingInline: "4", maxWidth: "5xl" })}>
+          <div className={css({ marginBottom: "6" })}>
             <BreadcrumbNavigation />
           </div>
 
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">My Orders</h1>
+          <div
+            className={css({
+              display: "flex",
+              flexDirection: { base: "column", sm: "row" },
+              alignItems: { base: "flex-start", sm: "center" },
+              justifyContent: "space-between",
+              gap: "3",
+              marginBottom: "8",
+            })}
+          >
+            <h1
+              className={css({
+                fontFamily: "display",
+                fontSize: { base: "2xl", md: "3xl" },
+                fontWeight: "bold",
+                color: "fg.default",
+              })}
+            >
+              My Orders
+            </h1>
             <Button asChild variant="outline">
               <Link href="/">Continue Shopping</Link>
             </Button>
@@ -205,41 +241,93 @@ export default function OrdersPage() {
 
           {orders.length === 0 ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <Package className="h-16 w-16 text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              <CardContent
+                className={css({
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingBlock: "16",
+                })}
+              >
+                <Package className={css({ h: "16", w: "16", color: "fg.muted", marginBottom: "4" })} />
+                <h3
+                  className={css({
+                    fontSize: "xl",
+                    fontWeight: "semibold",
+                    color: "fg.default",
+                    marginBottom: "2",
+                  })}
+                >
                   No orders yet
                 </h3>
-                <p className="text-gray-600 mb-6 text-center max-w-md">
+                <p
+                  className={css({
+                    color: "fg.muted",
+                    marginBottom: "6",
+                    textAlign: "center",
+                    maxWidth: "md",
+                  })}
+                >
                   Looks like you haven&apos;t placed any orders yet. Start
                   shopping to see your orders here!
                 </p>
                 <Button asChild>
                   <Link href="/">
-                    <ShoppingBag className="mr-2 h-4 w-4" />
+                    <ShoppingBag className={css({ h: "4", w: "4" })} />
                     Start Shopping
                   </Link>
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-6">
+            <div className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
               {orders.map((order) => (
                 <Card
                   key={order.id}
-                  className="hover:shadow-xl transition-all duration-200 border-gray-200"
+                  className={css({
+                    transition: "box-shadow 0.2s ease",
+                    "&:hover": { boxShadow: "glass" },
+                  })}
                 >
-                  <CardHeader className="bg-gradient-to-r from-gray-50 to-white pb-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg flex items-center gap-2 text-gray-900">
-                          <div className="p-2 bg-white rounded-lg shadow-sm border border-gray-200">
-                            <Package className="h-5 w-5 text-gray-700" />
+                  <CardHeader className={css({ paddingBottom: "4" })}>
+                    <div
+                      className={css({
+                        display: "flex",
+                        flexDirection: { base: "column", sm: "row" },
+                        alignItems: { base: "flex-start", sm: "center" },
+                        justifyContent: "space-between",
+                        gap: "4",
+                      })}
+                    >
+                      <div className={css({ flex: "1" })}>
+                        <CardTitle className={css({ display: "flex", alignItems: "center", gap: "2", fontSize: "lg" })}>
+                          <div
+                            className={css({
+                              display: "inline-flex",
+                              padding: "2",
+                              background: "bg.surface",
+                              borderRadius: "md",
+                              border: "1px solid",
+                              borderColor: "border.subtle",
+                            })}
+                          >
+                            <Package className={css({ h: "5", w: "5", color: "fg.default" })} />
                           </div>
                           <span>Order #{order.orderNumber}</span>
                         </CardTitle>
-                        <p className="text-sm text-gray-500 mt-2 ml-11">
-                          <Clock className="h-3.5 w-3.5 inline mr-1" />
+                        <p
+                          className={css({
+                            fontSize: "sm",
+                            color: "fg.muted",
+                            marginTop: "2",
+                            marginLeft: "11",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "1",
+                          })}
+                        >
+                          <Clock className={css({ h: "3.5", w: "3.5" })} />
                           {new Date(order.createdAt).toLocaleDateString(
                             "en-IN",
                             {
@@ -252,45 +340,74 @@ export default function OrdersPage() {
                           )}
                         </p>
                       </div>
-                      <div className="flex flex-wrap gap-2 items-center">
+                      <div className={css({ display: "flex", flexWrap: "wrap", gap: "2", alignItems: "center" })}>
                         {getOrderStatusBadge(order.status)}
                         {getPaymentStatusBadge(order.paymentStatus)}
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-6 pt-6">
-                    <div className="space-y-3">
+                  <CardContent className={css({ display: "flex", flexDirection: "column", gap: "6", paddingTop: "6" })}>
+                    <div className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
                       {order.items?.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white rounded-lg border border-gray-100 hover:shadow-sm transition-shadow"
+                          className={css({
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4",
+                            padding: "4",
+                            background: "bg.surface",
+                            borderRadius: "md",
+                            border: "1px solid",
+                            borderColor: "border.subtle",
+                          })}
                         >
-                          <div className="relative h-20 w-20 flex-shrink-0 bg-white rounded-lg border-2 border-gray-200 overflow-hidden">
+                          <div
+                            className={css({
+                              position: "relative",
+                              h: "20",
+                              w: "20",
+                              flexShrink: 0,
+                              background: "bg.canvas",
+                              borderRadius: "md",
+                              border: "1px solid",
+                              borderColor: "border.subtle",
+                              overflow: "hidden",
+                            })}
+                          >
                             <Image
                               src={item.image || "/placeholder.jpg"}
                               alt={item.name}
                               fill
-                              className="object-contain p-2"
+                              className={css({ objectFit: "contain", padding: "2" })}
                             />
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-gray-900 truncate text-base">
+                          <div className={css({ flex: "1", minWidth: "0" })}>
+                            <h4
+                              className={css({
+                                fontWeight: "semibold",
+                                color: "fg.default",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                                fontSize: "md",
+                              })}
+                            >
                               {item.name}
                             </h4>
-                            <p className="text-sm text-gray-500 mt-1">
-                              <span className="font-medium">Qty:</span>{" "}
-                              {item.quantity}
+                            <p className={css({ fontSize: "sm", color: "fg.muted", marginTop: "1" })}>
+                              <span className={css({ fontWeight: "medium" })}>Qty:</span> {item.quantity}
                             </p>
                           </div>
-                          <div className="text-right">
-                            <p className="font-bold text-gray-900 text-lg">
+                          <div className={css({ textAlign: "right" })}>
+                            <p className={css({ fontWeight: "bold", color: "fg.default", fontSize: "lg" })}>
                               ₹
                               {(
                                 (item.priceCents * item.quantity) /
                                 100
                               ).toLocaleString()}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className={css({ fontSize: "xs", color: "fg.muted", marginTop: "1" })}>
                               ₹{(item.priceCents / 100).toLocaleString()} each
                             </p>
                           </div>
@@ -298,30 +415,47 @@ export default function OrdersPage() {
                       ))}
                     </div>
 
-                    <div className="border-t-2 border-gray-200 pt-4 space-y-3 bg-gray-50 -mx-6 px-6 py-4 rounded-lg">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 font-medium">
-                          Subtotal
-                        </span>
-                        <span className="text-gray-900 font-semibold">
+                    <div
+                      className={css({
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "3",
+                        background: "bg.surface",
+                        borderRadius: "md",
+                        padding: "4",
+                        border: "1px solid",
+                        borderColor: "border.subtle",
+                      })}
+                    >
+                      <div className={summaryRowStyle}>
+                        <span className={css({ color: "fg.muted", fontWeight: "medium" })}>Subtotal</span>
+                        <span className={css({ color: "fg.default", fontWeight: "semibold" })}>
                           ₹{(order.totalCents / 100).toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 font-medium">
-                          Shipping Charges
-                        </span>
-                        <span className="text-gray-900 font-semibold">
+                      <div className={summaryRowStyle}>
+                        <span className={css({ color: "fg.muted", fontWeight: "medium" })}>Shipping Charges</span>
+                        <span className={css({ color: "fg.default", fontWeight: "semibold" })}>
                           {order.shippingCents === 0 ? (
-                            <span className="text-green-600">FREE</span>
+                            <span className={css({ color: "success" })}>FREE</span>
                           ) : (
                             `₹${(order.shippingCents / 100).toLocaleString()}`
                           )}
                         </span>
                       </div>
-                      <div className="flex justify-between text-base font-bold pt-3 border-t border-gray-300">
-                        <span className="text-gray-900">Total Amount</span>
-                        <span className="text-gray-900 text-xl">
+                      <div
+                        className={css({
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "md",
+                          fontWeight: "bold",
+                          paddingTop: "3",
+                          borderTop: "1px solid",
+                          borderColor: "border.subtle",
+                        })}
+                      >
+                        <span className={css({ color: "fg.default" })}>Total Amount</span>
+                        <span className={css({ color: "fg.default", fontSize: "xl" })}>
                           ₹
                           {(
                             (order.totalCents + order.shippingCents) /
@@ -329,20 +463,50 @@ export default function OrdersPage() {
                           ).toLocaleString()}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
-                        <span className="text-gray-600 font-medium">
-                          Payment Method
-                        </span>
-                        <span className="uppercase font-bold text-gray-900 flex items-center gap-2">
+                      <div
+                        className={css({
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "sm",
+                          paddingTop: "2",
+                          borderTop: "1px solid",
+                          borderColor: "border.subtle",
+                        })}
+                      >
+                        <span className={css({ color: "fg.muted", fontWeight: "medium" })}>Payment Method</span>
+                        <span
+                          className={css({
+                            textTransform: "uppercase",
+                            fontWeight: "bold",
+                            color: "fg.default",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "2",
+                          })}
+                        >
                           {order.paymentMethod === "COD" ||
                           order.paymentMethod === "cod" ? (
                             <>
-                              <span className="h-2 w-2 bg-blue-500 rounded-full"></span>
+                              <span
+                                className={css({
+                                  h: "2",
+                                  w: "2",
+                                  borderRadius: "full",
+                                  background: "accent.default",
+                                })}
+                              />
                               Cash on Delivery
                             </>
                           ) : (
                             <>
-                              <span className="h-2 w-2 bg-purple-500 rounded-full"></span>
+                              <span
+                                className={css({
+                                  h: "2",
+                                  w: "2",
+                                  borderRadius: "full",
+                                  background: "success",
+                                })}
+                              />
                               Online Payment
                             </>
                           )}
@@ -350,35 +514,54 @@ export default function OrdersPage() {
                       </div>
                     </div>
 
-                    <div className="flex gap-3 pt-2">
+                    <div className={css({ display: "flex", flexDirection: { base: "column", sm: "row" }, gap: "3", paddingTop: "2" })}>
                       <Button
                         variant="outline"
-                        className="flex-1 border-gray-300 hover:bg-gray-50"
+                        className={css({ flex: "1" })}
                         onClick={() =>
                           toast.info(
                             "Order tracking feature coming soon! We'll notify you when your order ships."
                           )
                         }
                       >
-                        <Truck className="mr-2 h-4 w-4" />
+                        <Truck className={css({ h: "4", w: "4" })} />
                         Track Shipment
                       </Button>
                       <Button
                         variant="outline"
-                        className="flex-1 border-gray-300 hover:bg-gray-50"
+                        className={css({ flex: "1" })}
                         onClick={() =>
                           toast.info(
                             "Detailed order view coming soon! Contact support for order details."
                           )
                         }
                       >
-                        <Package className="mr-2 h-4 w-4" />
+                        <Package className={css({ h: "4", w: "4" })} />
                         View Details
                       </Button>
                     </div>
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-                      <p className="text-xs text-amber-700 font-medium flex items-center justify-center gap-2">
-                        <AlertCircle className="h-3.5 w-3.5" />
+                    <div
+                      className={css({
+                        background: "gold.50",
+                        border: "1px solid",
+                        borderColor: "gold.200",
+                        borderRadius: "md",
+                        padding: "3",
+                        textAlign: "center",
+                      })}
+                    >
+                      <p
+                        className={css({
+                          fontSize: "xs",
+                          color: "gold.700",
+                          fontWeight: "medium",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "2",
+                        })}
+                      >
+                        <AlertCircle className={css({ h: "3.5", w: "3.5" })} />
                         Real-time order tracking and detailed views coming soon!
                       </p>
                     </div>
@@ -389,13 +572,13 @@ export default function OrdersPage() {
           )}
 
           {orders.length > 0 && (
-            <Card className="mt-8">
-              <CardContent className="py-6">
-                <div className="text-center">
-                  <h3 className="font-semibold text-gray-900 mb-2">
+            <Card className={css({ marginTop: "8" })}>
+              <CardContent className={css({ paddingBlock: "6" })}>
+                <div className={css({ textAlign: "center" })}>
+                  <h3 className={css({ fontWeight: "semibold", color: "fg.default", marginBottom: "2" })}>
                     Need Help with Your Order?
                   </h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className={css({ fontSize: "sm", color: "fg.muted", marginBottom: "4" })}>
                     Contact our support team for order updates and assistance
                   </p>
                   <Button asChild variant="outline">

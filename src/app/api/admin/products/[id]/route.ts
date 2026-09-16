@@ -1,8 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { removePublicAsset } from "@/lib/imagekit-admin";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+
+const imageInputSchema = z.object({
+  id: z.string().optional(),
+  url: z.string().min(1),
+  alt: z.string().nullable().optional(),
+  isPrimary: z.boolean().default(false),
+  position: z.number().int().min(0).default(0),
+});
+
+const variantInputSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  color: z.string().nullable().optional(),
+  size: z.string().nullable().optional(),
+  material: z.string().nullable().optional(),
+  priceCents: z.number().int().positive().nullable().optional(),
+  stock: z.number().int().min(0).default(0),
+});
 
 const productUpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -17,6 +36,12 @@ const productUpdateSchema = z.object({
   isPublished: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  // When present, the whole images/variants set is diffed against what's
+  // in the DB and applied in one transaction — see PATCH below. This is
+  // what lets the admin form save a full product edit as a single request
+  // instead of a create/update-per-image/variant waterfall.
+  images: z.array(imageInputSchema).optional(),
+  variants: z.array(variantInputSchema).optional(),
 });
 
 // GET /api/admin/products/[id] - Get single product
@@ -72,17 +97,131 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const validatedData = productUpdateSchema.parse(body);
+    const { images, variants, ...productFields } =
+      productUpdateSchema.parse(body);
 
-    const product = await prisma.product.update({
+    const { removedImageUrls } = await prisma.$transaction(async (tx) => {
+      await tx.product.update({ where: { id }, data: productFields });
+
+      let removedImageUrls: string[] = [];
+
+      if (images) {
+        const existing = await tx.productImage.findMany({
+          where: { productId: id },
+          select: { id: true, url: true },
+        });
+        const keepIds = new Set(
+          images.filter((img) => img.id).map((img) => img.id),
+        );
+        const toDelete = existing.filter((img) => !keepIds.has(img.id));
+        removedImageUrls = toDelete.map((img) => img.url);
+
+        await Promise.all([
+          toDelete.length
+            ? tx.productImage.deleteMany({
+                where: { id: { in: toDelete.map((img) => img.id) } },
+              })
+            : Promise.resolve(),
+          ...images.map((img) =>
+            img.id
+              ? tx.productImage.update({
+                  where: { id: img.id },
+                  data: {
+                    url: img.url,
+                    alt: img.alt ?? null,
+                    isPrimary: img.isPrimary,
+                    position: img.position,
+                  },
+                })
+              : tx.productImage.create({
+                  data: {
+                    productId: id,
+                    url: img.url,
+                    alt: img.alt ?? null,
+                    isPrimary: img.isPrimary,
+                    position: img.position,
+                  },
+                }),
+          ),
+        ]);
+      }
+
+      if (variants) {
+        const existing = await tx.productVariant.findMany({
+          where: { productId: id },
+          select: { id: true },
+        });
+        const keepIds = new Set(
+          variants.filter((v) => v.id).map((v) => v.id),
+        );
+        const toDelete = existing.filter((v) => !keepIds.has(v.id));
+
+        await Promise.all([
+          toDelete.length
+            ? tx.productVariant.deleteMany({
+                where: { id: { in: toDelete.map((v) => v.id) } },
+              })
+            : Promise.resolve(),
+          ...variants.map((v) =>
+            v.id
+              ? tx.productVariant.update({
+                  where: { id: v.id },
+                  data: {
+                    name: v.name,
+                    color: v.color ?? null,
+                    size: v.size ?? null,
+                    material: v.material ?? null,
+                    priceCents: v.priceCents ?? null,
+                    stock: v.stock,
+                  },
+                })
+              : tx.productVariant.create({
+                  data: {
+                    productId: id,
+                    name: v.name,
+                    color: v.color ?? null,
+                    size: v.size ?? null,
+                    material: v.material ?? null,
+                    priceCents: v.priceCents ?? null,
+                    stock: v.stock,
+                  },
+                }),
+          ),
+        ]);
+      }
+
+      return { removedImageUrls };
+    });
+
+    // Clean up ImageKit assets for images that were removed, outside the
+    // DB transaction since this is an external network call.
+    if (removedImageUrls.length) {
+      const results = await Promise.allSettled(
+        removedImageUrls
+          .filter((url) => url.startsWith("/assets/"))
+          .map((url) => removePublicAsset(url)),
+      );
+      results
+        .filter(
+          (r): r is PromiseRejectedResult => r.status === "rejected",
+        )
+        .forEach((r) =>
+          console.error("Failed to remove product image from ImageKit:", r.reason),
+        );
+    }
+
+    const product = await prisma.product.findUnique({
       where: { id },
-      data: validatedData,
       include: {
         category: true,
-        images: true,
+        images: { orderBy: { position: "asc" } },
         variants: true,
       },
     });
+
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
 
     // Create audit log
     await prisma.auditLog.create({
@@ -94,10 +233,12 @@ export async function PATCH(
         entityId: product.id,
         metadata: {
           productName: product.name,
-          changes: Object.keys(validatedData),
+          changes: Object.keys(productFields),
         },
       },
     });
+
+    revalidateTag("products");
 
     return NextResponse.json(product);
   } catch (error) {
@@ -150,6 +291,8 @@ export async function DELETE(
         data: { isActive: false, isPublished: false },
       });
 
+      revalidateTag("products");
+
       return NextResponse.json({
         archived: true,
         message: "Product archived because it has existing orders",
@@ -194,6 +337,8 @@ export async function DELETE(
         auditError,
       );
     }
+
+    revalidateTag("products");
 
     return NextResponse.json({ message: "Product deleted successfully" });
   } catch (error) {

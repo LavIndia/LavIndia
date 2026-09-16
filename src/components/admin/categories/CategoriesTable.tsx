@@ -20,9 +20,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { css } from "styled-system/css";
 
 interface Category {
   id: string;
@@ -39,6 +42,8 @@ interface Category {
 export function CategoriesTable({ categories }: { categories: Category[] }) {
   const router = useRouter();
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -83,14 +88,12 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (
-      !confirm("Are you sure? This will affect all products in this category.")
-    )
-      return;
+  const handleDeleteConfirm = async () => {
+    if (!deletingCategoryId) return;
 
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/categories/${id}`, {
+      const res = await fetch(`/api/admin/categories/${deletingCategoryId}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error("Failed to delete");
@@ -99,13 +102,25 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
       router.refresh();
     } catch {
       toast.error("Failed to delete category");
+    } finally {
+      setDeleting(false);
+      setDeletingCategoryId(null);
     }
   };
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="overflow-x-auto">
+      <div
+        className={css({
+          overflow: "hidden",
+          borderRadius: "xl",
+          border: "1px solid",
+          borderColor: "border.subtle",
+          background: "bg.surface",
+          boxShadow: "card",
+        })}
+      >
+        <div className={css({ overflowX: "auto" })}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -114,7 +129,9 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
                 <TableHead>Description</TableHead>
                 <TableHead>Products</TableHead>
                 <TableHead>Featured</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className={css({ textAlign: "right" })}>
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -122,18 +139,22 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
                 <TableRow>
                   <TableCell
                     colSpan={6}
-                    className="text-center py-8 text-muted-foreground"
+                    className={css({
+                      textAlign: "center",
+                      paddingBlock: "8",
+                      color: "fg.muted",
+                    })}
                   >
                     No categories found
                   </TableCell>
                 </TableRow>
               ) : (
                 categories.map((category) => (
-                  <TableRow key={category.id} className="hover:bg-muted/40">
-                    <TableCell className="font-medium">
+                  <TableRow key={category.id}>
+                    <TableCell className={css({ fontWeight: "medium" })}>
                       {category.name}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className={css({ color: "fg.muted" })}>
                       {category.slug}
                     </TableCell>
                     <TableCell>{category.description || "—"}</TableCell>
@@ -151,21 +172,30 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
                         <Badge variant="secondary">No</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <TableCell className={css({ textAlign: "right" })}>
+                      <div
+                        className={css({
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                          gap: "2",
+                        })}
+                      >
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(category)}
                         >
-                          <Pencil className="h-4 w-4" />
+                          <Pencil className={css({ height: "4", width: "4" })} />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(category.id)}
+                          onClick={() => setDeletingCategoryId(category.id)}
                         >
-                          <Trash2 className="h-4 w-4 text-red-500" />
+                          <Trash2
+                            className={css({ height: "4", width: "4", color: "danger" })}
+                          />
                         </Button>
                       </div>
                     </TableCell>
@@ -185,8 +215,11 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
           <DialogHeader>
             <DialogTitle>Edit Category</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleUpdate} className="space-y-4">
-            <div className="grid gap-2">
+          <form
+            onSubmit={handleUpdate}
+            className={css({ display: "flex", flexDirection: "column", gap: "4" })}
+          >
+            <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
               <Label htmlFor="edit-name">Name *</Label>
               <Input
                 id="edit-name"
@@ -197,7 +230,7 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
                 required
               />
             </div>
-            <div className="grid gap-2">
+            <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
               <Label htmlFor="edit-slug">Slug *</Label>
               <Input
                 id="edit-slug"
@@ -208,7 +241,7 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
                 required
               />
             </div>
-            <div className="grid gap-2">
+            <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
               <Label htmlFor="edit-description">Description</Label>
               <Input
                 id="edit-description"
@@ -218,7 +251,7 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
                 }
               />
             </div>
-            <div className="flex items-center space-x-2">
+            <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
               <Switch
                 id="edit-featured"
                 checked={formData.isFeatured}
@@ -229,7 +262,7 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
               <Label htmlFor="edit-featured">Show in Explore Section</Label>
             </div>
             {formData.isFeatured && (
-              <div className="grid gap-2">
+              <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
                 <Label htmlFor="edit-featured-order">Featured Order</Label>
                 <Input
                   id="edit-featured-order"
@@ -244,7 +277,7 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
                 />
               </div>
             )}
-            <div className="flex justify-end gap-2">
+            <div className={css({ display: "flex", justifyContent: "flex-end", gap: "2" })}>
               <Button
                 type="button"
                 variant="outline"
@@ -257,6 +290,41 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deletingCategoryId}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDeletingCategoryId(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete category?</DialogTitle>
+            <DialogDescription>
+              This will affect all products in this category. This action
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeletingCategoryId(null)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

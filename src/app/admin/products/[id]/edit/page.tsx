@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { ProductForm } from "@/components/admin/products/ProductForm";
 import { notFound } from "next/navigation";
+import { css } from "styled-system/css";
 
 async function getProduct(id: string) {
   const product = await prisma.product.findUnique({
@@ -39,10 +40,20 @@ export default async function EditProductPage({
   }
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className={css({ maxWidth: "6xl", display: "flex", flexDirection: "column", gap: "6" })}>
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Edit Product</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1
+          className={css({
+            fontFamily: "display",
+            fontSize: { base: "2xl", md: "3xl" },
+            fontWeight: "bold",
+            letterSpacing: "tight",
+            color: "fg.default",
+          })}
+        >
+          Edit Product
+        </h1>
+        <p className={css({ color: "fg.muted", marginTop: "2", fontSize: "sm" })}>
           Update product details, images, and variants
         </p>
       </div>

@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { css } from "styled-system/css";
 
 type Discount = {
   id: string;
@@ -58,8 +59,17 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
   const isUpcoming = (startDate: Date) => new Date(startDate) > new Date();
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-      <div className="overflow-x-auto">
+    <div
+      className={css({
+        overflow: "hidden",
+        borderRadius: "xl",
+        border: "1px solid",
+        borderColor: "border.subtle",
+        background: "bg.surface",
+        boxShadow: "card",
+      })}
+    >
+      <div className={css({ overflowX: "auto" })}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -70,7 +80,9 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
               <TableHead>Valid Period</TableHead>
               <TableHead>Usage</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className={css({ textAlign: "right" })}>
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -78,7 +90,11 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
               <TableRow>
                 <TableCell
                   colSpan={8}
-                  className="text-center py-8 text-muted-foreground"
+                  className={css({
+                    textAlign: "center",
+                    paddingBlock: "8",
+                    color: "fg.muted",
+                  })}
                 >
                   No discount coupons found. Create your first coupon to get
                   started.
@@ -86,8 +102,10 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
               </TableRow>
             ) : (
               discounts.map((discount) => (
-                <TableRow key={discount.id} className="hover:bg-muted/40">
-                  <TableCell className="font-mono font-bold">
+                <TableRow key={discount.id}>
+                  <TableCell
+                    className={css({ fontFamily: "mono", fontWeight: "bold" })}
+                  >
                     {discount.code}
                   </TableCell>
                   <TableCell>{discount.title}</TableCell>
@@ -101,16 +119,16 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
                       ? `₹${discount.minPurchase / 100}`
                       : "-"}
                   </TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell className={css({ fontSize: "sm" })}>
                     <div>
                       {format(new Date(discount.startDate), "MMM d, yyyy")}
                     </div>
-                    <div className="text-muted-foreground">
+                    <div className={css({ color: "fg.muted" })}>
                       to {format(new Date(discount.endDate), "MMM d, yyyy")}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm">
+                    <span className={css({ fontSize: "sm" })}>
                       {discount.usedCount}
                       {discount.usageLimit ? ` / ${discount.usageLimit}` : ""}
                     </span>
@@ -136,24 +154,39 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
                             : "Active"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
+                  <TableCell className={css({ textAlign: "right" })}>
+                    <div
+                      className={css({
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        gap: "2",
+                      })}
+                    >
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() =>
                           router.push(`/admin/discounts/${discount.id}`)
                         }
+                        aria-label={`Edit ${discount.title}`}
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className={css({ width: "4", height: "4" })} />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDelete(discount.id)}
                         disabled={isDeleting === discount.id}
+                        aria-label={`Delete ${discount.title}`}
                       >
-                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <Trash2
+                          className={css({
+                            width: "4",
+                            height: "4",
+                            color: "danger",
+                          })}
+                        />
                       </Button>
                     </div>
                   </TableCell>

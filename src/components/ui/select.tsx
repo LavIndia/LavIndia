@@ -1,187 +1,212 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as SelectPrimitive from "@radix-ui/react-select"
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
+import * as React from "react";
+import {
+  Select as AriaSelect,
+  SelectValue as AriaSelectValue,
+  Button as AriaButton,
+  Popover as AriaPopover,
+  ListBox as AriaListBox,
+  ListBoxItem as AriaListBoxItem,
+  type SelectProps as AriaSelectProps,
+  type ButtonProps as AriaButtonProps,
+  type SelectValueProps as AriaSelectValueProps,
+  type PopoverProps as AriaPopoverProps,
+  type ListBoxItemProps as AriaListBoxItemProps,
+  type Key,
+} from "react-aria-components";
+import { CheckIcon, ChevronDownIcon } from "lucide-react";
+import { css, cva, cx } from "styled-system/css";
 
-import { cn } from "@/lib/utils"
-
-function Select({
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />
+/**
+ * Backward-compatible, shadcn-shaped wrapper around React Aria's Select.
+ * Old Radix API used `value`/`onValueChange` (strings); React Aria's Select
+ * uses `selectedKey`/`onSelectionChange` (Key = string | number), so this
+ * component bridges the two instead of forcing every call site to migrate.
+ */
+export interface SelectProps
+  extends Omit<AriaSelectProps, "className" | "children" | "selectedKey" | "onSelectionChange"> {
+  className?: string;
+  children?: React.ReactNode;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  /** Back-compat alias for isDisabled. */
+  disabled?: boolean;
+  /** Back-compat alias for isRequired. */
+  required?: boolean;
 }
 
-function SelectGroup({
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Group>) {
-  return <SelectPrimitive.Group data-slot="select-group" {...props} />
-}
-
-function SelectValue({
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Value>) {
-  return <SelectPrimitive.Value data-slot="select-value" {...props} />
-}
-
-function SelectTrigger({
+export function Select({
   className,
-  size = "default",
   children,
+  value,
+  onValueChange,
+  disabled,
+  isDisabled,
+  required,
+  isRequired,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Trigger> & {
-  size?: "sm" | "default"
-}) {
+}: SelectProps) {
   return (
-    <SelectPrimitive.Trigger
-      data-slot="select-trigger"
-      data-size={size}
-      className={cn(
-        "border-input data-[placeholder]:text-muted-foreground [&_svg:not([class*='text-'])]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:bg-input/30 dark:hover:bg-input/50 flex w-fit items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 data-[size=default]:h-9 data-[size=sm]:h-8 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-2 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        className
-      )}
+    <AriaSelect
+      className={cx(css({ display: "flex", flexDirection: "column", gap: "1.5", width: "fit-content" }), className)}
+      selectedKey={value ?? null}
+      onSelectionChange={(key: Key | null) => onValueChange?.(key == null ? "" : String(key))}
+      isDisabled={isDisabled ?? disabled}
+      isRequired={isRequired ?? required}
       {...props}
     >
       {children}
-      <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-4 opacity-50" />
-      </SelectPrimitive.Icon>
-    </SelectPrimitive.Trigger>
-  )
+    </AriaSelect>
+  );
 }
 
-function SelectContent({
+const selectTriggerStyle = cva({
+  base: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "2",
+    width: "full",
+    minWidth: "32",
+    borderRadius: "lg",
+    border: "1px solid",
+    borderColor: "border.subtle",
+    background: "bg.surface",
+    color: "fg.default",
+    fontFamily: "body",
+    fontSize: "sm",
+    paddingInline: "3.5",
+    cursor: "pointer",
+    outline: "none",
+    transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+    "&[data-disabled]": { opacity: 0.5, cursor: "not-allowed" },
+    "&[data-hovered]": { borderColor: "accent.default" },
+    "&[data-pressed], &[data-open]": { borderColor: "accent.default" },
+    "&[data-focus-visible]": { boxShadow: "0 0 0 3px token(colors.gold.200)", borderColor: "accent.default" },
+    "& svg": { flexShrink: 0, pointerEvents: "none", color: "fg.muted" },
+  },
+  variants: {
+    size: {
+      default: { height: "10" },
+      sm: { height: "8", fontSize: "xs" },
+    },
+  },
+  defaultVariants: { size: "default" },
+});
+
+export interface SelectTriggerProps extends Omit<AriaButtonProps, "className" | "children"> {
+  className?: string;
+  children?: React.ReactNode;
+  size?: "default" | "sm";
+  suppressHydrationWarning?: boolean;
+}
+
+export function SelectTrigger({ className, size, children, ...props }: SelectTriggerProps) {
+  return (
+    <AriaButton className={cx(selectTriggerStyle({ size }), className)} {...props}>
+      {children}
+      <ChevronDownIcon size={16} aria-hidden />
+    </AriaButton>
+  );
+}
+
+const selectValueStyle = css({
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  textAlign: "left",
+});
+
+export interface SelectValueProps<T extends object = object>
+  extends Omit<AriaSelectValueProps<T>, "className" | "children"> {
+  className?: string;
+  placeholder?: string;
+  /** Static override content (e.g. a status badge) instead of the auto-rendered selected text. */
+  children?: React.ReactNode;
+}
+
+export function SelectValue<T extends object = object>({
   className,
+  placeholder,
   children,
-  position = "popper",
-  align = "center",
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content>) {
+}: SelectValueProps<T>) {
   return (
-    <SelectPrimitive.Portal>
-      <SelectPrimitive.Content
-        data-slot="select-content"
-        className={cn(
-          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border shadow-md",
-          position === "popper" &&
-            "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
-          className
-        )}
-        position={position}
-        align={align}
-        {...props}
-      >
-        <SelectScrollUpButton />
-        <SelectPrimitive.Viewport
-          className={cn(
-            "p-1",
-            position === "popper" &&
-              "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
-          )}
-        >
-          {children}
-        </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
-      </SelectPrimitive.Content>
-    </SelectPrimitive.Portal>
-  )
+    <AriaSelectValue className={cx(selectValueStyle, className)} {...props}>
+      {children ??
+        (({ isPlaceholder, selectedText }) => (isPlaceholder ? placeholder ?? "Select an option" : selectedText))}
+    </AriaSelectValue>
+  );
 }
 
-function SelectLabel({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Label>) {
-  return (
-    <SelectPrimitive.Label
-      data-slot="select-label"
-      className={cn("text-muted-foreground px-2 py-1.5 text-xs", className)}
-      {...props}
-    />
-  )
+const selectPopoverStyle = css({
+  minWidth: "40",
+  maxHeight: "72",
+  overflowY: "auto",
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.glass",
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  boxShadow: "glassLg",
+  padding: "1.5",
+  zIndex: "50",
+  opacity: 1,
+  transform: "scale(1) translateY(0)",
+  transition: "opacity 0.12s ease, transform 0.12s ease",
+  "&[data-entering]": { opacity: 0, transform: "scale(0.98) translateY(-4px)" },
+  "&[data-exiting]": { opacity: 0 },
+});
+
+export interface SelectContentProps extends Omit<AriaPopoverProps, "className" | "children"> {
+  className?: string;
+  children?: React.ReactNode;
 }
 
-function SelectItem({
-  className,
-  children,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+export function SelectContent({ className, children, ...props }: SelectContentProps) {
   return (
-    <SelectPrimitive.Item
-      data-slot="select-item"
-      className={cn(
-        "focus:bg-accent focus:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
-        className
+    <AriaPopover className={cx(selectPopoverStyle, className)} placement="bottom start" {...props}>
+      <AriaListBox className={css({ display: "flex", flexDirection: "column", gap: "0.5" })}>
+        {children}
+      </AriaListBox>
+    </AriaPopover>
+  );
+}
+
+const selectItemStyle = css({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "2",
+  borderRadius: "md",
+  paddingInline: "3",
+  paddingBlock: "2",
+  fontSize: "sm",
+  color: "fg.default",
+  cursor: "pointer",
+  outline: "none",
+  "&[data-disabled]": { opacity: 0.5, cursor: "not-allowed" },
+  "&[data-focused], &[data-hovered]": { background: "bg.surface" },
+  "&[data-selected]": { color: "accent.pressed", fontWeight: "medium" },
+  "& svg": { flexShrink: 0, pointerEvents: "none" },
+});
+
+export interface SelectItemProps extends Omit<AriaListBoxItemProps, "className" | "id" | "value" | "children"> {
+  className?: string;
+  value: string;
+  children?: React.ReactNode;
+}
+
+export function SelectItem({ className, value, children, ...props }: SelectItemProps) {
+  return (
+    <AriaListBoxItem id={value} className={cx(selectItemStyle, className)} textValue={typeof children === "string" ? children : undefined} {...props}>
+      {({ isSelected }) => (
+        <>
+          <span>{children}</span>
+          {isSelected && <CheckIcon size={16} aria-hidden />}
+        </>
       )}
-      {...props}
-    >
-      <span className="absolute right-2 flex size-3.5 items-center justify-center">
-        <SelectPrimitive.ItemIndicator>
-          <CheckIcon className="size-4" />
-        </SelectPrimitive.ItemIndicator>
-      </span>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-    </SelectPrimitive.Item>
-  )
-}
-
-function SelectSeparator({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.Separator>) {
-  return (
-    <SelectPrimitive.Separator
-      data-slot="select-separator"
-      className={cn("bg-border pointer-events-none -mx-1 my-1 h-px", className)}
-      {...props}
-    />
-  )
-}
-
-function SelectScrollUpButton({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
-  return (
-    <SelectPrimitive.ScrollUpButton
-      data-slot="select-scroll-up-button"
-      className={cn(
-        "flex cursor-default items-center justify-center py-1",
-        className
-      )}
-      {...props}
-    >
-      <ChevronUpIcon className="size-4" />
-    </SelectPrimitive.ScrollUpButton>
-  )
-}
-
-function SelectScrollDownButton({
-  className,
-  ...props
-}: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
-  return (
-    <SelectPrimitive.ScrollDownButton
-      data-slot="select-scroll-down-button"
-      className={cn(
-        "flex cursor-default items-center justify-center py-1",
-        className
-      )}
-      {...props}
-    >
-      <ChevronDownIcon className="size-4" />
-    </SelectPrimitive.ScrollDownButton>
-  )
-}
-
-export {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectScrollDownButton,
-  SelectScrollUpButton,
-  SelectSeparator,
-  SelectTrigger,
-  SelectValue,
+    </AriaListBoxItem>
+  );
 }

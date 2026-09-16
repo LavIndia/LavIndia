@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -89,6 +90,8 @@ export async function POST(request: NextRequest) {
       entityId: filter.id,
       metadata: { name: filter.name },
     });
+
+    revalidateTag("filters");
 
     return NextResponse.json({ filter }, { status: 201 });
   } catch (error) {

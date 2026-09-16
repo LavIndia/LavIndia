@@ -10,10 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Bell, LogOut, User, ShoppingBag } from "lucide-react";
+import { Bell, LogOut, User, ShoppingBag, Plus, Search } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { css } from "styled-system/css";
 
 interface AdminTopbarProps {
   user: {
@@ -23,6 +23,29 @@ interface AdminTopbarProps {
     role: string;
   };
 }
+
+const headerStyle = css({
+  display: "flex",
+  height: "16",
+  flexShrink: "0",
+  alignItems: "center",
+  justifyContent: "space-between",
+  borderBottom: "1px solid",
+  borderColor: "border.subtle",
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  paddingInline: { base: "4", md: "6" },
+  paddingLeft: { base: "20", md: "6" },
+});
+
+const titleWrapStyle = css({ display: "flex", minWidth: "0", alignItems: "center", gap: "3" });
+const titleStyle = css({ fontFamily: "display", fontSize: "md", fontWeight: "semibold", color: "fg.default", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
+const subtitleStyle = css({ display: { base: "none", sm: "block" }, fontSize: "xs", color: "fg.muted" });
+const actionsStyle = css({ display: "flex", alignItems: "center", gap: { base: "1", sm: "2" } });
+const searchHintStyle = css({ display: { base: "none", lg: "inline" }, fontSize: "xs", color: "fg.muted" });
+const avatarButtonStyle = css({ height: "10", paddingInline: "2", display: "flex", alignItems: "center", gap: "2" });
+const nameColStyle = css({ display: { base: "none", sm: "flex" }, flexDirection: "column", alignItems: "flex-start", textAlign: "left", fontSize: "sm" });
+const roleTextStyle = css({ fontSize: "xs", color: "fg.muted" });
 
 export function AdminTopbar({ user }: AdminTopbarProps) {
   const router = useRouter();
@@ -40,78 +63,95 @@ export function AdminTopbar({ user }: AdminTopbarProps) {
       .toUpperCase() || "A";
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b bg-card px-4 pl-20 md:px-6">
-      <div className="flex min-w-0 items-center gap-3">
-        <div className="hidden h-5 w-px bg-border sm:block" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">
-            {sectionTitle}
-          </p>
-          <p className="hidden text-xs text-muted-foreground sm:block">
-            Store administration
-          </p>
+    <header className={headerStyle}>
+      <div className={titleWrapStyle}>
+        <div>
+          <p className={titleStyle}>{sectionTitle}</p>
+          <p className={subtitleStyle}>Store administration</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
-        {/* Customer View Button */}
+      <div className={actionsStyle}>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
-          onClick={() => router.push("/")}
-          className="flex items-center gap-2"
+          onClick={() =>
+            window.dispatchEvent(new Event("admin:open-command-palette"))
+          }
+          className={css({ gap: "2" })}
         >
-          <ShoppingBag className="h-4 w-4" />
-          <span className="hidden sm:inline">Customer View</span>
+          <Search className={css({ height: "4", width: "4" })} />
+          <span className={searchHintStyle}>Search… ⌘K</span>
         </Button>
 
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-4 w-4" />
-        </Button>
-
-        {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 gap-2 pl-2 pr-3">
-              <Avatar className="h-8 w-8">
-                <AvatarImage
-                  src={user.image || undefined}
-                  alt={user.name || "Admin"}
-                />
-                <AvatarFallback className="bg-purple-100 text-purple-600">
-                  {initials}
-                </AvatarFallback>
+            <Button variant="default" size="sm" className={css({ gap: "1.5" })}>
+              <Plus className={css({ height: "4", width: "4" })} />
+              <span className={css({ display: { base: "none", sm: "inline" } })}>New</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => router.push("/admin/products/new")}>
+              New Product
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/admin/discounts/new")}>
+              New Discount
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/admin/hero-banners/new")}>
+              New Hero Banner
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push("/")}
+          className={css({ gap: "2", display: { base: "none", md: "inline-flex" } })}
+        >
+          <ShoppingBag className={css({ height: "4", width: "4" })} />
+          Customer View
+        </Button>
+
+        <Button variant="ghost" size="icon" className={css({ position: "relative" })}>
+          <Bell className={css({ height: "4", width: "4" })} />
+        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className={avatarButtonStyle}>
+              <Avatar className={css({ height: "8", width: "8" })}>
+                <AvatarImage src={user.image || undefined} alt={user.name || "Admin"} />
+                <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
-              <div className="hidden flex-col items-start text-left text-sm sm:flex">
-                <span className="font-medium">{user.name || "Admin"}</span>
-                <span className="text-xs text-muted-foreground">
-                  {user.role}
-                </span>
+              <div className={nameColStyle}>
+                <span className={css({ fontWeight: "medium" })}>{user.name || "Admin"}</span>
+                <span className={roleTextStyle}>{user.role}</span>
               </div>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-56" align="end">
+          <DropdownMenuContent className={css({ width: "14rem" })} align="end">
             <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{user.name || "Admin"}</p>
-                <p className="text-xs text-gray-500">{user.email}</p>
+              <div className={css({ display: "flex", flexDirection: "column", gap: "0.5" })}>
+                <p className={css({ fontSize: "sm", fontWeight: "medium" })}>{user.name || "Admin"}</p>
+                <p className={css({ fontSize: "xs", color: "fg.muted" })}>{user.email}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
+              <User className={css({ marginRight: "2", height: "4", width: "4" })} />
               <span>Profile</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="text-red-600 focus:text-red-600"
+              variant="destructive"
               onClick={async () => {
                 await signOut({ redirect: false });
                 window.location.assign("/");
               }}
             >
-              <LogOut className="mr-2 h-4 w-4" />
+              <LogOut className={css({ marginRight: "2", height: "4", width: "4" })} />
               <span>Log out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>

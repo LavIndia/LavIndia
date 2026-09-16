@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import {
+  checkDiscountEligibility,
+  computeDiscountCents,
+  findDiscountByCode,
+} from "@/lib/discounts";
 
 const orderSchema = z.object({
   addressId: z.string(),
@@ -22,6 +27,9 @@ const orderSchema = z.object({
   totalCents: z.number().int().positive(),
   shippingCents: z.number().int().min(0),
   taxCents: z.number().int().min(0),
+  // The client sends the code only — the discount amount is always
+  // recomputed server-side (never trust a client-provided amount).
+  discountCode: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -57,15 +65,56 @@ export async function POST(req: NextRequest) {
     // Generate order number
     const orderNumber = generateOrderNumber();
 
-    // Calculate totals
-    const grandTotalCents =
-      validated.totalCents + validated.shippingCents + validated.taxCents;
-
     // Determine shipping fee based on shipping method
     const shippingCents = validated.shippingMethod === "express" ? 19900 : 9900;
 
+    // Pre-check the coupon outside the transaction so a bad/expired code
+    // fails fast with a clear message before any writes happen.
+    if (validated.discountCode) {
+      const preCheckDiscount = await findDiscountByCode(validated.discountCode);
+      if (!preCheckDiscount) {
+        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
+      }
+      const eligibilityError = checkDiscountEligibility(
+        preCheckDiscount,
+        validated.totalCents,
+      );
+      if (eligibilityError) {
+        return NextResponse.json({ error: eligibilityError }, { status: 400 });
+      }
+    }
+
     // Create order with payment and tracking in transaction
     const order = await prisma.$transaction(async (tx) => {
+      let discountCents = 0;
+      let discountCode: string | null = null;
+
+      if (validated.discountCode) {
+        // Re-fetch and re-validate inside the transaction (not the
+        // pre-check instance) so the usage-limit check and the increment
+        // below are atomic against concurrent redemptions of the same code.
+        const discount = await tx.discount.findFirst({
+          where: { code: { equals: validated.discountCode.trim(), mode: "insensitive" } },
+        });
+        if (!discount) throw new Error("DISCOUNT_INVALID");
+        const eligibilityError = checkDiscountEligibility(discount, validated.totalCents);
+        if (eligibilityError) throw new Error("DISCOUNT_INELIGIBLE");
+
+        discountCents = computeDiscountCents(discount, validated.totalCents);
+        discountCode = discount.code;
+
+        await tx.discount.update({
+          where: { id: discount.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      }
+
+      const grandTotalCents =
+        validated.totalCents +
+        shippingCents +
+        validated.taxCents -
+        discountCents;
+
       // Create order
       const newOrder = await tx.order.create({
         data: {
@@ -75,6 +124,8 @@ export async function POST(req: NextRequest) {
           totalCents: validated.totalCents,
           shippingCents,
           taxCents: validated.taxCents,
+          discountCode,
+          discountCents,
           paymentMethod: validated.paymentMethod,
           paymentProvider:
             validated.paymentMethod === "razorpay" ? "razorpay" : null,
@@ -164,6 +215,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Invalid order data", details: error.errors },
         { status: 400 }
+      );
+    }
+    if (error instanceof Error && error.message === "DISCOUNT_INVALID") {
+      return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
+    }
+    if (error instanceof Error && error.message === "DISCOUNT_INELIGIBLE") {
+      return NextResponse.json(
+        { error: "This coupon is no longer valid for this order" },
+        { status: 400 },
       );
     }
     return NextResponse.json(

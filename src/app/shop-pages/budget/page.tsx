@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Filter } from "lucide-react";
+import { css } from "styled-system/css";
 
 interface Product {
   id: string;
@@ -28,6 +29,50 @@ interface Product {
   isFeatured: boolean;
   category: { name: string };
 }
+
+const pageStyle = css({ minHeight: "100vh", background: "bg.canvas" });
+
+const containerStyle = css({
+  maxWidth: "7xl",
+  marginInline: "auto",
+  paddingInline: "4",
+});
+
+const titleStyle = css({
+  fontFamily: "display",
+  fontSize: { base: "3xl", md: "4xl" },
+  fontWeight: "bold",
+  color: "fg.default",
+  marginBottom: "2",
+});
+
+const subtitleStyle = css({ color: "fg.muted" });
+
+const filterRowStyle = css({
+  marginBlock: "8",
+  display: "flex",
+  alignItems: "center",
+  gap: "4",
+  flexWrap: "wrap",
+});
+
+const filterLabelStyle = css({
+  display: "flex",
+  alignItems: "center",
+  gap: "2",
+  fontWeight: "medium",
+  color: "fg.default",
+});
+
+const resultsCountStyle = css({ fontSize: "sm", color: "fg.muted", marginBottom: "6" });
+
+const gridStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)", lg: "repeat(4, 1fr)" },
+  gap: "6",
+});
+
+const emptyStateStyle = css({ textAlign: "center", paddingBlock: "16" });
 
 function BudgetShopContent() {
   const searchParams = useSearchParams();
@@ -83,35 +128,31 @@ function BudgetShopContent() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={pageStyle}>
       <HeaderSection />
-      <main className="py-8">
-        <div className="container mx-auto px-4">
-          <div className="mb-6">
+      <main className={css({ paddingBlock: "8" })}>
+        <div className={containerStyle}>
+          <div className={css({ marginBottom: "6" })}>
             <BreadcrumbNavigation />
           </div>
 
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              Shop Under ₹{maxPrice}
-            </h1>
-            <p className="text-gray-600">
-              Beautiful jewelry within your budget
-            </p>
+          <div className={css({ marginBottom: "8" })}>
+            <h1 className={titleStyle}>Shop Under ₹{maxPrice}</h1>
+            <p className={subtitleStyle}>Beautiful jewelry within your budget</p>
           </div>
 
           {/* Filters */}
-          <div className="mb-8 flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Filter className="h-5 w-5 text-gray-500" />
-              <span className="font-medium text-gray-700">Filter by:</span>
+          <div className={filterRowStyle}>
+            <div className={filterLabelStyle}>
+              <Filter className={css({ height: "5", width: "5", color: "fg.muted" })} />
+              <span>Filter by:</span>
             </div>
 
             <Select
               value={selectedCategory}
               onValueChange={setSelectedCategory}
             >
-              <SelectTrigger className="w-48">
+              <SelectTrigger className={css({ width: "48" })}>
                 <SelectValue placeholder="All Collections" />
               </SelectTrigger>
               <SelectContent>
@@ -125,7 +166,7 @@ function BudgetShopContent() {
             </Select>
 
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className={css({ width: "48" })}>
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
@@ -143,22 +184,22 @@ function BudgetShopContent() {
 
           {/* Products Grid */}
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className={gridStyle}>
               {[...Array(8)].map((_, i) => (
-                <div key={i} className="space-y-4">
-                  <Skeleton className="h-64 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
+                <div key={i} className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+                  <Skeleton className={css({ height: "64", width: "full" })} />
+                  <Skeleton className={css({ height: "4", width: "75%" })} />
+                  <Skeleton className={css({ height: "4", width: "50%" })} />
                 </div>
               ))}
             </div>
           ) : products.length > 0 ? (
             <>
-              <p className="text-sm text-gray-600 mb-6">
+              <p className={resultsCountStyle}>
                 Showing {products.length}{" "}
                 {products.length === 1 ? "product" : "products"}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className={gridStyle}>
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -180,11 +221,11 @@ function BudgetShopContent() {
               </div>
             </>
           ) : (
-            <div className="text-center py-16">
-              <p className="text-gray-500 text-lg">
+            <div className={emptyStateStyle}>
+              <p className={css({ color: "fg.muted", fontSize: "lg" })}>
                 No products found in this price range
               </p>
-              <p className="text-gray-400 mt-2">
+              <p className={css({ color: "fg.muted", opacity: 0.8, marginTop: "2" })}>
                 Try adjusting your filters or browse other collections
               </p>
             </div>
@@ -200,14 +241,14 @@ export default function BudgetShopPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-white">
+        <div className={pageStyle}>
           <HeaderSection />
-          <main className="py-8">
-            <div className="container mx-auto px-4">
-              <Skeleton className="h-12 w-64 mb-8" />
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <main className={css({ paddingBlock: "8" })}>
+            <div className={containerStyle}>
+              <Skeleton className={css({ height: "12", width: "64", marginBottom: "8" })} />
+              <div className={gridStyle}>
                 {[...Array(8)].map((_, i) => (
-                  <Skeleton key={i} className="h-80 w-full" />
+                  <Skeleton key={i} className={css({ height: "80", width: "full" })} />
                 ))}
               </div>
             </div>

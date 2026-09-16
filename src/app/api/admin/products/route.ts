@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
+const imageInputSchema = z.object({
+  id: z.string().optional(),
+  url: z.string().min(1),
+  alt: z.string().nullable().optional(),
+  isPrimary: z.boolean().default(false),
+  position: z.number().int().min(0).default(0),
+});
+
+const variantInputSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1),
+  color: z.string().nullable().optional(),
+  size: z.string().nullable().optional(),
+  material: z.string().nullable().optional(),
+  priceCents: z.number().int().positive().nullable().optional(),
+  stock: z.number().int().min(0).default(0),
+});
+
 const productSchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   priceCents: z.number().int().positive(),
   compareAtCents: z.number().int().positive().optional().nullable(),
   discountPercent: z.number().int().min(0).max(100).optional().nullable(),
@@ -15,6 +34,11 @@ const productSchema = z.object({
   sku: z.string().optional().nullable(),
   isPublished: z.boolean().default(false),
   isFeatured: z.boolean().default(false),
+  // Nested creation, so a new product (with its images/variants) is a
+  // single request instead of the create-then-N-sequential-saves waterfall
+  // the admin product form used to do.
+  images: z.array(imageInputSchema).optional(),
+  variants: z.array(variantInputSchema).optional(),
 });
 
 // GET /api/admin/products - List all products
@@ -55,10 +79,18 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const validatedData = productSchema.parse(body);
+    const { images, variants, ...validatedData } = productSchema.parse(body);
 
     const product = await prisma.product.create({
-      data: validatedData,
+      data: {
+        ...validatedData,
+        images: images?.length
+          ? { create: images.map(({ id: _id, ...img }) => img) }
+          : undefined,
+        variants: variants?.length
+          ? { create: variants.map(({ id: _id, ...v }) => v) }
+          : undefined,
+      },
       include: {
         category: true,
         images: true,
@@ -77,6 +109,8 @@ export async function POST(req: NextRequest) {
         metadata: { productName: product.name },
       },
     });
+
+    revalidateTag("products");
 
     return NextResponse.json(product, { status: 201 });
   } catch (error) {

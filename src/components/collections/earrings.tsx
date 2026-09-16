@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/ProductCard";
 import { BreadcrumbNavigation } from "@/components/layout/BreadcrumbNavigation";
+import { css } from "styled-system/css";
 
 interface Product {
   id: string;
@@ -84,6 +85,191 @@ interface EarringsCollectionProps {
   initialFilters: DynamicFilter[];
 }
 
+const heroStyle = css({
+  background: "linear-gradient(135deg, {colors.ivory.100}, {colors.ivory.200})",
+  borderBottom: "1px solid",
+  borderColor: "border.subtle",
+});
+
+const heroInnerStyle = css({
+  maxWidth: "7xl",
+  marginInline: "auto",
+  paddingInline: "4",
+  paddingBlock: "8",
+});
+
+const heroTitleStyle = css({
+  fontFamily: "display",
+  fontSize: { base: "3xl", md: "5xl" },
+  fontWeight: "bold",
+  color: "fg.default",
+  marginBottom: "4",
+  textAlign: "center",
+});
+
+const heroSubtitleStyle = css({
+  fontSize: "lg",
+  color: "fg.muted",
+  maxWidth: "2xl",
+  marginInline: "auto",
+  textAlign: "center",
+});
+
+const containerStyle = css({
+  maxWidth: "7xl",
+  marginInline: "auto",
+  paddingInline: "4",
+  paddingBlock: "8",
+});
+
+const layoutStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "6",
+  lg: { flexDirection: "row", gap: "8", alignItems: "flex-start" },
+});
+
+const desktopPanelWrapStyle = css({
+  display: { base: "none", lg: "block" },
+  width: "80",
+  flexShrink: 0,
+});
+
+const panelStyle = css({
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.glass",
+  background: "bg.glass",
+  backdropBlur: "glass",
+  boxShadow: "glass",
+  padding: "6",
+  position: "sticky",
+  top: "24",
+});
+
+const panelTitleStyle = css({
+  fontFamily: "display",
+  fontSize: "lg",
+  fontWeight: "semibold",
+  color: "fg.default",
+  marginBottom: "4",
+});
+
+const facetSectionStyle = css({
+  marginBottom: "6",
+});
+
+const facetHeadingStyle = css({
+  fontSize: "sm",
+  fontWeight: "semibold",
+  color: "fg.default",
+  marginBottom: "3",
+});
+
+const priceValuesStyle = css({
+  display: "flex",
+  justifyContent: "space-between",
+  fontSize: "sm",
+  color: "fg.muted",
+  marginTop: "2",
+});
+
+const facetOptionsStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
+
+const panelActionsStyle = css({ display: "flex", gap: "2" });
+
+const mobileTriggerWrapStyle = css({ display: { base: "block", lg: "none" }, marginBottom: "4" });
+
+const activeFiltersStyle = css({ marginBottom: "4", display: "flex", flexWrap: "wrap", gap: "2" });
+
+const badgeContentStyle = css({ display: "inline-flex", alignItems: "center", gap: "1" });
+
+const resultsCountStyle = css({ marginBottom: "4", fontSize: "sm", color: "fg.muted" });
+
+const gridStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", md: "repeat(2, 1fr)", xl: "repeat(3, 1fr)" },
+  gap: "6",
+});
+
+const skeletonCardStyle = css({
+  borderRadius: "lg",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  background: "bg.surface",
+  overflow: "hidden",
+});
+
+const emptyStateStyle = css({ textAlign: "center", paddingBlock: "12" });
+
+const loadingMoreStyle = css({ display: "flex", justifyContent: "center", paddingBlock: "8" });
+
+const spinnerStyle = css({
+  height: "8",
+  width: "8",
+  borderRadius: "full",
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+  animation: "pulse",
+});
+
+function PriceFacet({
+  priceRange,
+  onChange,
+}: {
+  priceRange: [number, number];
+  onChange: (value: [number, number]) => void;
+}) {
+  return (
+    <div className={facetSectionStyle}>
+      <h4 className={facetHeadingStyle}>Price Range (₹)</h4>
+      <Slider
+        value={priceRange}
+        onValueChange={(value) => onChange(value as [number, number])}
+        max={30000}
+        min={100}
+        step={100}
+      />
+      <div className={priceValuesStyle}>
+        <span>₹{priceRange[0].toLocaleString()}</span>
+        <span>₹{priceRange[1].toLocaleString()}</span>
+      </div>
+    </div>
+  );
+}
+
+function AttrFacets({
+  dynamicFilters,
+  selectedAttrs,
+  onToggle,
+  idPrefix,
+}: {
+  dynamicFilters: DynamicFilter[];
+  selectedAttrs: string[];
+  onToggle: (value: string, checked: boolean) => void;
+  idPrefix: string;
+}) {
+  return (
+    <>
+      {dynamicFilters.map((filter) => (
+        <div key={`${idPrefix}-${filter.id}`} className={facetSectionStyle}>
+          <h4 className={facetHeadingStyle}>{filter.name}</h4>
+          <div className={facetOptionsStyle}>
+            {filter.options.map((option) => (
+              <Checkbox
+                key={option.id}
+                checked={selectedAttrs.includes(option.value)}
+                onCheckedChange={(checked) => onToggle(option.value, checked)}
+              >
+                {option.label}
+              </Checkbox>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function EarringsCollection({
   initialProducts,
   initialPagination,
@@ -106,13 +292,12 @@ export function EarringsCollection({
   const isFetchingRef = useRef(false);
   const currentPageRef = useRef(1);
   const isFirstRender = useRef(true);
-
-  // State to track filter changes
-  const [filterChangeTrigger, setFilterChangeTrigger] = useState(0);
-
   const fetchProductsRef = useRef<
     ((page?: number, append?: boolean) => Promise<void>) | null
   >(null);
+
+  // State to track filter changes
+  const [filterChangeTrigger, setFilterChangeTrigger] = useState(0);
 
   const fetchProducts = useCallback(
     async (page = 1, append = false) => {
@@ -147,7 +332,7 @@ export function EarringsCollection({
 
         setPagination(data.pagination);
         // Don't update filters from API response to prevent loops
-        // setFilters(data.filters);
+        // setFilters(data.filters)
         currentPageRef.current = page;
       } catch (error) {
         console.error("Error fetching products:", error);
@@ -220,98 +405,49 @@ export function EarringsCollection({
     }
   }, [filterChangeTrigger]); // Only trigger on user filter changes
 
+  const toggleAttr = (value: string, checked: boolean) => {
+    if (checked) {
+      setSelectedAttrs((prev) => [...prev, value]);
+    } else {
+      setSelectedAttrs((prev) => prev.filter((v) => v !== value));
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={css({ minHeight: "100vh", background: "bg.canvas" })}>
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100">
-        <div className="container mx-auto px-4 py-8">
-          {/* Breadcrumb */}
-          <div className="mb-4">
+      <div className={heroStyle}>
+        <div className={heroInnerStyle}>
+          <div className={css({ marginBottom: "4" })}>
             <BreadcrumbNavigation />
           </div>
-
-          {/* Title and Description */}
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Earrings Collection
-            </h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Discover our exquisite collection of handcrafted earrings, each
-              piece telling a story of tradition and elegance.
+          <div>
+            <h1 className={heroTitleStyle}>Earrings Collection</h1>
+            <p className={heroSubtitleStyle}>
+              Discover our exquisite collection of handcrafted earrings, each piece
+              telling a story of tradition and elegance.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex gap-8">
-          {/* Filters Sidebar */}
-          <div className="hidden lg:block w-80 flex-shrink-0">
-            <div className="bg-white border border-gray-200 rounded-lg p-6 sticky top-24 shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Filters
-              </h3>
+      <div className={containerStyle}>
+        <div className={layoutStyle}>
+          {/* Filters Sidebar (desktop) */}
+          <div className={desktopPanelWrapStyle}>
+            <div className={panelStyle}>
+              <h3 className={panelTitleStyle}>Filters</h3>
 
-              {/* Price Range */}
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-900 mb-3">
-                  Price Range (₹)
-                </h4>
-                <div className="px-2">
-                  <Slider
-                    value={priceRange}
-                    onValueChange={(value) =>
-                      setPriceRange(value as [number, number])
-                    }
-                    max={30000}
-                    min={100}
-                    step={100}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-sm text-gray-600 mt-2">
-                    <span>₹{priceRange[0].toLocaleString()}</span>
-                    <span>₹{priceRange[1].toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
+              <PriceFacet priceRange={priceRange} onChange={setPriceRange} />
+              <AttrFacets
+                dynamicFilters={dynamicFilters}
+                selectedAttrs={selectedAttrs}
+                onToggle={toggleAttr}
+                idPrefix="desktop"
+              />
 
-              {/* Admin-configured filters */}
-              {dynamicFilters.map((filter) => (
-                <div key={filter.id} className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">
-                    {filter.name}
-                  </h4>
-                  <div className="space-y-2">
-                    {filter.options.map((option) => (
-                      <div key={option.id} className="flex items-center">
-                        <Checkbox
-                          id={option.id}
-                          checked={selectedAttrs.includes(option.value)}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setSelectedAttrs((prev) => [...prev, option.value]);
-                            } else {
-                              setSelectedAttrs((prev) =>
-                                prev.filter((v) => v !== option.value)
-                              );
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={option.id}
-                          className="ml-2 text-sm text-gray-700"
-                        >
-                          {option.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {/* Apply Filters */}
-              <div className="flex gap-2">
-                <Button onClick={applyFilters} className="flex-1">
+              <div className={panelActionsStyle}>
+                <Button onClick={applyFilters} className={css({ flex: "1" })}>
                   Apply Filters
                 </Button>
                 <Button variant="outline" onClick={clearFilters}>
@@ -322,81 +458,30 @@ export function EarringsCollection({
           </div>
 
           {/* Products Grid */}
-          <div className="flex-1">
+          <div className={css({ flex: "1" })}>
             {/* Mobile Filter Button */}
-            <div className="lg:hidden mb-4">
+            <div className={mobileTriggerWrapStyle}>
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="outline" className="w-full">
-                    <Filter className="w-4 h-4 mr-2" />
+                  <Button variant="outline" className={css({ width: "full" })}>
+                    <Filter className={css({ width: "4", height: "4" })} />
                     Filters
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-80">
+                <SheetContent side="bottom">
                   <SheetHeader>
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
-                  <div className="mt-6">
-                    {/* Price Range */}
-                    <div className="mb-6">
-                      <h4 className="text-sm font-medium text-gray-900 mb-3">
-                        Price Range (₹)
-                      </h4>
-                      <div className="px-2">
-                        <Slider
-                          value={priceRange}
-                          onValueChange={(value) =>
-                            setPriceRange(value as [number, number])
-                          }
-                          max={30000}
-                          min={100}
-                          step={100}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-sm text-gray-600 mt-2">
-                          <span>₹{priceRange[0].toLocaleString()}</span>
-                          <span>₹{priceRange[1].toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Admin-configured filters */}
-                    {dynamicFilters.map((filter) => (
-                      <div key={filter.id} className="mb-6">
-                        <h4 className="text-sm font-medium text-gray-900 mb-3">
-                          {filter.name}
-                        </h4>
-                        <div className="space-y-2">
-                          {filter.options.map((option) => (
-                            <div key={option.id} className="flex items-center">
-                              <Checkbox
-                                id={`mobile-${option.id}`}
-                                checked={selectedAttrs.includes(option.value)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedAttrs((prev) => [...prev, option.value]);
-                                  } else {
-                                    setSelectedAttrs((prev) =>
-                                      prev.filter((v) => v !== option.value)
-                                    );
-                                  }
-                                }}
-                              />
-                              <label
-                                htmlFor={`mobile-${option.id}`}
-                                className="ml-2 text-sm text-gray-700"
-                              >
-                                {option.label}
-                              </label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Apply Filters */}
-                    <div className="flex gap-2">
-                      <Button onClick={applyFilters} className="flex-1">
+                  <div className={css({ marginTop: "2" })}>
+                    <PriceFacet priceRange={priceRange} onChange={setPriceRange} />
+                    <AttrFacets
+                      dynamicFilters={dynamicFilters}
+                      selectedAttrs={selectedAttrs}
+                      onToggle={toggleAttr}
+                      idPrefix="mobile"
+                    />
+                    <div className={panelActionsStyle}>
+                      <Button onClick={applyFilters} className={css({ flex: "1" })}>
                         Apply Filters
                       </Button>
                       <Button variant="outline" onClick={clearFilters}>
@@ -412,60 +497,56 @@ export function EarringsCollection({
             {(filters.applied.priceMin ||
               filters.applied.priceMax ||
               (filters.applied.attrValues && filters.applied.attrValues.length > 0)) && (
-              <div className="mb-4 flex flex-wrap gap-2">
+              <div className={activeFiltersStyle}>
                 {filters.applied.priceMin && (
-                  <Badge
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    Min: ₹{filters.applied.priceMin.toLocaleString()}
-                    <X
-                      className="w-3 h-3 cursor-pointer"
-                      onClick={() => {
-                        const newFilters = { ...filters };
-                        delete newFilters.applied.priceMin;
-                        setFilters(newFilters);
-                      }}
-                    />
+                  <Badge variant="secondary">
+                    <span className={badgeContentStyle}>
+                      Min: ₹{filters.applied.priceMin.toLocaleString()}
+                      <X
+                        className={css({ width: "3", height: "3", cursor: "pointer" })}
+                        onClick={() => {
+                          const newFilters = { ...filters };
+                          delete newFilters.applied.priceMin;
+                          setFilters(newFilters);
+                        }}
+                      />
+                    </span>
                   </Badge>
                 )}
                 {filters.applied.priceMax && (
-                  <Badge
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    Max: ₹{filters.applied.priceMax.toLocaleString()}
-                    <X
-                      className="w-3 h-3 cursor-pointer"
-                      onClick={() => {
-                        const newFilters = { ...filters };
-                        delete newFilters.applied.priceMax;
-                        setFilters(newFilters);
-                      }}
-                    />
+                  <Badge variant="secondary">
+                    <span className={badgeContentStyle}>
+                      Max: ₹{filters.applied.priceMax.toLocaleString()}
+                      <X
+                        className={css({ width: "3", height: "3", cursor: "pointer" })}
+                        onClick={() => {
+                          const newFilters = { ...filters };
+                          delete newFilters.applied.priceMax;
+                          setFilters(newFilters);
+                        }}
+                      />
+                    </span>
                   </Badge>
                 )}
                 {filters.applied.attrValues?.map((value) => (
-                  <Badge
-                    key={value}
-                    variant="secondary"
-                    className="flex items-center gap-1"
-                  >
-                    {value}
-                    <X
-                      className="w-3 h-3 cursor-pointer"
-                      onClick={() => {
-                        setSelectedAttrs((prev) => prev.filter((v) => v !== value));
-                        setFilters((prev) => ({
-                          applied: {
-                            ...prev.applied,
-                            attrValues: prev.applied.attrValues?.filter(
-                              (v) => v !== value
-                            ),
-                          },
-                        }));
-                      }}
-                    />
+                  <Badge key={value} variant="secondary">
+                    <span className={badgeContentStyle}>
+                      {value}
+                      <X
+                        className={css({ width: "3", height: "3", cursor: "pointer" })}
+                        onClick={() => {
+                          setSelectedAttrs((prev) => prev.filter((v) => v !== value));
+                          setFilters((prev) => ({
+                            applied: {
+                              ...prev.applied,
+                              attrValues: prev.applied.attrValues?.filter(
+                                (v) => v !== value
+                              ),
+                            },
+                          }));
+                        }}
+                      />
+                    </span>
                   </Badge>
                 ))}
               </div>
@@ -473,23 +554,20 @@ export function EarringsCollection({
 
             {/* Products Count */}
             {pagination && (
-              <div className="mb-4 text-sm text-gray-600">
+              <div className={resultsCountStyle}>
                 Showing {products.length} of {pagination.totalCount} earrings
               </div>
             )}
 
             {/* Loading Skeleton */}
             {loading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className={gridStyle}>
                 {Array.from({ length: 9 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="bg-white border border-gray-200 rounded-lg overflow-hidden"
-                  >
-                    <Skeleton className="w-full h-64" />
-                    <div className="p-4">
-                      <Skeleton className="h-4 w-3/4 mb-2" />
-                      <Skeleton className="h-4 w-1/2" />
+                  <div key={i} className={skeletonCardStyle}>
+                    <Skeleton className={css({ width: "full", height: "64" })} />
+                    <div className={css({ padding: "4" })}>
+                      <Skeleton className={css({ height: "4", width: "75%", marginBottom: "2" })} />
+                      <Skeleton className={css({ height: "4", width: "50%" })} />
                     </div>
                   </div>
                 ))}
@@ -498,7 +576,7 @@ export function EarringsCollection({
 
             {/* Products Grid */}
             {!loading && products.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className={gridStyle}>
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
@@ -519,11 +597,11 @@ export function EarringsCollection({
 
             {/* No Products */}
             {!loading && products.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-600">
+              <div className={emptyStateStyle}>
+                <p className={css({ color: "fg.muted" })}>
                   No earrings found matching your criteria.
                 </p>
-                <Button onClick={clearFilters} className="mt-4">
+                <Button onClick={clearFilters} className={css({ marginTop: "4" })}>
                   Clear Filters
                 </Button>
               </div>
@@ -531,8 +609,8 @@ export function EarringsCollection({
 
             {/* Loading More */}
             {loadingMore && (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
+              <div className={loadingMoreStyle}>
+                <div className={spinnerStyle} />
               </div>
             )}
           </div>

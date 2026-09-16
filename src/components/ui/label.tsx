@@ -1,24 +1,45 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as LabelPrimitive from "@radix-ui/react-label"
+import * as React from "react";
+import { Label as AriaLabel, type LabelProps as AriaLabelProps } from "react-aria-components";
+import { css, cx } from "styled-system/css";
 
-import { cn } from "@/lib/utils"
+const labelStyle = css({
+  display: "flex",
+  alignItems: "center",
+  gap: "2",
+  fontFamily: "body",
+  fontSize: "sm",
+  fontWeight: "medium",
+  lineHeight: "none",
+  color: "fg.default",
+  userSelect: "none",
+  "[data-disabled='true'] &, .group[data-disabled='true'] &": {
+    pointerEvents: "none",
+    opacity: 0.5,
+  },
+  "&:has(+ :disabled), &:has(+ [data-disabled])": {
+    cursor: "not-allowed",
+    opacity: 0.5,
+  },
+});
 
-function Label({
-  className,
-  ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
-  return (
-    <LabelPrimitive.Root
-      data-slot="label"
-      className={cn(
-        "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        className
-      )}
-      {...props}
-    />
-  )
+export interface LabelProps
+  extends Omit<AriaLabelProps, "className">,
+    React.RefAttributes<HTMLLabelElement> {
+  className?: string;
 }
 
-export { Label }
+export const Label = React.forwardRef<HTMLLabelElement, LabelProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <AriaLabel
+        ref={ref}
+        data-slot="label"
+        className={cx(labelStyle, className)}
+        {...props}
+      />
+    );
+  }
+);
+Label.displayName = "Label";

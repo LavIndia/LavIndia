@@ -38,6 +38,20 @@ export async function PUT(
         ...(body.endDate && { endDate: new Date(body.endDate) }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
         ...(body.usageLimit !== undefined && { usageLimit: body.usageLimit }),
+        ...(body.isRecurring !== undefined && { isRecurring: body.isRecurring }),
+        ...(body.recurrenceType !== undefined && { recurrenceType: body.recurrenceType }),
+        ...(body.recurrenceDaysOfWeek !== undefined && {
+          recurrenceDaysOfWeek: body.recurrenceDaysOfWeek,
+        }),
+        ...(body.recurrenceDayOfMonth !== undefined && {
+          recurrenceDayOfMonth: body.recurrenceDayOfMonth,
+        }),
+        ...(body.recurrenceStartTime !== undefined && {
+          recurrenceStartTime: body.recurrenceStartTime,
+        }),
+        ...(body.recurrenceEndTime !== undefined && {
+          recurrenceEndTime: body.recurrenceEndTime,
+        }),
       },
     });
 

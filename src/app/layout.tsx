@@ -1,15 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Playfair_Display, Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { SessionProvider } from "@/components/auth/SessionProvider";
+import { AuthDialogProvider } from "@/components/auth/AuthDialogProvider";
 import { Toaster } from "sonner";
-import { AuthDialogGate } from "@/components/auth/AuthDialogGate";
 import { SiteSettingsProvider } from "@/components/providers/SiteSettingsProvider";
 import { getSiteSettings } from "@/lib/site-settings";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const display = Playfair_Display({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+});
+
+const body = Inter({
+  variable: "--font-body",
   subsets: ["latin"],
 });
 
@@ -35,11 +41,12 @@ export default async function RootLayout({
   const settings = await getSiteSettings();
 
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        suppressHydrationWarning
-      >
+    <html
+      lang="en"
+      className={`${display.variable} ${body.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="antialiased font-sans" suppressHydrationWarning>
         <SiteSettingsProvider
           value={{
             businessName: settings.businessName,
@@ -47,11 +54,12 @@ export default async function RootLayout({
           }}
         >
           <SessionProvider>
-            <CartProvider>
-              {children}
-              <AuthDialogGate />
-              <Toaster position="top-right" richColors />
-            </CartProvider>
+            <AuthDialogProvider>
+              <CartProvider>
+                {children}
+                <Toaster position="top-right" richColors />
+              </CartProvider>
+            </AuthDialogProvider>
           </SessionProvider>
         </SiteSettingsProvider>
       </body>

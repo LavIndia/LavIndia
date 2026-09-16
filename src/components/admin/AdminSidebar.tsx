@@ -1,8 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Package,
@@ -13,182 +13,272 @@ import {
   Settings,
   FileText,
   Image,
+  Images,
   Tag,
   Megaphone,
   DollarSign,
   LayoutGrid,
   ListFilter,
   Menu,
+  ChevronDown,
 } from "lucide-react";
 import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
+  SheetDescription,
   SheetClose,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { css, cx } from "styled-system/css";
 
-const navigation = [
+type NavItem = { name: string; href: string; icon: typeof LayoutDashboard };
+type NavGroup = { label: string; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
   {
-    name: "Dashboard",
-    href: "/admin/dashboard",
-    icon: LayoutDashboard,
+    label: "Overview",
+    items: [
+      { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+      { name: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+    ],
   },
   {
-    name: "Products",
-    href: "/admin/products",
-    icon: Package,
+    label: "Catalog",
+    items: [
+      { name: "Products", href: "/admin/products", icon: Package },
+      { name: "Categories", href: "/admin/categories", icon: FolderTree },
+      { name: "Filters", href: "/admin/filters", icon: ListFilter },
+      { name: "Budget Tiers", href: "/admin/budget-tiers", icon: DollarSign },
+    ],
   },
   {
-    name: "Categories",
-    href: "/admin/categories",
-    icon: FolderTree,
+    label: "Orders",
+    items: [
+      { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+      { name: "Customers", href: "/admin/customers", icon: Users },
+    ],
   },
   {
-    name: "Filters",
-    href: "/admin/filters",
-    icon: ListFilter,
+    label: "Marketing & Content",
+    items: [
+      { name: "Discounts", href: "/admin/discounts", icon: Tag },
+      { name: "Hero Banners", href: "/admin/hero-banners", icon: Image },
+      { name: "Login Screen Images", href: "/admin/auth-images", icon: Images },
+      { name: "Promo Banners", href: "/admin/promo-banners", icon: Megaphone },
+      { name: "Homepage Layout", href: "/admin/homepage-layout", icon: LayoutGrid },
+    ],
   },
   {
-    name: "Orders",
-    href: "/admin/orders",
-    icon: ShoppingCart,
-  },
-  {
-    name: "Customers",
-    href: "/admin/customers",
-    icon: Users,
-  },
-  {
-    name: "Hero Banners",
-    href: "/admin/hero-banners",
-    icon: Image,
-  },
-  {
-    name: "Discounts",
-    href: "/admin/discounts",
-    icon: Tag,
-  },
-  {
-    name: "Promo Banners",
-    href: "/admin/promo-banners",
-    icon: Megaphone,
-  },
-  {
-    name: "Budget Tiers",
-    href: "/admin/budget-tiers",
-    icon: DollarSign,
-  },
-  {
-    name: "Homepage Layout",
-    href: "/admin/homepage-layout",
-    icon: LayoutGrid,
-  },
-  {
-    name: "Analytics",
-    href: "/admin/analytics",
-    icon: BarChart3,
-  },
-  {
-    name: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
-  },
-  {
-    name: "Audit Logs",
-    href: "/admin/audit-logs",
-    icon: FileText,
+    label: "System",
+    items: [
+      { name: "Settings", href: "/admin/settings", icon: Settings },
+      { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
+    ],
   },
 ];
+
+const asideStyle = css({
+  display: { base: "none", md: "flex" },
+  width: "64",
+  flexShrink: "0",
+  flexDirection: "column",
+  height: "full",
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  borderRight: "1px solid",
+  borderColor: "border.subtle",
+});
+
+const brandRowStyle = css({
+  display: "flex",
+  alignItems: "center",
+  height: "16",
+  paddingInline: "6",
+  borderBottom: "1px solid",
+  borderColor: "border.subtle",
+  gap: "2",
+});
+
+const brandNameStyle = css({
+  fontFamily: "display",
+  fontSize: "lg",
+  fontWeight: "semibold",
+  color: "fg.default",
+});
+
+const brandBadgeStyle = css({
+  borderRadius: "full",
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+  color: "fg.onGold",
+  fontSize: "10px",
+  fontWeight: "semibold",
+  paddingInline: "2",
+  paddingBlock: "0.5",
+  letterSpacing: "wide",
+  textTransform: "uppercase",
+});
+
+const navScrollStyle = css({ flex: "1", overflowY: "auto", padding: "3", display: "flex", flexDirection: "column", gap: "1" });
+
+const groupHeaderStyle = css({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  width: "full",
+  paddingInline: "3",
+  paddingBlock: "2",
+  cursor: "pointer",
+  borderRadius: "sm",
+  fontSize: "xs",
+  fontWeight: "semibold",
+  letterSpacing: "wide",
+  textTransform: "uppercase",
+  color: "fg.muted",
+  "&:hover": { color: "fg.default" },
+});
+
+const chevronStyle = (open: boolean) =>
+  css({
+    height: "3.5",
+    width: "3.5",
+    transition: "transform 0.18s ease",
+    transform: open ? "rotate(0deg)" : "rotate(-90deg)",
+  });
+
+const groupBodyStyle = (open: boolean) =>
+  css({
+    display: "grid",
+    gridTemplateRows: open ? "1fr" : "0fr",
+    transition: "grid-template-rows 0.2s ease",
+    overflow: "hidden",
+  });
+
+const groupBodyInnerStyle = css({ overflow: "hidden", display: "flex", flexDirection: "column", gap: "0.5", paddingBottom: "1" });
+
+const linkStyle = (active: boolean) =>
+  css({
+    display: "flex",
+    alignItems: "center",
+    gap: "3",
+    borderRadius: "md",
+    paddingInline: "3",
+    paddingBlock: "2",
+    fontSize: "sm",
+    fontWeight: "medium",
+    color: active ? "accent.pressed" : "fg.muted",
+    background: active ? "gold.50" : "transparent",
+    transition: "background 0.15s ease, color 0.15s ease",
+    "&:hover": { background: active ? "gold.50" : "bg.surface", color: active ? "accent.pressed" : "fg.default" },
+  });
+
+const footerStyle = css({ borderTop: "1px solid", borderColor: "border.subtle", padding: "4" });
+const backLinkStyle = css({
+  fontSize: "sm",
+  fontWeight: "medium",
+  color: "fg.muted",
+  "&:hover": { color: "fg.default" },
+});
+
+const mobileTriggerStyle = css({ position: "fixed", left: "4", top: "3", zIndex: "50", md: { display: "none" } });
+
+function groupIsActive(group: NavGroup, pathname: string) {
+  return group.items.some((item) => pathname === item.href || pathname.startsWith(item.href + "/"));
+}
+
+function NavGroupBlock({
+  group,
+  pathname,
+  onNavigate,
+}: {
+  group: NavGroup;
+  pathname: string;
+  onNavigate?: () => void;
+}) {
+  const [open, setOpen] = useState(() => groupIsActive(group, pathname));
+
+  return (
+    <div>
+      <button type="button" className={groupHeaderStyle} onClick={() => setOpen((v) => !v)}>
+        <span>{group.label}</span>
+        <ChevronDown className={chevronStyle(open)} />
+      </button>
+      <div className={groupBodyStyle(open)}>
+        <div className={groupBodyInnerStyle}>
+          {group.items.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const Icon = item.icon;
+            return (
+              <Link key={item.name} href={item.href} className={linkStyle(active)} onClick={onNavigate}>
+                <Icon className={css({ height: "4", width: "4", flexShrink: "0" })} />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const { businessName } = useSiteSettings();
-
-  const renderNavigation = (mobile = false) =>
-    navigation.map((item) => {
-      const isActive =
-        pathname === item.href || pathname.startsWith(item.href + "/");
-      const Icon = item.icon;
-      const link = (
-        <Link
-          key={item.name}
-          href={item.href}
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-            isActive
-              ? "bg-primary/10 text-primary"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground",
-          )}
-        >
-          <Icon className="h-4 w-4" />
-          <span>{item.name}</span>
-        </Link>
-      );
-
-      return mobile ? (
-        <SheetCloseLink key={item.name} href={item.href}>
-          {link}
-        </SheetCloseLink>
-      ) : (
-        link
-      );
-    });
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <>
-      <aside className="hidden w-64 shrink-0 border-r bg-card md:block">
-        <div className="flex h-full flex-col">
-          <div className="flex h-16 items-center border-b px-6">
-            <Link href="/admin/dashboard" className="flex items-center">
-              <span className="text-xl font-bold tracking-tight text-primary">
-                {businessName}
-              </span>
-              <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                Admin
-              </span>
-            </Link>
-          </div>
-          <nav className="flex-1 space-y-1 p-3">{renderNavigation()}</nav>
-          <div className="border-t p-4">
-            <Link
-              href="/"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              Back to Store
-            </Link>
-          </div>
+      <aside className={asideStyle}>
+        <div className={brandRowStyle}>
+          <Link href="/admin/dashboard" className={cx(css({ display: "flex", alignItems: "center", gap: "2" }))}>
+            <span className={brandNameStyle}>{businessName}</span>
+            <span className={brandBadgeStyle}>Admin</span>
+          </Link>
+        </div>
+        <nav className={navScrollStyle}>
+          {NAV_GROUPS.map((group) => (
+            <NavGroupBlock key={group.label} group={group} pathname={pathname} />
+          ))}
+        </nav>
+        <div className={footerStyle}>
+          <Link href="/" className={backLinkStyle}>
+            ← Back to Store
+          </Link>
         </div>
       </aside>
 
-      <Sheet>
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetTrigger asChild>
           <Button
-            variant="outline"
+            variant="glass"
             size="icon"
-            className="fixed left-4 top-3 z-50 md:hidden"
+            className={mobileTriggerStyle}
             aria-label="Open admin navigation"
           >
-            <Menu className="h-4 w-4" />
+            <Menu className={css({ height: "4", width: "4" })} />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="w-[280px] p-0">
-          <SheetHeader className="border-b px-6 py-5 text-left">
-            <SheetTitle className="text-primary">{businessName}</SheetTitle>
-            <SheetDescription>Store administration</SheetDescription>
-          </SheetHeader>
-          <nav className="space-y-1 p-4">{renderNavigation(true)}</nav>
-          <div className="absolute inset-x-4 bottom-5 border-t pt-4">
-            <Link
-              href="/"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              Back to Store
-            </Link>
+        <SheetContent side="left" className={css({ width: "18rem", padding: "0" })}>
+          <div className={css({ padding: "0" })}>
+            <SheetHeader className={css({ borderBottom: "1px solid", borderColor: "border.subtle", paddingInline: "6", paddingBlock: "5", textAlign: "left" })}>
+              <SheetTitle>{businessName}</SheetTitle>
+              <SheetDescription>Store administration</SheetDescription>
+            </SheetHeader>
+            <nav className={css({ padding: "4", display: "flex", flexDirection: "column", gap: "1" })}>
+              {NAV_GROUPS.map((group) => (
+                <SheetGroupBlock key={group.label} group={group} pathname={pathname} />
+              ))}
+            </nav>
+            <div className={css({ paddingInline: "6", paddingBottom: "5" })}>
+              <SheetClose asChild>
+                <Link href="/" className={backLinkStyle}>
+                  ← Back to Store
+                </Link>
+              </SheetClose>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -196,16 +286,30 @@ export function AdminSidebar() {
   );
 }
 
-function SheetCloseLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
+function SheetGroupBlock({ group, pathname }: { group: NavGroup; pathname: string }) {
+  const [open, setOpen] = useState(() => groupIsActive(group, pathname));
   return (
-    <SheetClose asChild>
-      <Link href={href}>{children}</Link>
-    </SheetClose>
+    <div>
+      <button type="button" className={groupHeaderStyle} onClick={() => setOpen((v) => !v)}>
+        <span>{group.label}</span>
+        <ChevronDown className={chevronStyle(open)} />
+      </button>
+      <div className={groupBodyStyle(open)}>
+        <div className={groupBodyInnerStyle}>
+          {group.items.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            const Icon = item.icon;
+            return (
+              <SheetClose asChild key={item.name}>
+                <Link href={item.href} className={linkStyle(active)}>
+                  <Icon className={css({ height: "4", width: "4", flexShrink: "0" })} />
+                  <span>{item.name}</span>
+                </Link>
+              </SheetClose>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }

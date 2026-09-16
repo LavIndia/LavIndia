@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { OrdersTable } from "@/components/admin/orders/OrdersTable";
 import { OrdersHeader } from "@/components/admin/orders/OrdersHeader";
+import { css } from "styled-system/css";
+
+const pageStyle = css({ display: "flex", flexDirection: "column", gap: "6" });
 
 async function getOrders(searchParams: {
   search?: string;
@@ -67,7 +70,7 @@ export default async function AdminOrdersPage({
   const orders = await getOrders(params);
 
   return (
-    <div className="space-y-6">
+    <div className={pageStyle}>
       <OrdersHeader />
       <OrdersTable orders={orders} searchParams={params} />
     </div>

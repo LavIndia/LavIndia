@@ -13,6 +13,150 @@ import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { css } from "styled-system/css";
+
+const pageStyle = css({ minHeight: "100vh", background: "bg.canvas" });
+const mainStyle = css({ paddingBlock: { base: "6", md: "10" } });
+const containerStyle = css({
+  maxWidth: "7xl",
+  marginInline: "auto",
+  paddingInline: { base: "4", md: "6" },
+});
+const crumbStyle = css({ marginBottom: "6" });
+const titleStyle = css({
+  fontFamily: "display",
+  fontSize: { base: "2xl", md: "3xl" },
+  fontWeight: "bold",
+  color: "fg.default",
+  marginBottom: { base: "6", md: "8" },
+});
+
+const gridStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", lg: "2fr 1fr" },
+  gap: { base: "8", lg: "10" },
+});
+
+const detailsColStyle = css({ display: "flex", flexDirection: "column", gap: "8" });
+const sectionStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "4",
+  padding: { base: "4", md: "6" },
+  borderRadius: "lg",
+  background: "bg.glass",
+  backdropBlur: "glassSm",
+  border: "1px solid",
+  borderColor: "border.glass",
+  boxShadow: "glass",
+});
+const sectionHeadingStyle = css({
+  fontFamily: "display",
+  fontSize: "lg",
+  fontWeight: "semibold",
+  color: "fg.default",
+});
+const fieldGridStyle = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", md: "1fr 1fr" },
+  gap: "4",
+});
+const fieldSpanStyle = css({ gridColumn: { md: "1 / -1" } });
+
+const optionRowStyle = css({ display: "grid", gap: "3" });
+const optionLabelStyle = css({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  borderRadius: "md",
+  padding: "3",
+  cursor: "pointer",
+  transition: "background 0.15s ease, border-color 0.15s ease",
+  "&:hover": { background: "bg.surface", borderColor: "accent.default" },
+});
+const optionLabelTextStyle = css({ fontSize: "sm", color: "fg.default" });
+const optionRightStyle = css({ display: "flex", alignItems: "center", gap: "3" });
+const optionPriceStyle = css({ fontSize: "sm", fontWeight: "medium", color: "fg.default" });
+const radioStyle = css({ accentColor: "token(colors.accent.default)", width: "4", height: "4" });
+
+const asideStyle = css({
+  gridColumn: { lg: "2" },
+  borderRadius: "lg",
+  padding: "4",
+  height: "fit-content",
+  position: { lg: "sticky" },
+  top: { lg: "24" },
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  border: "1px solid",
+  borderColor: "border.glass",
+  boxShadow: "glass",
+});
+const asideHeadingStyle = css({
+  fontFamily: "display",
+  fontSize: "md",
+  fontWeight: "semibold",
+  color: "fg.default",
+  marginBottom: "4",
+});
+const itemsListStyle = css({
+  display: "flex",
+  flexDirection: "column",
+  gap: "3",
+  maxHeight: "50vh",
+  overflow: "auto",
+  paddingRight: "2",
+});
+const emptyCartStyle = css({ fontSize: "sm", color: "fg.muted" });
+const itemRowStyle = css({ display: "flex", alignItems: "center", justifyContent: "space-between" });
+const itemNameStyle = css({ fontSize: "sm", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginRight: "2", color: "fg.default" });
+const itemMutedStyle = css({ color: "fg.muted" });
+const itemPriceStyle = css({ fontSize: "sm", fontWeight: "medium", color: "fg.default" });
+
+const couponRowStyle = css({ display: "flex", gap: "2", marginTop: "4" });
+const couponAppliedStyle = css({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "2",
+  marginTop: "4",
+  padding: "2.5",
+  borderRadius: "md",
+  background: "rgba(47,107,88,0.08)",
+  border: "1px solid",
+  borderColor: "rgba(47,107,88,0.25)",
+  fontSize: "sm",
+});
+const couponRemoveStyle = css({
+  color: "fg.muted",
+  fontSize: "xs",
+  textDecoration: "underline",
+  cursor: "pointer",
+  background: "transparent",
+  border: "none",
+});
+const discountValueStyle = css({ fontWeight: "medium", color: "success" });
+
+const totalsStyle = css({ marginTop: "4", display: "flex", flexDirection: "column", gap: "2", fontSize: "sm" });
+const totalsRowStyle = css({ display: "flex", alignItems: "center", justifyContent: "space-between" });
+const totalsLabelStyle = css({ color: "fg.default" });
+const totalsValueStyle = css({ fontWeight: "medium", color: "fg.default" });
+const grandTotalRowStyle = css({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  fontSize: "md",
+  paddingTop: "2",
+  borderTop: "1px solid",
+  borderColor: "border.subtle",
+});
+const grandTotalLabelStyle = css({ fontFamily: "display", fontWeight: "semibold", color: "fg.default" });
+const grandTotalValueStyle = css({ fontFamily: "display", fontWeight: "semibold", fontSize: "lg", color: "fg.default" });
+
+const placeOrderBtnStyle = css({ width: "full", marginTop: "4" });
+const continueBtnStyle = css({ width: "full", marginTop: "2" });
 
 export default function CheckoutPage() {
   const { items, totalPrice, totalCount, clear } = useCart();
@@ -34,6 +178,13 @@ export default function CheckoutPage() {
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [couponInput, setCouponInput] = useState("");
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    title: string;
+    discountCents: number;
+  } | null>(null);
   const [showRazorpay, setShowRazorpay] = useState(false);
   const [razorpayData, setRazorpayData] = useState<{
     orderId: string;
@@ -97,12 +248,61 @@ export default function CheckoutPage() {
 
   const tax = useMemo(() => 0, []); // placeholder, GST/VAT can be calculated later
 
+  const discountRupees = appliedCoupon
+    ? Math.round(appliedCoupon.discountCents / 100)
+    : 0;
+
   const grandTotal = useMemo(
-    () => totalPrice + shippingFee + tax,
-    [totalPrice, shippingFee, tax]
+    () => Math.max(0, totalPrice + shippingFee + tax - discountRupees),
+    [totalPrice, shippingFee, tax, discountRupees]
   );
 
   const grandTotalCents = useMemo(() => grandTotal * 100, [grandTotal]);
+
+  const applyCoupon = async (code: string) => {
+    if (!code.trim() || totalPrice <= 0) return;
+    setIsApplyingCoupon(true);
+    try {
+      const res = await fetch("/api/discounts/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, subtotalCents: totalPrice * 100 }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setAppliedCoupon(null);
+        toast.error(data.error || "Invalid coupon code");
+        return;
+      }
+      setAppliedCoupon({
+        code: data.code,
+        title: data.title,
+        discountCents: data.discountCents,
+      });
+      toast.success(`Coupon "${data.code}" applied`);
+    } catch {
+      toast.error("Could not validate coupon right now");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleApplyCoupon = () => applyCoupon(couponInput);
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+  };
+
+  // Re-validate silently if the cart total changes while a coupon is
+  // applied (e.g. quantity edited) — a min-purchase or % amount can go
+  // stale otherwise.
+  useEffect(() => {
+    if (appliedCoupon) {
+      applyCoupon(appliedCoupon.code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPrice]);
 
   const handlePlaceOrder = async () => {
     // Client-side validation
@@ -183,6 +383,7 @@ export default function CheckoutPage() {
         totalCents: totalPrice * 100,
         shippingCents: shippingFee * 100,
         taxCents: tax * 100,
+        discountCode: appliedCoupon?.code,
         notes: "",
       };
 
@@ -224,25 +425,25 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={pageStyle}>
       <TopPromoBanner />
       <HeaderSection />
-      <main className="py-8">
-        <div className="container mx-auto px-4">
+      <main className={mainStyle}>
+        <div className={containerStyle}>
           {/* Breadcrumb */}
-          <div className="mb-6">
+          <div className={crumbStyle}>
             <BreadcrumbNavigation />
           </div>
 
           {/* Page Title */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
+          <h1 className={titleStyle}>Checkout</h1>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className={gridStyle}>
             {/* Left: Details */}
-            <div className="lg:col-span-2 space-y-8">
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold">Contact</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={detailsColStyle}>
+              <section className={sectionStyle}>
+                <h2 className={sectionHeadingStyle}>Contact</h2>
+                <div className={fieldGridStyle}>
                   <Input
                     placeholder="Email"
                     type="email"
@@ -276,10 +477,10 @@ export default function CheckoutPage() {
                 </div>
               </section>
 
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold">Shipping address</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
+              <section className={sectionStyle}>
+                <h2 className={sectionHeadingStyle}>Shipping address</h2>
+                <div className={fieldGridStyle}>
+                  <div className={fieldSpanStyle}>
                     <Input
                       placeholder="Address line 1"
                       value={form.address1}
@@ -288,7 +489,7 @@ export default function CheckoutPage() {
                       }
                     />
                   </div>
-                  <div className="md:col-span-2">
+                  <div className={fieldSpanStyle}>
                     <Input
                       placeholder="Address line 2 (optional)"
                       value={form.address2}
@@ -309,7 +510,7 @@ export default function CheckoutPage() {
                       setForm({ ...form, state: e.target.value })
                     }
                   />
-                  <div className="md:col-span-2">
+                  <div className={fieldSpanStyle}>
                     <Input
                       placeholder="Postal code"
                       value={form.postalCode}
@@ -321,16 +522,17 @@ export default function CheckoutPage() {
                 </div>
               </section>
 
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold">Shipping method</h2>
-                <div className="grid grid-cols-1 gap-3">
-                  <label className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-gray-50">
-                    <span className="text-sm">Standard (3-7 days)</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium">₹99</span>
+              <section className={sectionStyle}>
+                <h2 className={sectionHeadingStyle}>Shipping method</h2>
+                <div className={optionRowStyle}>
+                  <label className={optionLabelStyle}>
+                    <span className={optionLabelTextStyle}>Standard (3-7 days)</span>
+                    <div className={optionRightStyle}>
+                      <span className={optionPriceStyle}>₹99</span>
                       <input
                         type="radio"
                         name="shipping"
+                        className={radioStyle}
                         checked={form.shippingMethod === "standard"}
                         onChange={() =>
                           setForm({ ...form, shippingMethod: "standard" })
@@ -338,13 +540,14 @@ export default function CheckoutPage() {
                       />
                     </div>
                   </label>
-                  <label className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-gray-50">
-                    <span className="text-sm">Express (1-2 days)</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium">₹199</span>
+                  <label className={optionLabelStyle}>
+                    <span className={optionLabelTextStyle}>Express (1-2 days)</span>
+                    <div className={optionRightStyle}>
+                      <span className={optionPriceStyle}>₹199</span>
                       <input
                         type="radio"
                         name="shipping"
+                        className={radioStyle}
                         checked={form.shippingMethod === "express"}
                         onChange={() =>
                           setForm({ ...form, shippingMethod: "express" })
@@ -355,27 +558,29 @@ export default function CheckoutPage() {
                 </div>
               </section>
 
-              <section className="space-y-4">
-                <h2 className="text-xl font-semibold">Payment</h2>
-                <div className="grid grid-cols-1 gap-3">
-                  <label className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-gray-50">
-                    <span className="text-sm">Cash on Delivery (COD)</span>
+              <section className={sectionStyle}>
+                <h2 className={sectionHeadingStyle}>Payment</h2>
+                <div className={optionRowStyle}>
+                  <label className={optionLabelStyle}>
+                    <span className={optionLabelTextStyle}>Cash on Delivery (COD)</span>
                     <input
                       type="radio"
                       name="payment"
+                      className={radioStyle}
                       checked={form.paymentMethod === "cod"}
                       onChange={() =>
                         setForm({ ...form, paymentMethod: "cod" })
                       }
                     />
                   </label>
-                  <label className="flex items-center justify-between border rounded-md p-3 cursor-pointer hover:bg-gray-50">
-                    <span className="text-sm">
+                  <label className={optionLabelStyle}>
+                    <span className={optionLabelTextStyle}>
                       Card / UPI / Wallet (Razorpay)
                     </span>
                     <input
                       type="radio"
                       name="payment"
+                      className={radioStyle}
                       checked={form.paymentMethod === "razorpay"}
                       onChange={() =>
                         setForm({ ...form, paymentMethod: "razorpay" })
@@ -387,63 +592,110 @@ export default function CheckoutPage() {
             </div>
 
             {/* Right: Order Summary */}
-            <aside className="lg:col-span-1 border rounded-md p-4 h-fit sticky top-24">
-              <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
-              <div className="space-y-3 max-h-[50vh] overflow-auto pr-2">
+            <aside className={asideStyle}>
+              <h3 className={asideHeadingStyle}>Order Summary</h3>
+              <div className={itemsListStyle}>
                 {items.length === 0 ? (
-                  <p className="text-sm text-gray-500">Your cart is empty.</p>
+                  <p className={emptyCartStyle}>Your cart is empty.</p>
                 ) : (
                   items.map((it) => (
                     <div
                       key={`${it.id}:${it.variantId ?? "_"}`}
-                      className="flex items-center justify-between"
+                      className={itemRowStyle}
                     >
-                      <div className="text-sm truncate mr-2">
+                      <div className={itemNameStyle}>
                         {it.name}
-                        {it.variantId ? (
-                          <span className="text-gray-500">
+                        {it.variantLabel ? (
+                          <span className={itemMutedStyle}>
                             {" "}
-                            · {it.variantId}
+                            · {it.variantLabel}
                           </span>
                         ) : null}
-                        <span className="text-gray-500"> × {it.qty}</span>
+                        <span className={itemMutedStyle}> × {it.qty}</span>
                       </div>
-                      <div className="text-sm font-medium">
+                      <div className={itemPriceStyle}>
                         ₹{(it.qty * it.price).toLocaleString()}
                       </div>
                     </div>
                   ))
                 )}
               </div>
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span>Subtotal</span>
-                  <span className="font-medium">
+
+              {appliedCoupon ? (
+                <div className={couponAppliedStyle}>
+                  <span>
+                    Coupon <strong>{appliedCoupon.code}</strong> applied
+                  </span>
+                  <button
+                    type="button"
+                    className={couponRemoveStyle}
+                    onClick={handleRemoveCoupon}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className={couponRowStyle}>
+                  <Input
+                    placeholder="Coupon code"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleApplyCoupon();
+                      }
+                    }}
+                    disabled={items.length === 0}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleApplyCoupon}
+                    disabled={isApplyingCoupon || !couponInput.trim() || items.length === 0}
+                  >
+                    {isApplyingCoupon ? "Checking..." : "Apply"}
+                  </Button>
+                </div>
+              )}
+
+              <div className={totalsStyle}>
+                <div className={totalsRowStyle}>
+                  <span className={totalsLabelStyle}>Subtotal</span>
+                  <span className={totalsValueStyle}>
                     ₹{totalPrice.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span>Shipping</span>
-                  <span className="font-medium">
+                <div className={totalsRowStyle}>
+                  <span className={totalsLabelStyle}>Shipping</span>
+                  <span className={totalsValueStyle}>
                     ₹{shippingFee.toLocaleString()}
                   </span>
                 </div>
                 {tax > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span>Tax</span>
-                    <span className="font-medium">₹{tax.toLocaleString()}</span>
+                  <div className={totalsRowStyle}>
+                    <span className={totalsLabelStyle}>Tax</span>
+                    <span className={totalsValueStyle}>₹{tax.toLocaleString()}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between text-base pt-2 border-t">
-                  <span className="font-semibold">Total</span>
-                  <span className="font-semibold">
-                    ₹{grandTotal.toLocaleString()}
+                {appliedCoupon && (
+                  <div className={totalsRowStyle}>
+                    <span className={totalsLabelStyle}>Discount</span>
+                    <span className={discountValueStyle}>
+                      −₹{discountRupees.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                )}
+                <div className={grandTotalRowStyle}>
+                  <span className={grandTotalLabelStyle}>Total</span>
+                  <span className={grandTotalValueStyle}>
+                    ₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
 
               <Button
-                className="w-full mt-4"
+                className={placeOrderBtnStyle}
                 disabled={
                   items.length === 0 ||
                   !form.email ||
@@ -456,7 +708,7 @@ export default function CheckoutPage() {
               >
                 {isProcessing ? "Processing..." : `Place order (${totalCount})`}
               </Button>
-              <Button asChild variant="outline" className="w-full mt-2">
+              <Button asChild variant="outline" className={continueBtnStyle}>
                 <Link href="/">Continue shopping</Link>
               </Button>
             </aside>

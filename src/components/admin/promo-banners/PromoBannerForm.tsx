@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -18,6 +24,11 @@ import {
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { css } from "styled-system/css";
+import {
+  RecurrenceScheduleFields,
+  defaultRecurrenceValue,
+} from "@/components/admin/shared/RecurrenceScheduleFields";
 
 type PromoBanner = {
   id: string;
@@ -30,7 +41,22 @@ type PromoBanner = {
   startDate: Date | null;
   endDate: Date | null;
   order: number;
+  isRecurring: boolean;
+  recurrenceType: string | null;
+  recurrenceDaysOfWeek: number[];
+  recurrenceDayOfMonth: number | null;
+  recurrenceStartTime: string | null;
+  recurrenceEndTime: string | null;
 };
+
+const fieldGroup = css({ display: "flex", flexDirection: "column", gap: "2" });
+const grid2 = css({
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "4",
+  sm: { gridTemplateColumns: "1fr 1fr" },
+});
+const requiredMark = css({ color: "danger" });
 
 export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
   const router = useRouter();
@@ -49,6 +75,16 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
       ? new Date(banner.endDate).toISOString().split("T")[0]
       : "",
     order: banner?.order ?? 0,
+    ...(banner
+      ? {
+          isRecurring: banner.isRecurring,
+          recurrenceType: banner.recurrenceType || "WEEKLY",
+          recurrenceDaysOfWeek: banner.recurrenceDaysOfWeek,
+          recurrenceDayOfMonth: banner.recurrenceDayOfMonth || 1,
+          recurrenceStartTime: banner.recurrenceStartTime || "",
+          recurrenceEndTime: banner.recurrenceEndTime || "",
+        }
+      : defaultRecurrenceValue()),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,28 +126,38 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
+      <div className={css({ display: "flex", alignItems: "center", gap: "4" })}>
         <Link href="/admin/promo-banners">
-          <Button variant="outline" size="icon">
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="outline" size="icon" aria-label="Back to promo banners">
+            <ArrowLeft className={css({ width: "4", height: "4" })} />
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1
+            className={css({
+              fontFamily: "display",
+              fontSize: "3xl",
+              fontWeight: "bold",
+              color: "fg.default",
+            })}
+          >
             {banner ? "Edit Promo Banner" : "New Promo Banner"}
           </h1>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
         <Card>
           <CardHeader>
-            <CardTitle>Banner Details</CardTitle>
+            <CardTitle>Message</CardTitle>
+            <CardDescription>What customers see and where it appears.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="type">Banner Type *</Label>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <div className={fieldGroup}>
+              <Label htmlFor="type">
+                Banner Type <span className={requiredMark}>*</span>
+              </Label>
               <Select
                 value={formData.type}
                 onValueChange={(value) =>
@@ -129,7 +175,7 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className={fieldGroup}>
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
@@ -141,8 +187,10 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="message">Message *</Label>
+            <div className={fieldGroup}>
+              <Label htmlFor="message">
+                Message <span className={requiredMark}>*</span>
+              </Label>
               <Textarea
                 id="message"
                 value={formData.message}
@@ -153,11 +201,19 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
                 required
               />
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription>Live preview updates as you pick colors.</CardDescription>
+          </CardHeader>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <div className={grid2}>
+              <div className={fieldGroup}>
                 <Label htmlFor="bgColor">Background Color</Label>
-                <div className="flex gap-2">
+                <div className={css({ display: "flex", gap: "2" })}>
                   <Input
                     id="bgColor"
                     type="color"
@@ -165,7 +221,7 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
                     onChange={(e) =>
                       setFormData({ ...formData, bgColor: e.target.value })
                     }
-                    className="w-16 h-10"
+                    className={css({ width: "16", height: "10", padding: "1", cursor: "pointer" })}
                   />
                   <Input
                     value={formData.bgColor}
@@ -177,9 +233,9 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div className={fieldGroup}>
                 <Label htmlFor="textColor">Text Color</Label>
-                <div className="flex gap-2">
+                <div className={css({ display: "flex", gap: "2" })}>
                   <Input
                     id="textColor"
                     type="color"
@@ -187,7 +243,7 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
                     onChange={(e) =>
                       setFormData({ ...formData, textColor: e.target.value })
                     }
-                    className="w-16 h-10"
+                    className={css({ width: "16", height: "10", padding: "1", cursor: "pointer" })}
                   />
                   <Input
                     value={formData.textColor}
@@ -200,8 +256,41 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className={fieldGroup}>
+              <Label>Preview</Label>
+              <div
+                className={css({
+                  display: "flex",
+                  alignItems: "center",
+                  borderRadius: "lg",
+                  border: "1px solid",
+                  borderColor: "border.subtle",
+                  paddingInline: "4",
+                  paddingBlock: "3",
+                  fontSize: "sm",
+                  fontWeight: "medium",
+                  minHeight: "12",
+                })}
+                style={{
+                  background: formData.bgColor || undefined,
+                  color: formData.textColor || undefined,
+                }}
+              >
+                {formData.title ? `${formData.title} — ` : ""}
+                {formData.message || "Your promotional message will appear here"}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Schedule &amp; Publishing</CardTitle>
+            <CardDescription>Control when and in what order this banner shows.</CardDescription>
+          </CardHeader>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+            <div className={grid2}>
+              <div className={fieldGroup}>
                 <Label htmlFor="startDate">Start Date (Optional)</Label>
                 <Input
                   id="startDate"
@@ -213,7 +302,7 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className={fieldGroup}>
                 <Label htmlFor="endDate">End Date (Optional)</Label>
                 <Input
                   id="endDate"
@@ -226,7 +315,20 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <RecurrenceScheduleFields
+              value={{
+                isRecurring: formData.isRecurring,
+                recurrenceType: formData.recurrenceType,
+                recurrenceDaysOfWeek: formData.recurrenceDaysOfWeek,
+                recurrenceDayOfMonth: formData.recurrenceDayOfMonth,
+                recurrenceStartTime: formData.recurrenceStartTime,
+                recurrenceEndTime: formData.recurrenceEndTime,
+              }}
+              onChange={(v) => setFormData({ ...formData, ...v })}
+              description="Optionally repeat this banner only on certain days or hours within the Start/End Date window above."
+            />
+
+            <div className={fieldGroup}>
               <Label htmlFor="order">Display Order</Label>
               <Input
                 id="order"
@@ -238,7 +340,23 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
               />
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div
+              className={css({
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderRadius: "lg",
+                border: "1px solid",
+                borderColor: "border.subtle",
+                padding: "3",
+              })}
+            >
+              <div className={css({ display: "flex", flexDirection: "column", gap: "0.5" })}>
+                <Label htmlFor="isActive">Active</Label>
+                <p className={css({ fontSize: "xs", color: "fg.muted" })}>
+                  Show this banner on the storefront
+                </p>
+              </div>
               <Switch
                 id="isActive"
                 checked={formData.isActive}
@@ -246,10 +364,9 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
                   setFormData({ ...formData, isActive: checked })
                 }
               />
-              <Label htmlFor="isActive">Active</Label>
             </div>
 
-            <div className="flex gap-4 pt-4">
+            <div className={css({ display: "flex", gap: "4", paddingTop: "4" })}>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Saving..." : banner ? "Update" : "Create"}
               </Button>

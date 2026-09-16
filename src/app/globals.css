@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@layer reset, base, tokens, recipes, utilities;
 
 @custom-variant dark (&:is(.dark *));
 
@@ -90,7 +91,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -237,5 +239,21 @@
   }
   100% {
     transform: translateX(-100%);
+  }
+}
+
+/* A slow, periodic light-sweep for the primary "Add to cart" call to action
+   on the product page — catches the eye like light on gold, then rests.
+   Deliberately NOT used on every button (see components/ui/button.tsx) —
+   a shine that plays everywhere stops meaning "look here". */
+@keyframes ctaShine {
+  0%, 55% {
+    transform: translateX(-60%);
+  }
+  75% {
+    transform: translateX(20%);
+  }
+  100% {
+    transform: translateX(20%);
   }
 }
