@@ -8,6 +8,9 @@ const categoryUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   slug: z.string().min(1).optional(),
   description: z.string().optional().nullable(),
+  image: z.string().optional().nullable(),
+  isFeatured: z.boolean().optional(),
+  featuredOrder: z.number().int().optional(),
 });
 
 export async function PATCH(
@@ -41,6 +44,7 @@ export async function PATCH(
     });
 
     revalidateTag("products");
+    revalidateTag("homepage");
 
     return NextResponse.json(category);
   } catch {
@@ -89,6 +93,7 @@ export async function DELETE(
     });
 
     revalidateTag("products");
+    revalidateTag("homepage");
 
     return NextResponse.json({ message: "Category deleted successfully" });
   } catch {

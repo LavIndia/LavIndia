@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -37,6 +38,8 @@ export async function PUT(
       metadata: { title: tier.title },
     });
 
+    revalidateTag("homepage");
+
     return NextResponse.json({ tier });
   } catch (error) {
     console.error("Error updating budget tier:", error);
@@ -70,6 +73,8 @@ export async function DELETE(
       entityId: tier.id,
       metadata: { title: tier.title },
     });
+
+    revalidateTag("homepage");
 
     return NextResponse.json({ success: true });
   } catch (error) {

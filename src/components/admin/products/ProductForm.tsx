@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
@@ -30,6 +31,7 @@ import {
   CheckCircle2,
   Circle,
   X,
+  Upload,
 } from "lucide-react";
 import { ImageUpload } from "@/components/admin/products/ImageUpload";
 import { css, cx } from "styled-system/css";
@@ -42,6 +44,12 @@ const fieldGrid3Style = css({
   gap: "4",
   sm: { gridTemplateColumns: "repeat(3, 1fr)" },
 });
+const fieldGrid2Style = css({
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "4",
+  sm: { gridTemplateColumns: "repeat(2, 1fr)" },
+});
 
 const layoutStyle = css({
   display: "grid",
@@ -49,6 +57,28 @@ const layoutStyle = css({
   gap: "6",
   alignItems: "start",
 });
+
+const actionBarStyle = css({
+  position: "sticky",
+  top: "0",
+  zIndex: "40",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "4",
+  flexWrap: "wrap",
+  marginBottom: "6",
+  paddingBlock: "3",
+  paddingInline: "4",
+  borderRadius: "xl",
+  border: "1px solid",
+  borderColor: "border.glass",
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  boxShadow: "glassLg",
+});
+
+const actionBarButtonsStyle = css({ display: "flex", alignItems: "center", gap: "2" });
 
 const mainColumnStyle = css({ display: "flex", flexDirection: "column", gap: "6" });
 const sidebarColumnStyle = css({
@@ -116,16 +146,131 @@ const colorSwatchStyle = css({
   borderColor: "border.subtle",
 });
 
+const variantGalleryStyle = css({
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: "2",
+});
+const variantThumbWrapStyle = css({
+  position: "relative",
+  height: "14",
+  width: "14",
+  flexShrink: 0,
+  "&:hover .variant-thumb-remove": { opacity: 1 },
+});
+const variantThumbRemoveStyle = css({
+  position: "absolute",
+  top: "-1.5",
+  right: "-1.5",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  height: "4.5",
+  width: "4.5",
+  borderRadius: "full",
+  background: "danger",
+  color: "white",
+  opacity: 0,
+  transition: "opacity 0.15s ease",
+  cursor: "pointer",
+  boxShadow: "sm",
+});
+const variantImageThumbStyle = css({
+  height: "full",
+  width: "full",
+  objectFit: "cover",
+  borderRadius: "lg",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  boxShadow: "sm",
+});
+const variantImageAddButtonStyle = css({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  height: "14",
+  width: "14",
+  flexShrink: 0,
+  borderRadius: "lg",
+  border: "1px dashed",
+  borderColor: "border.subtle",
+  background: "bg.surface",
+  color: "fg.muted",
+  cursor: "pointer",
+  "&:hover": { borderColor: "accent.default", color: "fg.default" },
+  "&:disabled": { opacity: 0.6, cursor: "not-allowed" },
+});
+const variantImageMenuStyle = css({
+  position: "absolute",
+  zIndex: "50",
+  marginTop: "1.5",
+  display: "flex",
+  flexDirection: "column",
+  gap: "2",
+  padding: "2",
+  minWidth: "48",
+  maxHeight: "64",
+  overflowY: "auto",
+  borderRadius: "lg",
+  border: "1px solid",
+  borderColor: "border.glass",
+  background: "bg.glassStrong",
+  backdropBlur: "glass",
+  boxShadow: "glassLg",
+});
+const variantImageMenuUploadStyle = css({
+  display: "flex",
+  alignItems: "center",
+  gap: "2",
+  borderRadius: "md",
+  border: "1px dashed",
+  borderColor: "border.subtle",
+  paddingInline: "3",
+  paddingBlock: "2",
+  fontSize: "sm",
+  fontWeight: "medium",
+  color: "fg.default",
+  cursor: "pointer",
+  "&:hover": { borderColor: "accent.default" },
+});
+const variantImageMenuGridStyle = css({
+  display: "grid",
+  gridTemplateColumns: "repeat(4, 1fr)",
+  gap: "1.5",
+});
+const variantImageMenuItemStyle = css({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  height: "10",
+  width: "10",
+  borderRadius: "md",
+  border: "1px solid",
+  borderColor: "border.subtle",
+  overflow: "hidden",
+  cursor: "pointer",
+  "&:hover": { borderColor: "accent.default" },
+});
+
 interface ProductImage {
   id?: string;
   url: string;
   alt: string | null;
   isPrimary: boolean;
   position: number;
+  // Client-only grouping key: the owning variant's `clientId`, or null for
+  // the product's general gallery. Resolved to a real variantId (or a
+  // variantClientId for a not-yet-created variant) when the form saves.
+  variantKey: string | null;
 }
 
 interface ProductVariant {
   id?: string;
+  // Client-only stable key so a variant's images can be grouped/attached
+  // before the variant itself has a database id (e.g. a brand-new variant
+  // that hasn't been saved yet).
+  clientId: string;
   name: string;
   color: string | null;
   size: string | null;
@@ -147,8 +292,9 @@ interface Product {
   sku: string | null;
   isPublished: boolean;
   isFeatured: boolean;
-  images: ProductImage[];
-  variants: ProductVariant[];
+  isLimitedEdition: boolean;
+  images: (Omit<ProductImage, "variantKey"> & { variantId: string | null })[];
+  variants: Omit<ProductVariant, "clientId">[];
 }
 
 interface ProductFormProps {
@@ -254,6 +400,161 @@ function OptionChipInput({
   );
 }
 
+// Lets an admin build a small gallery for one variant (e.g. every angle of
+// the Gold color variant): pick from images not yet claimed by another
+// variant, or upload a new one directly. A Size-only variant typically
+// needs none of this — the base product photos already cover it.
+function VariantGallery({
+  variantKey,
+  images,
+  productName,
+  onAssign,
+  onUnassign,
+  onUploaded,
+}: {
+  variantKey: string;
+  images: ProductImage[];
+  productName: string;
+  onAssign: (image: ProductImage) => void;
+  onUnassign: (image: ProductImage) => void;
+  onUploaded: (image: ProductImage) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const ownImages = images.filter((img) => img.variantKey === variantKey);
+  const unassignedImages = images.filter((img) => img.variantKey === null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [open]);
+
+  const handleUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    setUploading(true);
+    try {
+      const uploaded = await Promise.all(
+        files.map(async (file) => {
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("productName", productName || "");
+
+          const res = await fetch("/api/admin/products/upload", {
+            method: "POST",
+            body: formData,
+          });
+          const result = await res.json();
+          if (!res.ok) throw new Error(result.error || `Failed to upload ${file.name}`);
+          return { url: result.url as string, alt: file.name };
+        }),
+      );
+
+      uploaded.forEach((img, i) =>
+        onUploaded({
+          url: img.url,
+          alt: img.alt,
+          isPrimary: false,
+          position: ownImages.length + i,
+          variantKey,
+        }),
+      );
+      toast.success(
+        uploaded.length > 1 ? `${uploaded.length} images uploaded` : "Image uploaded",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to upload image",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className={variantGalleryStyle} onClick={(e) => e.stopPropagation()}>
+      {ownImages.map((img) => (
+        <div key={img.id ?? img.url} className={variantThumbWrapStyle}>
+          <img src={img.url} alt="" className={variantImageThumbStyle} />
+          <button
+            type="button"
+            className={cx("variant-thumb-remove", variantThumbRemoveStyle)}
+            onClick={() => onUnassign(img)}
+            aria-label="Move to Product Images"
+            title="Move to Product Images"
+          >
+            <X className={css({ height: "2.5", width: "2.5" })} />
+          </button>
+        </div>
+      ))}
+
+      <div className={css({ position: "relative" })}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          disabled={uploading}
+          className={variantImageAddButtonStyle}
+          aria-label="Add variant image"
+          title="Add variant image"
+        >
+          {uploading ? (
+            <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />
+          ) : (
+            <Plus className={css({ height: "4", width: "4" })} />
+          )}
+        </button>
+        {open && (
+          <div className={variantImageMenuStyle}>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className={variantImageMenuUploadStyle}
+            >
+              <Upload className={css({ height: "3.5", width: "3.5" })} />
+              Upload new
+            </button>
+            {unassignedImages.length > 0 && (
+              <div className={variantImageMenuGridStyle}>
+                {unassignedImages.map((img) => (
+                  <button
+                    key={img.id ?? img.url}
+                    type="button"
+                    onClick={() => {
+                      onAssign(img);
+                      setOpen(false);
+                    }}
+                    className={variantImageMenuItemStyle}
+                    title="Use this image"
+                  >
+                    <img src={img.url} alt="" className={variantImageThumbStyle} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          if (files.length) handleUpload(files);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          setOpen(false);
+        }}
+        className={css({ srOnly: true })}
+      />
+    </div>
+  );
+}
+
 export function ProductForm({ product, categories }: ProductFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -271,12 +572,34 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     sku: product?.sku || "",
     isPublished: product?.isPublished || false,
     isFeatured: product?.isFeatured || false,
+    isLimitedEdition: product?.isLimitedEdition || false,
   });
 
-  const [images, setImages] = useState<ProductImage[]>(product?.images || []);
-  const [variants, setVariants] = useState<ProductVariant[]>(
-    product?.variants || [],
+  const initialVariants = useMemo<ProductVariant[]>(
+    () =>
+      (product?.variants || []).map((v) => ({
+        ...v,
+        clientId: crypto.randomUUID(),
+      })),
+    [product],
   );
+  const variantIdToClientId = useMemo(
+    () =>
+      new Map(
+        initialVariants
+          .filter((v): v is ProductVariant & { id: string } => !!v.id)
+          .map((v) => [v.id, v.clientId]),
+      ),
+    [initialVariants],
+  );
+
+  const [images, setImages] = useState<ProductImage[]>(() =>
+    (product?.images || []).map((img) => ({
+      ...img,
+      variantKey: img.variantId ? variantIdToClientId.get(img.variantId) ?? null : null,
+    })),
+  );
+  const [variants, setVariants] = useState<ProductVariant[]>(initialVariants);
   const [optionValues, setOptionValues] = useState<Record<OptionDimension, string[]>>({
     color: [],
     size: [],
@@ -365,6 +688,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         (c) => !existingKeys.has(`${c.color ?? ""}|${c.size ?? ""}|${c.material ?? ""}`),
       )
       .map((c) => ({
+        clientId: crypto.randomUUID(),
         name: [c.color, c.size, c.material].filter(Boolean).join(" / "),
         color: c.color,
         size: c.size,
@@ -387,18 +711,34 @@ export function ProductForm({ product, categories }: ProductFormProps) {
   const addBlankVariant = () => {
     setVariants([
       ...variants,
-      { name: "", color: null, size: null, material: null, priceCents: null, stock: 0 },
+      {
+        clientId: crypto.randomUUID(),
+        name: "",
+        color: null,
+        size: null,
+        material: null,
+        priceCents: null,
+        stock: 0,
+      },
     ]);
   };
 
   const removeVariant = (index: number) => {
+    const removed = variants[index];
     setVariants(variants.filter((_, i) => i !== index));
+    // The variant's own photos aren't deleted — they fall back into the
+    // general Product Images gallery instead.
+    setImages((prev) =>
+      prev.map((img) =>
+        img.variantKey === removed.clientId ? { ...img, variantKey: null } : img,
+      ),
+    );
   };
 
   const updateVariant = (
     index: number,
     field: keyof ProductVariant,
-    value: string | number,
+    value: string | number | null,
   ) => {
     setVariants(
       variants.map((v, i) => (i === index ? { ...v, [field]: value } : v)),
@@ -418,12 +758,40 @@ export function ProductForm({ product, categories }: ProductFormProps) {
     [formData.name, formData.categoryId, formData.price, images.length],
   );
   const readyToPublish = checklist.every((c) => c.done);
+  const generalImages = images.filter((img) => img.variantKey === null);
+  const setGeneralImages = (
+    updated: { id?: string; url: string; alt: string | null; isPrimary: boolean; position: number }[],
+  ) => {
+    setImages([
+      ...updated.map((img) => ({ ...img, variantKey: null })),
+      ...images.filter((img) => img.variantKey !== null),
+    ]);
+  };
+  const formRef = useRef<HTMLFormElement>(null);
+  const [savingAction, setSavingAction] = useState<"draft" | "publish" | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (publish: boolean) => {
+    if (!formRef.current?.reportValidity()) return;
+
+    if (publish) {
+      const missing = checklist.filter((c) => !c.done);
+      if (missing.length > 0) {
+        toast.error(
+          `Add ${missing.map((m) => m.label.toLowerCase()).join(", ")} before publishing`,
+        );
+        return;
+      }
+    }
+
+    setSavingAction(publish ? "publish" : "draft");
     setLoading(true);
 
     try {
+      const clientIdToVariantId = new Map(
+        variants.filter((v): v is ProductVariant & { id: string } => !!v.id)
+          .map((v) => [v.clientId, v.id]),
+      );
+
       const payload = {
         name: formData.name,
         slug: formData.slug,
@@ -435,20 +803,37 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         stock: parseInt(formData.stock),
         categoryId: formData.categoryId,
         sku: formData.sku || null,
-        isPublished: formData.isPublished,
+        isPublished: publish,
+        // Publishing also clears any leftover soft-archive state (set when
+        // a product with existing orders was previously deleted) — without
+        // this, a re-published product silently stays invisible on the
+        // storefront because isActive is a separate gate from isPublished.
+        ...(publish ? { isActive: true } : {}),
         isFeatured: formData.isFeatured,
+        isLimitedEdition: formData.isLimitedEdition,
         discountPercent: null,
-        images: images.map((img, i) => ({
-          id: img.id,
-          url: img.url,
-          alt: img.alt,
-          isPrimary: img.isPrimary,
-          position: i,
-        })),
+        images: images.map((img, i) => {
+          const resolvedVariantId = img.variantKey
+            ? clientIdToVariantId.get(img.variantKey) ?? null
+            : null;
+          return {
+            id: img.id,
+            url: img.url,
+            alt: img.alt,
+            isPrimary: img.isPrimary,
+            position: i,
+            variantId: resolvedVariantId,
+            // Only needed when the image belongs to a variant that hasn't
+            // been created yet — the server resolves this to a real id.
+            variantClientId:
+              img.variantKey && !resolvedVariantId ? img.variantKey : undefined,
+          };
+        }),
         variants: variants
           .filter((v) => v.name)
           .map((v) => ({
             id: v.id,
+            clientId: v.clientId,
             name: v.name,
             color: v.color,
             size: v.size,
@@ -475,20 +860,72 @@ export function ProductForm({ product, categories }: ProductFormProps) {
         throw new Error(body?.error || "Request failed");
       }
 
-      toast.success(product ? "Product updated" : "Product created");
+      setFormData((prev) => ({ ...prev, isPublished: publish }));
+      toast.success(publish ? "Product published" : "Draft saved");
       router.push("/admin/products");
       router.refresh();
     } catch {
       toast.error(
-        product ? "Failed to update product" : "Failed to create product",
+        publish ? "Failed to publish product" : "Failed to save draft",
       );
     } finally {
       setLoading(false);
+      setSavingAction(null);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className={layoutStyle}>
+    <form
+      ref={formRef}
+      onSubmit={(e) => e.preventDefault()}
+      className={layoutStyle}
+    >
+      <div className={css({ gridColumn: "1 / -1" })}>
+        <div className={actionBarStyle}>
+          <div className={css({ display: "flex", alignItems: "center", gap: "3", minWidth: "0" })}>
+            <p
+              className={css({
+                fontWeight: "medium",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              })}
+            >
+              {formData.name || (product ? "Edit product" : "New product")}
+            </p>
+            <Badge variant={formData.isPublished ? "default" : "secondary"}>
+              {formData.isPublished ? "Published" : "Draft"}
+            </Badge>
+          </div>
+          <div className={actionBarButtonsStyle}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push("/admin/products")}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleSave(false)}
+              disabled={loading}
+            >
+              {loading && savingAction === "draft" && (
+                <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />
+              )}
+              Save Draft
+            </Button>
+            <Button type="button" onClick={() => handleSave(true)} disabled={loading}>
+              {loading && savingAction === "publish" && (
+                <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />
+              )}
+              {formData.isPublished ? "Save & Publish" : "Publish"}
+            </Button>
+          </div>
+        </div>
+      </div>
       <div className={mainColumnStyle}>
         {/* Basic Information */}
         <Card>
@@ -497,28 +934,64 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             <CardDescription>Essential product details</CardDescription>
           </CardHeader>
           <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
-            <div className={fieldStyle}>
-              <Label htmlFor="name">
-                Product Name<span className={requiredMarkStyle}>*</span>
-              </Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                required
-              />
+            <div className={fieldGrid3Style}>
+              <div className={css({ display: "flex", flexDirection: "column", gap: "2", sm: { gridColumn: "span 2" } })}>
+                <Label htmlFor="name">
+                  Product Name<span className={requiredMarkStyle}>*</span>
+                </Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className={fieldStyle}>
+                <Label htmlFor="category">
+                  Category<span className={requiredMarkStyle}>*</span>
+                </Label>
+                <Select
+                  value={formData.categoryId}
+                  onValueChange={(value) => handleChange("categoryId", value)}
+                  required
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className={fieldStyle}>
-              <Label htmlFor="slug">
-                Slug<span className={requiredMarkStyle}>*</span>
-              </Label>
-              <Input
-                id="slug"
-                value={formData.slug}
-                onChange={(e) => handleChange("slug", e.target.value)}
-                required
-              />
+            <div className={fieldGrid2Style}>
+              <div className={fieldStyle}>
+                <Label htmlFor="slug">
+                  Slug<span className={requiredMarkStyle}>*</span>
+                </Label>
+                <Input
+                  id="slug"
+                  value={formData.slug}
+                  onChange={(e) => handleChange("slug", e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className={fieldStyle}>
+                <Label htmlFor="sku">SKU</Label>
+                <Input
+                  id="sku"
+                  value={formData.sku}
+                  onChange={(e) => handleChange("sku", e.target.value)}
+                  placeholder="PROD-001"
+                />
+              </div>
             </div>
 
             <div className={fieldStyle}>
@@ -528,16 +1001,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 value={formData.description}
                 onChange={(e) => handleChange("description", e.target.value)}
                 rows={4}
-              />
-            </div>
-
-            <div className={fieldStyle}>
-              <Label htmlFor="sku">SKU</Label>
-              <Input
-                id="sku"
-                value={formData.sku}
-                onChange={(e) => handleChange("sku", e.target.value)}
-                placeholder="PROD-001"
               />
             </div>
           </CardContent>
@@ -592,21 +1055,6 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           </CardContent>
         </Card>
 
-        {/* Images */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Product Images</CardTitle>
-            <CardDescription>Upload and manage product images</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ImageUpload
-              images={images}
-              setImages={setImages}
-              productName={formData.name}
-            />
-          </CardContent>
-        </Card>
-
         {/* Options & Variants */}
         <Card>
           <CardHeader>
@@ -641,7 +1089,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
               <div className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
                 {variants.map((variant, index) => (
                   <div
-                    key={index}
+                    key={variant.clientId}
                     className={css({
                       display: "flex",
                       alignItems: "flex-start",
@@ -651,6 +1099,26 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       paddingTop: "3",
                     })}
                   >
+                    <VariantGallery
+                      variantKey={variant.clientId}
+                      images={images}
+                      productName={formData.name}
+                      onAssign={(image) =>
+                        setImages((prev) =>
+                          prev.map((img) =>
+                            img === image ? { ...img, variantKey: variant.clientId } : img,
+                          ),
+                        )
+                      }
+                      onUnassign={(image) =>
+                        setImages((prev) =>
+                          prev.map((img) =>
+                            img === image ? { ...img, variantKey: null } : img,
+                          ),
+                        )
+                      }
+                      onUploaded={(image) => setImages((prev) => [...prev, image])}
+                    />
                     <div
                       className={css({
                         flex: "1",
@@ -667,13 +1135,17 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       />
                       <Input
                         type="number"
-                        placeholder="Price override"
+                        placeholder={
+                          formData.price
+                            ? `Same as base (₹${formData.price})`
+                            : "Same as base price"
+                        }
                         value={variant.priceCents ? variant.priceCents / 100 : ""}
                         onChange={(e) =>
                           updateVariant(
                             index,
                             "priceCents",
-                            e.target.value ? parseFloat(e.target.value) * 100 : 0,
+                            e.target.value ? parseFloat(e.target.value) * 100 : null,
                           )
                         }
                       />
@@ -723,56 +1195,51 @@ export function ProductForm({ product, categories }: ProductFormProps) {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Images */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Product Images</CardTitle>
+            <CardDescription>
+              The general gallery shown on the product page. Variant-specific
+              photos are added directly on each variant above instead.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ImageUpload
+              images={generalImages}
+              setImages={setGeneralImages}
+              productName={formData.name}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Sidebar */}
       <div className={sidebarColumnStyle}>
         <Card>
-          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "3", paddingTop: "6" })}>
-            <Button type="submit" disabled={loading} className={css({ width: "full" })}>
-              {loading && <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />}
-              {product ? "Save Changes" : "Create Product"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.push("/admin/products")}
-              className={css({ width: "full" })}
-            >
-              Cancel
-            </Button>
-
-            <div
-              className={css({
-                display: "flex",
-                flexDirection: "column",
-                gap: "1.5",
-                marginTop: "2",
-                paddingTop: "4",
-                borderTop: "1px solid",
-                borderColor: "border.subtle",
-              })}
-            >
-              <p className={css({ fontSize: "xs", fontWeight: "medium", color: "fg.muted", textTransform: "uppercase", letterSpacing: "wide", marginBottom: "1" })}>
-                {readyToPublish ? "Ready to publish" : "Before you publish"}
-              </p>
-              {checklist.map((item) => (
-                <div
-                  key={item.label}
-                  className={cx(
-                    checklistItemStyle,
-                    item.done ? checklistDoneStyle : checklistPendingStyle,
-                  )}
-                >
-                  {item.done ? (
-                    <CheckCircle2 className={css({ height: "4", width: "4", color: "success", flexShrink: 0 })} />
-                  ) : (
-                    <Circle className={css({ height: "4", width: "4", flexShrink: 0 })} />
-                  )}
-                  {item.label}
-                </div>
-              ))}
-            </div>
+          <CardHeader>
+            <CardTitle className={css({ fontSize: "md" })}>
+              {readyToPublish ? "Ready to publish" : "Before you publish"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "1.5" })}>
+            {checklist.map((item) => (
+              <div
+                key={item.label}
+                className={cx(
+                  checklistItemStyle,
+                  item.done ? checklistDoneStyle : checklistPendingStyle,
+                )}
+              >
+                {item.done ? (
+                  <CheckCircle2 className={css({ height: "4", width: "4", color: "success", flexShrink: 0 })} />
+                ) : (
+                  <Circle className={css({ height: "4", width: "4", flexShrink: 0 })} />
+                )}
+                {item.label}
+              </div>
+            ))}
           </CardContent>
         </Card>
 
@@ -783,16 +1250,16 @@ export function ProductForm({ product, categories }: ProductFormProps) {
           <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
             <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4" })}>
               <div className={css({ display: "flex", flexDirection: "column", gap: "0.5" })}>
-                <Label htmlFor="published">Published</Label>
+                <Label>Visibility</Label>
                 <p className={css({ fontSize: "xs", color: "fg.muted" })}>
-                  Visible on the storefront
+                  {formData.isPublished
+                    ? "Live on the storefront"
+                    : "Use Publish above to make it live"}
                 </p>
               </div>
-              <Switch
-                id="published"
-                checked={formData.isPublished}
-                onCheckedChange={(checked) => handleChange("isPublished", checked)}
-              />
+              <Badge variant={formData.isPublished ? "default" : "secondary"}>
+                {formData.isPublished ? "Published" : "Draft"}
+              </Badge>
             </div>
 
             <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4" })}>
@@ -808,34 +1275,19 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                 onCheckedChange={(checked) => handleChange("isFeatured", checked)}
               />
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className={css({ fontSize: "md" })}>Organization</CardTitle>
-          </CardHeader>
-          <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
-            <div className={fieldStyle}>
-              <Label htmlFor="category">
-                Category<span className={requiredMarkStyle}>*</span>
-              </Label>
-              <Select
-                value={formData.categoryId}
-                onValueChange={(value) => handleChange("categoryId", value)}
-                required
-              >
-                <SelectTrigger id="category">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4" })}>
+              <div className={css({ display: "flex", flexDirection: "column", gap: "0.5" })}>
+                <Label htmlFor="limited-edition">Limited Edition</Label>
+                <p className={css({ fontSize: "xs", color: "fg.muted" })}>
+                  Tags the product card as an exclusive, limited run
+                </p>
+              </div>
+              <Switch
+                id="limited-edition"
+                checked={formData.isLimitedEdition}
+                onCheckedChange={(checked) => handleChange("isLimitedEdition", checked)}
+              />
             </div>
           </CardContent>
         </Card>

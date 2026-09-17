@@ -11,10 +11,17 @@ const imageInputSchema = z.object({
   alt: z.string().nullable().optional(),
   isPrimary: z.boolean().default(false),
   position: z.number().int().min(0).default(0),
+  // A real variant id, or null for the product's general gallery.
+  variantId: z.string().nullable().optional(),
+  // Only set when this image belongs to a variant that doesn't have a
+  // database id yet (a brand-new variant in the same save) — resolved to
+  // that variant's real id once it's created, see PATCH below.
+  variantClientId: z.string().optional(),
 });
 
 const variantInputSchema = z.object({
   id: z.string().optional(),
+  clientId: z.string().optional(),
   name: z.string().min(1),
   color: z.string().nullable().optional(),
   size: z.string().nullable().optional(),
@@ -35,6 +42,7 @@ const productUpdateSchema = z.object({
   sku: z.string().optional().nullable(),
   isPublished: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
+  isLimitedEdition: z.boolean().optional(),
   isActive: z.boolean().optional(),
   // When present, the whole images/variants set is diffed against what's
   // in the DB and applied in one transaction — see PATCH below. This is
@@ -103,6 +111,49 @@ export async function PATCH(
     const { removedImageUrls } = await prisma.$transaction(async (tx) => {
       await tx.product.update({ where: { id }, data: productFields });
 
+      // Variants are resolved before images so a brand-new variant's real
+      // id is known in time to attach its gallery photos to it below.
+      const clientIdToVariantId = new Map<string, string>();
+
+      if (variants) {
+        const existing = await tx.productVariant.findMany({
+          where: { productId: id },
+          select: { id: true },
+        });
+        const keepIds = new Set(
+          variants.filter((v) => v.id).map((v) => v.id),
+        );
+        const toDelete = existing.filter((v) => !keepIds.has(v.id));
+
+        if (toDelete.length) {
+          await tx.productVariant.deleteMany({
+            where: { id: { in: toDelete.map((v) => v.id) } },
+          });
+        }
+
+        await Promise.all(
+          variants.map(async (v) => {
+            const data = {
+              name: v.name,
+              color: v.color ?? null,
+              size: v.size ?? null,
+              material: v.material ?? null,
+              priceCents: v.priceCents ?? null,
+              stock: v.stock,
+            };
+            if (v.id) {
+              await tx.productVariant.update({ where: { id: v.id }, data });
+              if (v.clientId) clientIdToVariantId.set(v.clientId, v.id);
+            } else {
+              const row = await tx.productVariant.create({
+                data: { ...data, productId: id },
+              });
+              if (v.clientId) clientIdToVariantId.set(v.clientId, row.id);
+            }
+          }),
+        );
+      }
+
       let removedImageUrls: string[] = [];
 
       if (images) {
@@ -122,71 +173,23 @@ export async function PATCH(
                 where: { id: { in: toDelete.map((img) => img.id) } },
               })
             : Promise.resolve(),
-          ...images.map((img) =>
-            img.id
-              ? tx.productImage.update({
-                  where: { id: img.id },
-                  data: {
-                    url: img.url,
-                    alt: img.alt ?? null,
-                    isPrimary: img.isPrimary,
-                    position: img.position,
-                  },
-                })
-              : tx.productImage.create({
-                  data: {
-                    productId: id,
-                    url: img.url,
-                    alt: img.alt ?? null,
-                    isPrimary: img.isPrimary,
-                    position: img.position,
-                  },
-                }),
-          ),
-        ]);
-      }
-
-      if (variants) {
-        const existing = await tx.productVariant.findMany({
-          where: { productId: id },
-          select: { id: true },
-        });
-        const keepIds = new Set(
-          variants.filter((v) => v.id).map((v) => v.id),
-        );
-        const toDelete = existing.filter((v) => !keepIds.has(v.id));
-
-        await Promise.all([
-          toDelete.length
-            ? tx.productVariant.deleteMany({
-                where: { id: { in: toDelete.map((v) => v.id) } },
-              })
-            : Promise.resolve(),
-          ...variants.map((v) =>
-            v.id
-              ? tx.productVariant.update({
-                  where: { id: v.id },
-                  data: {
-                    name: v.name,
-                    color: v.color ?? null,
-                    size: v.size ?? null,
-                    material: v.material ?? null,
-                    priceCents: v.priceCents ?? null,
-                    stock: v.stock,
-                  },
-                })
-              : tx.productVariant.create({
-                  data: {
-                    productId: id,
-                    name: v.name,
-                    color: v.color ?? null,
-                    size: v.size ?? null,
-                    material: v.material ?? null,
-                    priceCents: v.priceCents ?? null,
-                    stock: v.stock,
-                  },
-                }),
-          ),
+          ...images.map((img) => {
+            const resolvedVariantId =
+              img.variantId ??
+              (img.variantClientId
+                ? clientIdToVariantId.get(img.variantClientId) ?? null
+                : null);
+            const data = {
+              url: img.url,
+              alt: img.alt ?? null,
+              isPrimary: img.isPrimary,
+              position: img.position,
+              variantId: resolvedVariantId,
+            };
+            return img.id
+              ? tx.productImage.update({ where: { id: img.id }, data })
+              : tx.productImage.create({ data: { ...data, productId: id } });
+          }),
         ]);
       }
 
@@ -239,6 +242,7 @@ export async function PATCH(
     });
 
     revalidateTag("products");
+    revalidateTag("homepage");
 
     return NextResponse.json(product);
   } catch (error) {
@@ -292,6 +296,7 @@ export async function DELETE(
       });
 
       revalidateTag("products");
+      revalidateTag("homepage");
 
       return NextResponse.json({
         archived: true,
@@ -339,6 +344,7 @@ export async function DELETE(
     }
 
     revalidateTag("products");
+    revalidateTag("homepage");
 
     return NextResponse.json({ message: "Product deleted successfully" });
   } catch (error) {

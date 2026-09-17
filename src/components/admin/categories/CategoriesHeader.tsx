@@ -11,11 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { css } from "styled-system/css";
 
-export function CategoriesHeader() {
+export function CategoriesHeader({ nextOrder }: { nextOrder: number }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,6 +24,10 @@ export function CategoriesHeader() {
     name: "",
     slug: "",
     description: "",
+    // Defaults on so a newly-created category is immediately visible in
+    // the storefront nav and homepage Explore section — an admin who wants
+    // it hidden can still flip this off before saving, or later.
+    isFeatured: true,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,14 +38,16 @@ export function CategoriesHeader() {
       const res = await fetch("/api/admin/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        // New categories are appended to the end of the drag-to-reorder
+        // list — the admin repositions it from the cards grid afterward.
+        body: JSON.stringify({ ...formData, featuredOrder: nextOrder }),
       });
 
       if (!res.ok) throw new Error("Failed to create");
 
       toast.success("Category created successfully");
       setOpen(false);
-      setFormData({ name: "", slug: "", description: "" });
+      setFormData({ name: "", slug: "", description: "", isFeatured: true });
       router.refresh();
     } catch {
       toast.error("Failed to create category");
@@ -129,6 +136,16 @@ export function CategoriesHeader() {
                   setFormData({ ...formData, description: e.target.value })
                 }
               />
+            </div>
+            <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
+              <Switch
+                id="featured"
+                checked={formData.isFeatured}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, isFeatured: checked })
+                }
+              />
+              <Label htmlFor="featured">Show in navigation & Explore section</Label>
             </div>
             <div className={css({ display: "flex", justifyContent: "flex-end", gap: "2" })}>
               <Button

@@ -92,6 +92,12 @@ const tileImageStyle = css({
   ".group:hover &": { transform: "scale(1.08)" },
 });
 
+const tilePlaceholderStyle = css({
+  position: "absolute",
+  inset: 0,
+  background: "linear-gradient(135deg, {colors.gold.50}, {colors.ivory.200})",
+});
+
 const overlayStyle = css({
   position: "absolute",
   inset: "0",
@@ -154,15 +160,16 @@ export function ExploreSection({
                 className={cx(tileLinkStyle, "group")}
               >
                 <div className={tileStyle}>
-                  <Image
-                    src={
-                      category.image ||
-                      `/assets/pictures/collections/${category.slug}/thumbnail.jpg`
-                    }
-                    alt={category.name}
-                    fill
-                    className={tileImageStyle}
-                  />
+                  {category.image ? (
+                    <Image
+                      src={category.image}
+                      alt={category.name}
+                      fill
+                      className={tileImageStyle}
+                    />
+                  ) : (
+                    <div className={tilePlaceholderStyle} />
+                  )}
                   <div className={overlayStyle} />
                   <div className={captionStyle}>
                     <h3 className={tileTitleStyle}>{category.name}</h3>

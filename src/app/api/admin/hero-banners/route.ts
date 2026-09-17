@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -80,6 +81,8 @@ export async function POST(request: NextRequest) {
       metadata: { title: banner.title },
     });
 
+    revalidateTag("homepage");
+
     return NextResponse.json({ banner });
   } catch (error) {
     console.error("Error creating hero banner:", error);
@@ -123,6 +126,8 @@ export async function PATCH(request: NextRequest) {
         }),
       ),
     );
+
+    revalidateTag("homepage");
 
     return NextResponse.json({ success: true, updated: validUpdates.length });
   } catch (error) {
@@ -187,6 +192,8 @@ export async function DELETE(request: NextRequest) {
         }),
       ),
     );
+
+    revalidateTag("homepage");
 
     return NextResponse.json({ success: true, deleted: banners.length });
   } catch (error) {

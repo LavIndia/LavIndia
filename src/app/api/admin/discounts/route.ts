@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -96,6 +97,8 @@ export async function POST(request: NextRequest) {
       entityId: discount.id,
       metadata: { code: discount.code },
     });
+
+    revalidateTag("homepage");
 
     return NextResponse.json({ discount });
   } catch (error: unknown) {

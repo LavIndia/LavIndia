@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -39,6 +39,8 @@ import {
   Minus,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  Layers,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -71,6 +73,7 @@ interface ProductsTableProps {
     category?: string;
     sort?: string;
     page?: string;
+    group?: string;
   };
   pagination: {
     page: number;
@@ -90,6 +93,8 @@ export function ProductsTable({
   const [search, setSearch] = useState(searchParams.search || "");
   const [category, setCategory] = useState(searchParams.category || "all");
   const [sort, setSort] = useState(searchParams.sort || "createdAt");
+  const grouped = searchParams.group === "1";
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [editingStock, setEditingStock] = useState<{
     [key: string]: number;
   }>({});
@@ -104,18 +109,48 @@ export function ProductsTable({
     categoryValue?: string,
     sortValue?: string,
     pageValue?: number,
+    groupValue?: boolean,
   ) => {
     const params = new URLSearchParams();
     const finalSearch = searchValue ?? search;
     const finalCategory = categoryValue ?? category;
     const finalSort = sortValue ?? sort;
+    const finalGrouped = groupValue ?? grouped;
 
     if (finalSearch) params.set("search", finalSearch);
     if (finalCategory !== "all") params.set("category", finalCategory);
     if (finalSort) params.set("sort", finalSort);
     if (pageValue && pageValue > 1) params.set("page", String(pageValue));
+    if (finalGrouped) params.set("group", "1");
     router.push(`/admin/products?${params.toString()}`);
   };
+
+  const toggleGrouped = () => {
+    applyFilters(undefined, undefined, undefined, undefined, !grouped);
+  };
+
+  const toggleCategoryCollapsed = (categoryId: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) next.delete(categoryId);
+      else next.add(categoryId);
+      return next;
+    });
+  };
+
+  const productGroups = grouped
+    ? Object.values(
+        products.reduce<Record<string, { category: Product["category"]; items: Product[] }>>(
+          (acc, product) => {
+            const key = product.category.id;
+            if (!acc[key]) acc[key] = { category: product.category, items: [] };
+            acc[key].items.push(product);
+            return acc;
+          },
+          {},
+        ),
+      ).sort((a, b) => a.category.name.localeCompare(b.category.name))
+    : [{ category: null, items: products }];
 
   const goToPage = (page: number) => {
     applyFilters(undefined, undefined, undefined, page);
@@ -356,6 +391,15 @@ export function ProductsTable({
         <Button onClick={handleSearch} className={css({ width: "full", md: { width: "auto" } })}>
           Search
         </Button>
+
+        <Button
+          variant={grouped ? "default" : "outline"}
+          onClick={toggleGrouped}
+          className={css({ width: "full", md: { width: "auto" } })}
+        >
+          <Layers className={css({ height: "4", width: "4" })} />
+          Group by category
+        </Button>
       </div>
 
       {/* Bulk action bar */}
@@ -424,9 +468,41 @@ export function ProductsTable({
             No products found
           </div>
         ) : (
-          products.map((product) => (
+          productGroups.map((group) => (
+            <div
+              key={group.category?.id ?? "all"}
+              className={css({ display: "flex", flexDirection: "column", gap: "3" })}
+            >
+              {group.category && (
+                <button
+                  type="button"
+                  onClick={() => toggleCategoryCollapsed(group.category!.id)}
+                  className={css({
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "2",
+                    fontWeight: "semibold",
+                    color: "fg.default",
+                    cursor: "pointer",
+                  })}
+                >
+                  <ChevronDown
+                    className={css({
+                      height: "4",
+                      width: "4",
+                      transition: "transform 0.15s ease",
+                      transform: collapsedCategories.has(group.category.id) ? "rotate(-90deg)" : "none",
+                    })}
+                  />
+                  {group.category.name}
+                  <Badge variant="outline">{group.items.length}</Badge>
+                </button>
+              )}
+              {!(group.category && collapsedCategories.has(group.category.id)) &&
+                group.items.map((product) => (
             <div
               key={product.id}
+              onClick={() => router.push(`/admin/products/${product.id}/edit`)}
               className={css({
                 borderRadius: "xl",
                 border: "1px solid",
@@ -436,6 +512,8 @@ export function ProductsTable({
                 display: "flex",
                 flexDirection: "column",
                 gap: "3",
+                cursor: "pointer",
+                "&:hover": { borderColor: "accent.default" },
               })}
             >
               <div className={css({ display: "flex", gap: "3", alignItems: "flex-start" })}>
@@ -443,6 +521,7 @@ export function ProductsTable({
                   aria-label={`Select ${product.name}`}
                   isSelected={selected.has(product.id)}
                   onChange={(isSelected) => toggleSelected(product.id, isSelected)}
+                  onClick={(e) => e.stopPropagation()}
                   className={css({ marginTop: "1" })}
                 />
                 {product.images[0] ? (
@@ -483,7 +562,10 @@ export function ProductsTable({
                     )}
                   </div>
                 </div>
-                <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
+                <div
+                  className={css({ display: "flex", flexDirection: "column", gap: "1" })}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Button variant="ghost" size="icon" asChild>
                     <Link href={`/admin/products/${product.id}/edit`} aria-label={`Edit ${product.name}`}>
                       <Pencil className={css({ height: "4", width: "4" })} />
@@ -501,6 +583,7 @@ export function ProductsTable({
               </div>
 
               <div
+                onClick={(e) => e.stopPropagation()}
                 className={css({
                   display: "flex",
                   alignItems: "center",
@@ -553,6 +636,8 @@ export function ProductsTable({
                 </Badge>
               </div>
             </div>
+                ))}
+            </div>
           ))
         )}
       </div>
@@ -600,9 +685,39 @@ export function ProductsTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
+                productGroups.map((group) => (
+                  <Fragment key={group.category?.id ?? "all"}>
+                    {group.category && (
+                      <TableRow
+                        onClick={() => toggleCategoryCollapsed(group.category!.id)}
+                        className={css({ cursor: "pointer", background: "bg.canvas" })}
+                      >
+                        <TableCell colSpan={8}>
+                          <div className={css({ display: "flex", alignItems: "center", gap: "2", fontWeight: "semibold" })}>
+                            <ChevronDown
+                              className={css({
+                                height: "4",
+                                width: "4",
+                                transition: "transform 0.15s ease",
+                                transform: collapsedCategories.has(group.category.id)
+                                  ? "rotate(-90deg)"
+                                  : "none",
+                              })}
+                            />
+                            {group.category.name}
+                            <Badge variant="outline">{group.items.length}</Badge>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!(group.category && collapsedCategories.has(group.category.id)) &&
+                      group.items.map((product) => (
+                  <TableRow
+                    key={product.id}
+                    onClick={() => router.push(`/admin/products/${product.id}/edit`)}
+                    className={css({ cursor: "pointer" })}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         aria-label={`Select ${product.name}`}
                         isSelected={selected.has(product.id)}
@@ -656,7 +771,7 @@ export function ProductsTable({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className={css({ display: "flex", alignItems: "center", gap: "1" })}>
                         <Button
                           variant="outline"
@@ -708,7 +823,10 @@ export function ProductsTable({
                         {product.isPublished ? "Published" : "Draft"}
                       </Badge>
                     </TableCell>
-                    <TableCell className={css({ textAlign: "right" })}>
+                    <TableCell
+                      className={css({ textAlign: "right" })}
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className={css({ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "2" })}>
                         <Button variant="ghost" size="icon" asChild>
                           <Link href={`/admin/products/${product.id}/edit`} aria-label={`Edit ${product.name}`}>
@@ -726,6 +844,8 @@ export function ProductsTable({
                       </div>
                     </TableCell>
                   </TableRow>
+                      ))}
+                  </Fragment>
                 ))
               )}
             </TableBody>
@@ -733,8 +853,8 @@ export function ProductsTable({
         </div>
       </div>
 
-      {/* Pagination */}
-      {pagination.totalCount > 0 && (
+      {/* Pagination — grouped view loads every matching product at once */}
+      {!grouped && pagination.totalCount > 0 && (
         <div
           className={css({
             display: "flex",

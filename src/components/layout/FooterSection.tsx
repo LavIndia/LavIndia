@@ -88,7 +88,8 @@ const bottomBarStyle = css({
 const bottomTextStyle = css({ fontSize: "sm", color: "fg.muted" });
 
 export function FooterSection() {
-  const { businessName, copyrightText } = useSiteSettings();
+  const { businessName, copyrightText, contactNumber, contactEmail, address, gstNumber } =
+    useSiteSettings();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -133,18 +134,26 @@ export function FooterSection() {
             </div>
 
             <div className={contactListStyle}>
-              <p>
-                <span className={contactLabelStyle}>Address:</span> India
-              </p>
-              <p>
-                <span className={contactLabelStyle}>Contact:</span> 1234565
-              </p>
-              <p>
-                <span className={contactLabelStyle}>Email:</span> xyz@gmail.com
-              </p>
-              <p>
-                <span className={contactLabelStyle}>GSTIN:</span> 678908767
-              </p>
+              {address && (
+                <p>
+                  <span className={contactLabelStyle}>Address:</span> {address}
+                </p>
+              )}
+              {contactNumber && (
+                <p>
+                  <span className={contactLabelStyle}>Contact:</span> {contactNumber}
+                </p>
+              )}
+              {contactEmail && (
+                <p>
+                  <span className={contactLabelStyle}>Email:</span> {contactEmail}
+                </p>
+              )}
+              {gstNumber && (
+                <p>
+                  <span className={contactLabelStyle}>GSTIN:</span> {gstNumber}
+                </p>
+              )}
             </div>
           </div>
 

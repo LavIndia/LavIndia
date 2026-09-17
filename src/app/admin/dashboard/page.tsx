@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { OrderStatus } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Package,
@@ -45,6 +46,63 @@ const statSubRowStyle = css({ marginTop: "1", display: "flex", alignItems: "cent
 const statSubTextStyle = css({ marginTop: "1", fontSize: "xs", color: "fg.muted" });
 const trendUpStyle = css({ color: "success" });
 const trendDownStyle = css({ color: "danger" });
+
+const REVENUE_STATUSES: OrderStatus[] = ["PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"];
+
+async function getSalesChartData() {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - 6);
+
+  const orders = await prisma.order.findMany({
+    where: { createdAt: { gte: start } },
+    select: { createdAt: true, totalCents: true, status: true },
+  });
+
+  return Array.from({ length: 7 }, (_, i) => {
+    const dayStart = new Date(start);
+    dayStart.setDate(start.getDate() + i);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+
+    const dayOrders = orders.filter(
+      (o) => o.createdAt >= dayStart && o.createdAt < dayEnd,
+    );
+    const sales =
+      dayOrders
+        .filter((o) => REVENUE_STATUSES.includes(o.status))
+        .reduce((sum, o) => sum + o.totalCents, 0) / 100;
+
+    return {
+      name: dayStart.toLocaleDateString("en-US", { weekday: "short" }),
+      sales,
+      orders: dayOrders.length,
+    };
+  });
+}
+
+const ORDER_STATUS_LABELS: { status: OrderStatus; label: string }[] = [
+  { status: "PENDING", label: "Pending" },
+  { status: "PROCESSING", label: "Processing" },
+  { status: "SHIPPED", label: "Shipped" },
+  { status: "OUT_FOR_DELIVERY", label: "Out for Delivery" },
+  { status: "DELIVERED", label: "Delivered" },
+  { status: "CANCELLED", label: "Cancelled" },
+  { status: "REFUNDED", label: "Refunded" },
+];
+
+async function getOrderStatusData() {
+  const grouped = await prisma.order.groupBy({
+    by: ["status"],
+    _count: { _all: true },
+  });
+  const countByStatus = new Map(grouped.map((g) => [g.status, g._count._all]));
+
+  return ORDER_STATUS_LABELS.map(({ status, label }) => ({
+    status: label,
+    count: countByStatus.get(status) ?? 0,
+  }));
+}
 
 async function getDashboardStats() {
   const [
@@ -102,9 +160,11 @@ async function getDashboardStats() {
 }
 
 export default async function AdminDashboard() {
-  const [stats, settings] = await Promise.all([
+  const [stats, settings, salesData, orderStatusData] = await Promise.all([
     getDashboardStats(),
     getSiteSettings(),
+    getSalesChartData(),
+    getOrderStatusData(),
   ]);
 
   return (
@@ -190,7 +250,7 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Charts */}
-      <DashboardCharts />
+      <DashboardCharts salesData={salesData} orderStatusData={orderStatusData} />
 
       {/* Recent Orders */}
       <RecentOrders />

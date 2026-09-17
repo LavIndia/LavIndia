@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { isNewArrival, isBestSeller } from "@/lib/product-tags";
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       const searchResults = await prisma.product.findMany({
         where: {
           isActive: true,
-          // isPublished: true, // Commented out for development
+          isPublished: true,
           name: {
             contains: search,
             mode: "insensitive",
@@ -85,16 +86,11 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: Prisma.ProductWhereInput = {
       isActive: true,
-      // Commenting out isPublished requirement for now to show all active products
-      // isPublished: true,
+      isPublished: true,
     };
 
-    if (category === "necklaces") {
-      where.category = { slug: "necklace" };
-    }
-
     // Add category filter
-    if (category && category !== "necklaces") {
+    if (category) {
       where.category = {
         slug: category,
       };
@@ -167,6 +163,7 @@ export async function GET(request: NextRequest) {
             orderBy: { stock: "desc" },
           },
           category: true,
+          _count: { select: { orderItems: true } },
         },
         orderBy,
         skip: offset,
@@ -188,6 +185,9 @@ export async function GET(request: NextRequest) {
       stock: product.stock || 0, // Add stock field
       sku: product.sku,
       isFeatured: product.isFeatured,
+      isLimitedEdition: product.isLimitedEdition,
+      isNewArrival: isNewArrival(product.createdAt),
+      isBestSeller: isBestSeller(product._count.orderItems),
         images: [product.images.find((image) => image.isPrimary) || product.images[0]]
           .filter(Boolean)
           .map((img) => ({

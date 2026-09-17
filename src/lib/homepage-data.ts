@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { syncHeroBannersFromStorage } from "@/lib/hero-banners";
@@ -12,6 +13,7 @@ function formatProducts(
     compareAtCents: number | null;
     stock: number;
     isFeatured: boolean;
+    isLimitedEdition: boolean;
     images: Array<{ url: string; alt: string | null }>;
   }>,
 ) {
@@ -24,6 +26,7 @@ function formatProducts(
     compareAtCents: product.compareAtCents,
     stock: product.stock,
     isFeatured: product.isFeatured,
+    isLimitedEdition: product.isLimitedEdition,
     images: product.images.map((img) => ({
       url: img.url,
       alt: img.alt || product.name,
@@ -57,7 +60,7 @@ export async function getActiveHeroBanners() {
 }
 
 export async function getFeaturedCategories() {
-  return prisma.category.findMany({
+  const categories = await prisma.category.findMany({
     where: { isFeatured: true },
     orderBy: { featuredOrder: "asc" },
     select: {
@@ -68,29 +71,56 @@ export async function getFeaturedCategories() {
       image: true,
       isFeatured: true,
       featuredOrder: true,
+      // Only needed as a display fallback for categories with no image of
+      // their own — mirrors the same fallback used in the admin category
+      // grid, instead of guessing a hardcoded asset path that may not exist.
+      products: {
+        where: { isActive: true, isPublished: true },
+        take: 1,
+        orderBy: { createdAt: "asc" },
+        select: {
+          images: {
+            orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
+            take: 1,
+            select: { url: true },
+          },
+        },
+      },
     },
   });
+
+  return categories.map(({ products, ...category }) => ({
+    ...category,
+    image: category.image ?? products[0]?.images[0]?.url ?? null,
+  }));
 }
 
 export async function getBestsellers() {
   let products = await prisma.product.findMany({
-    where: { isActive: true },
+    where: { isActive: true, isPublished: true, orderItems: { some: {} } },
     include: {
       images: { orderBy: { position: "asc" } },
     },
     orderBy: { orderItems: { _count: "desc" } },
   });
+  // Real sales data, not a guess — the "Bestseller" tag is only ever
+  // applied when a product has actually sold. A brand this level of
+  // clientele expects never sees a fabricated bestseller claim.
+  const hasRealSalesData = products.length > 0;
 
   if (products.length === 0) {
     products = await prisma.product.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isPublished: true },
       include: { images: { orderBy: { position: "asc" } } },
       orderBy: { createdAt: "desc" },
       take: 12,
     });
   }
 
-  return formatProducts(products);
+  return formatProducts(products).map((product) => ({
+    ...product,
+    isBestSeller: hasRealSalesData,
+  }));
 }
 
 export async function getNewArrivals() {
@@ -98,14 +128,17 @@ export async function getNewArrivals() {
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const products = await prisma.product.findMany({
-    where: { isActive: true, createdAt: { gte: thirtyDaysAgo } },
+    where: { isActive: true, isPublished: true, createdAt: { gte: thirtyDaysAgo } },
     include: {
       images: { orderBy: { position: "asc" } },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  return formatProducts(products);
+  return formatProducts(products).map((product) => ({
+    ...product,
+    isNewArrival: true,
+  }));
 }
 
 export async function getBudgetTiers() {
@@ -175,7 +208,20 @@ export async function getHomePageSections() {
   return prisma.homePageSection.findMany({ orderBy: { order: "asc" } });
 }
 
+// Cached as one unit — busted by revalidateTag("homepage") wherever an
+// admin mutates anything this pulls together (banners, categories,
+// products, budget tiers, discounts, settings, section order), plus a 60s
+// revalidate window as a safety net in case a tag invalidation is missed.
 export async function getHomepageData() {
+  const cached = unstable_cache(
+    fetchHomepageData,
+    ["homepage-data"],
+    { tags: ["homepage"], revalidate: 60 },
+  );
+  return cached();
+}
+
+async function fetchHomepageData() {
   const [
     topPromoBanners,
     freeGiftsBanners,

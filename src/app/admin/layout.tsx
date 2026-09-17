@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminTopbar } from "@/components/admin/AdminTopbar";
 import { AdminCommandPalette } from "@/components/admin/AdminCommandPalette";
+import { AdminBodyLock } from "@/components/admin/AdminBodyLock";
 import { css } from "styled-system/css";
 
 const shellStyle = css({
@@ -48,6 +49,7 @@ export default async function AdminLayout({
 
   return (
     <div className={shellStyle}>
+      <AdminBodyLock />
       <AdminSidebar />
       <div className={contentColStyle}>
         <AdminTopbar user={session.user} />

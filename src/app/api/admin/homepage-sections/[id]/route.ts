@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -34,6 +35,8 @@ export async function PUT(
       metadata: { name: section.name },
     });
 
+    revalidateTag("homepage");
+
     return NextResponse.json({ section });
   } catch (error) {
     console.error("Error updating homepage section:", error);
@@ -67,6 +70,8 @@ export async function DELETE(
       entityId: section.id,
       metadata: { name: section.name },
     });
+
+    revalidateTag("homepage");
 
     return NextResponse.json({ success: true });
   } catch (error) {

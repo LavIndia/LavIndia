@@ -26,5 +26,9 @@ export const getSiteSettings = cache(async () => {
     copyrightText: "© 2025 lavindia. All rights reserved.",
     metaTitle: null as string | null,
     metaDescription: null as string | null,
+    contactNumber: null as string | null,
+    email: null as string | null,
+    address: null as string | null,
+    gstNumber: null as string | null,
   };
 });

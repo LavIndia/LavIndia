@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
 
     if (successCount > 0) {
       revalidateTag("products");
+      revalidateTag("homepage");
     }
 
     return NextResponse.json({

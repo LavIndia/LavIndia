@@ -20,6 +20,7 @@ export async function GET(
       where: {
         OR: [{ slug: slug }, { id: slug }],
         isActive: true,
+        isPublished: true,
       },
       include: {
         images: {

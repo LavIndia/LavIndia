@@ -174,7 +174,7 @@ export function CouponsSection({
                       <span>Min. purchase: ₹{coupon.minPurchase / 100}</span>
                     )}
                     <span>
-                      Valid till: {new Date(coupon.endDate).toLocaleDateString()}
+                      Valid till: {new Date(coupon.endDate).toLocaleDateString("en-IN")}
                     </span>
                   </div>
                 </div>

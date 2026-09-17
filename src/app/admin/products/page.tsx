@@ -12,9 +12,13 @@ async function getProducts(searchParams: {
   category?: string;
   sort?: string;
   page?: string;
+  group?: string;
 }) {
   const { search, category, sort } = searchParams;
   const page = Math.max(1, parseInt(searchParams.page || "1", 10) || 1);
+  // Grouped-by-category view needs the whole filtered set at once — a
+  // page-sliced result would split a category's products across pages.
+  const grouped = searchParams.group === "1";
 
   const where: {
     OR?: Array<{
@@ -58,8 +62,7 @@ async function getProducts(searchParams: {
           take: 1,
         },
       },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
+      ...(grouped ? {} : { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     }),
     prisma.product.count({ where }),
   ]);
@@ -90,6 +93,7 @@ export default async function ProductsPage({
     category?: string;
     sort?: string;
     page?: string;
+    group?: string;
   }>;
 }) {
   const params = await searchParams;

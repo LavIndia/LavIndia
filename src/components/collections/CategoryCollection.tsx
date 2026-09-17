@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -28,6 +35,9 @@ interface Product {
   stock: number;
   sku: string | null;
   isFeatured: boolean;
+  isLimitedEdition: boolean;
+  isNewArrival: boolean;
+  isBestSeller: boolean;
   images: Array<{
     url: string;
     alt: string;
@@ -79,7 +89,10 @@ interface DynamicFilter {
   options: FilterOption[];
 }
 
-interface NecklacesCollectionProps {
+interface CategoryCollectionProps {
+  categorySlug: string;
+  categoryName: string;
+  categoryDescription: string | null;
   initialProducts: Product[];
   initialPagination: PaginationInfo;
   initialFilters: DynamicFilter[];
@@ -105,6 +118,7 @@ const heroTitleStyle = css({
   color: "fg.default",
   marginBottom: "4",
   textAlign: "center",
+  textTransform: "capitalize",
 });
 
 const heroSubtitleStyle = css({
@@ -184,7 +198,16 @@ const activeFiltersStyle = css({ marginBottom: "4", display: "flex", flexWrap: "
 
 const badgeContentStyle = css({ display: "inline-flex", alignItems: "center", gap: "1" });
 
-const resultsCountStyle = css({ marginBottom: "4", fontSize: "sm", color: "fg.muted" });
+const toolbarStyle = css({
+  marginBottom: "4",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "3",
+  flexWrap: "wrap",
+});
+
+const resultsCountStyle = css({ fontSize: "sm", color: "fg.muted" });
 
 const gridStyle = css({
   display: "grid",
@@ -270,11 +293,21 @@ function AttrFacets({
   );
 }
 
-export function NecklacesCollection({
+const SORT_OPTIONS = [
+  { value: "createdAt", label: "Newest First" },
+  { value: "priceCents-asc", label: "Price: Low to High" },
+  { value: "priceCents-desc", label: "Price: High to Low" },
+  { value: "name", label: "Name: A to Z" },
+];
+
+export function CategoryCollection({
+  categorySlug,
+  categoryName,
+  categoryDescription,
   initialProducts,
   initialPagination,
   initialFilters,
-}: NecklacesCollectionProps) {
+}: CategoryCollectionProps) {
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -282,6 +315,7 @@ export function NecklacesCollection({
     initialPagination
   );
   const [filters, setFilters] = useState<Filters>({ applied: {} });
+  const [sortBy, setSortBy] = useState("createdAt");
 
   // Filter states
   const [priceRange, setPriceRange] = useState<[number, number]>([100, 30000]);
@@ -296,8 +330,11 @@ export function NecklacesCollection({
     ((page?: number, append?: boolean) => Promise<void>) | null
   >(null);
 
-  // State to track filter changes
+  // State to track filter/sort changes
   const [filterChangeTrigger, setFilterChangeTrigger] = useState(0);
+
+  const apiSort = sortBy.startsWith("priceCents") ? "price" : sortBy;
+  const apiOrder = sortBy.endsWith("-asc") ? "asc" : "desc";
 
   const fetchProducts = useCallback(
     async (page = 1, append = false) => {
@@ -311,7 +348,9 @@ export function NecklacesCollection({
         const params = new URLSearchParams({
           page: page.toString(),
           limit: "30",
-          category: "necklaces",
+          category: categorySlug,
+          sort: apiSort,
+          order: apiOrder,
         });
 
         if (filters.applied.priceMin)
@@ -331,8 +370,6 @@ export function NecklacesCollection({
         }
 
         setPagination(data.pagination);
-        // Don't update filters from API response to prevent loops
-        // setFilters(data.filters)
         currentPageRef.current = page;
       } catch (error) {
         console.error("Error fetching products:", error);
@@ -342,7 +379,7 @@ export function NecklacesCollection({
         isFetchingRef.current = false;
       }
     },
-    [filters.applied]
+    [filters.applied, categorySlug, apiSort, apiOrder]
   );
 
   // Update the ref when fetchProducts changes
@@ -390,8 +427,8 @@ export function NecklacesCollection({
     setFilterChangeTrigger((prev) => prev + 1);
   };
 
-  // Refetch when filters change (skip the very first run — initial data
-  // already arrived server-rendered via props)
+  // Refetch when filters or sort change (skip the very first run —
+  // initial data already arrived server-rendered via props)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -403,7 +440,8 @@ export function NecklacesCollection({
       currentPageRef.current = 1;
       fetchProductsRef.current(1, false);
     }
-  }, [filterChangeTrigger]); // Only trigger on user filter changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterChangeTrigger, sortBy]);
 
   const toggleAttr = (value: string, checked: boolean) => {
     if (checked) {
@@ -412,6 +450,21 @@ export function NecklacesCollection({
       setSelectedAttrs((prev) => prev.filter((v) => v !== value));
     }
   };
+
+  const SortSelect = (
+    <Select value={sortBy} onValueChange={setSortBy}>
+      <SelectTrigger className={css({ width: "48" })}>
+        <SelectValue placeholder="Sort by" />
+      </SelectTrigger>
+      <SelectContent>
+        {SORT_OPTIONS.map((opt) => (
+          <SelectItem key={opt.value} value={opt.value}>
+            {opt.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
   return (
     <div className={css({ minHeight: "100vh", background: "bg.canvas" })}>
@@ -422,10 +475,10 @@ export function NecklacesCollection({
             <BreadcrumbNavigation />
           </div>
           <div>
-            <h1 className={heroTitleStyle}>Necklaces Collection</h1>
+            <h1 className={heroTitleStyle}>{categoryName} Collection</h1>
             <p className={heroSubtitleStyle}>
-              Discover our exquisite collection of handcrafted necklaces, each piece
-              telling a story of tradition and elegance.
+              {categoryDescription ||
+                `Discover our exquisite collection of handcrafted ${categoryName.toLowerCase()}, each piece telling a story of tradition and elegance.`}
             </p>
           </div>
         </div>
@@ -552,12 +605,17 @@ export function NecklacesCollection({
               </div>
             )}
 
-            {/* Products Count */}
-            {pagination && (
-              <div className={resultsCountStyle}>
-                Showing {products.length} of {pagination.totalCount} necklaces
-              </div>
-            )}
+            {/* Results count + Sort */}
+            <div className={toolbarStyle}>
+              {pagination ? (
+                <span className={resultsCountStyle}>
+                  Showing {products.length} of {pagination.totalCount} products
+                </span>
+              ) : (
+                <span className={resultsCountStyle} />
+              )}
+              {SortSelect}
+            </div>
 
             {/* Loading Skeleton */}
             {loading && (
@@ -588,6 +646,9 @@ export function NecklacesCollection({
                     compareAtPrice={product.compareAtPrice}
                     images={product.images}
                     isFeatured={product.isFeatured}
+                    isLimitedEdition={product.isLimitedEdition}
+                    isNewArrival={product.isNewArrival}
+                    isBestSeller={product.isBestSeller}
                     stock={product.stock}
                     variants={product.variants}
                   />
@@ -599,7 +660,7 @@ export function NecklacesCollection({
             {!loading && products.length === 0 && (
               <div className={emptyStateStyle}>
                 <p className={css({ color: "fg.muted" })}>
-                  No necklaces found matching your criteria.
+                  No products found in {categoryName}.
                 </p>
                 <Button onClick={clearFilters} className={css({ marginTop: "4" })}>
                   Clear Filters

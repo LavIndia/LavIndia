@@ -68,6 +68,7 @@ export async function PATCH(req: NextRequest) {
     });
 
     revalidateTag("site-settings");
+    revalidateTag("homepage");
 
     return NextResponse.json(settings);
   } catch (error) {

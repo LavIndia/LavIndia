@@ -17,6 +17,8 @@ interface Product {
   stock: number;
   images: Array<{ url: string; alt: string }>;
   isFeatured: boolean;
+  isLimitedEdition: boolean;
+  isNewArrival: boolean;
 }
 
 const sectionStyle = css({
@@ -171,6 +173,8 @@ export function NewArrivalsSection({
                     }
                     images={product.images}
                     isFeatured={product.isFeatured}
+                    isLimitedEdition={product.isLimitedEdition}
+                    isNewArrival={product.isNewArrival}
                     stock={product.stock}
                   />
                 </motion.div>

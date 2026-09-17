@@ -8,6 +8,24 @@
   scrollbar-width: none;
 }
 
+/* The admin shell (src/app/admin/layout.tsx) locks itself to 100vh and only
+   scrolls its own inner panel — but overlay portals (Select/dropdown menus
+   from react-aria-components) render straight to document.body by default,
+   as siblings of that shell rather than descendants. A popover opened deep
+   in a long admin form can be positioned past the shell's boundary and,
+   since nothing clips it, inflate the real page's scroll height — visible
+   as blank space when scrolling the actual browser window. Locking the
+   root document itself while an admin page is mounted closes that gap for
+   good, regardless of what any current or future portal does. Scoped to
+   admin routes only (via the .admin-shell-active class from
+   src/components/admin/AdminBodyLock.tsx) so the storefront's normal
+   full-page scrolling is untouched. */
+html.admin-shell-active,
+body.admin-shell-active {
+  height: 100%;
+  overflow: hidden;
+}
+
 @layer utilities {
   .line-clamp-1 {
     overflow: hidden;

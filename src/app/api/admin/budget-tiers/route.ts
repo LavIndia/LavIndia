@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -60,6 +61,8 @@ export async function POST(request: NextRequest) {
       entityId: tier.id,
       metadata: { title: tier.title, maxPrice: tier.maxPrice },
     });
+
+    revalidateTag("homepage");
 
     return NextResponse.json({ tier });
   } catch (error) {

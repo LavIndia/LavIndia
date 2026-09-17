@@ -32,6 +32,7 @@ export async function PATCH(
     });
 
     revalidateTag("products");
+    revalidateTag("homepage");
 
     return NextResponse.json(image);
   } catch {
@@ -70,6 +71,7 @@ export async function DELETE(
     }
 
     revalidateTag("products");
+    revalidateTag("homepage");
 
     return NextResponse.json({ message: "Image deleted" });
   } catch {

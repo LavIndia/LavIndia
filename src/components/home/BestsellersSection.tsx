@@ -17,6 +17,8 @@ interface Product {
   stock: number;
   images: Array<{ url: string; alt: string }>;
   isFeatured: boolean;
+  isLimitedEdition: boolean;
+  isBestSeller: boolean;
 }
 
 const sectionStyle = css({ paddingY: "12", md: { paddingY: "16" }, background: "bg.canvas" });
@@ -166,6 +168,8 @@ export function BestsellersSection({
                     }
                     images={product.images}
                     isFeatured={product.isFeatured}
+                    isLimitedEdition={product.isLimitedEdition}
+                    isBestSeller={product.isBestSeller}
                     stock={product.stock}
                   />
                 </motion.div>

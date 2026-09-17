@@ -39,6 +39,7 @@ export async function POST(
     });
 
     revalidateTag("products");
+    revalidateTag("homepage");
 
     return NextResponse.json(image, { status: 201 });
   } catch (error) {

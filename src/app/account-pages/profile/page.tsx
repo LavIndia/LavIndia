@@ -624,7 +624,7 @@ export default function ProfilePage() {
                           <CardTitle>Order #{order.orderNumber}</CardTitle>
                           <CardDescription>
                             Placed on{" "}
-                            {new Date(order.createdAt).toLocaleDateString()}
+                            {new Date(order.createdAt).toLocaleDateString("en-IN")}
                           </CardDescription>
                         </div>
                         <span className={statusToneStyle({ tone: statusTone(order.status) })}>
@@ -831,7 +831,7 @@ export default function ProfilePage() {
                           </p>
                         </div>
                         <p className={css({ fontSize: "xs", color: "fg.muted", whiteSpace: "nowrap" })}>
-                          {new Date(event.createdAt).toLocaleString()}
+                          {new Date(event.createdAt).toLocaleString("en-IN")}
                         </p>
                       </CardContent>
                     </Card>

@@ -91,6 +91,19 @@ async function getAnalytics() {
       }),
     ]);
 
+  const productIds = topProducts.map((item) => item.productId);
+  const images = productIds.length
+    ? await prisma.productImage.findMany({
+        where: { productId: { in: productIds }, variantId: null },
+        orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
+        select: { productId: true, url: true },
+      })
+    : [];
+  const imageByProductId = new Map<string, string>();
+  for (const img of images) {
+    if (!imageByProductId.has(img.productId)) imageByProductId.set(img.productId, img.url);
+  }
+
   return {
     totalRevenue: totalRevenue._sum.totalCents || 0,
     ordersCount,
@@ -100,6 +113,7 @@ async function getAnalytics() {
       name: item.name,
       quantitySold: item._sum.quantity || 0,
       revenue: item._sum.priceCents || 0,
+      image: imageByProductId.get(item.productId) ?? null,
     })),
   };
 }

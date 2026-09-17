@@ -15,24 +15,10 @@ import {
 } from "recharts";
 import { css } from "styled-system/css";
 
-// Mock data - will be replaced with real data
-const salesData = [
-  { name: "Mon", sales: 4000, orders: 24 },
-  { name: "Tue", sales: 3000, orders: 18 },
-  { name: "Wed", sales: 5000, orders: 32 },
-  { name: "Thu", sales: 2780, orders: 16 },
-  { name: "Fri", sales: 1890, orders: 12 },
-  { name: "Sat", sales: 2390, orders: 14 },
-  { name: "Sun", sales: 3490, orders: 22 },
-];
-
-const orderStatusData = [
-  { status: "Pending", count: 12 },
-  { status: "Processing", count: 28 },
-  { status: "Shipped", count: 45 },
-  { status: "Delivered", count: 156 },
-  { status: "Cancelled", count: 8 },
-];
+interface DashboardChartsProps {
+  salesData: { name: string; sales: number; orders: number }[];
+  orderStatusData: { status: string; count: number }[];
+}
 
 // Recharts renders its own SVG and cannot consume Panda's css() tokens, so
 // these are the literal hex values from panda.config.ts's jewellery palette
@@ -47,7 +33,7 @@ const gridStyle = css({
   fontSize: "xs",
 });
 
-export function DashboardCharts() {
+export function DashboardCharts({ salesData, orderStatusData }: DashboardChartsProps) {
   return (
     <div className={css({ display: "grid", gap: "4", md: { gridTemplateColumns: "repeat(2, 1fr)" } })}>
       {/* Sales Chart */}

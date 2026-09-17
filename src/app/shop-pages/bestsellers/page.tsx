@@ -27,6 +27,8 @@ interface Product {
   stock: number;
   images: Array<{ url: string; alt: string }>;
   isFeatured: boolean;
+  isLimitedEdition: boolean;
+  isBestSeller: boolean;
   category?: {
     name: string;
     slug: string;
@@ -313,6 +315,9 @@ export default function BestsellersPage() {
                   product.compareAtCents ? product.compareAtCents / 100 : null
                 }
                 images={product.images}
+                isFeatured={product.isFeatured}
+                isLimitedEdition={product.isLimitedEdition}
+                isBestSeller={product.isBestSeller}
                 stock={product.stock}
               />
             ))}

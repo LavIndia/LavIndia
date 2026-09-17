@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { isBestSeller } from "@/lib/product-tags";
 
 export async function GET() {
   try {
@@ -7,7 +8,7 @@ export async function GET() {
     const products = await prisma.product.findMany({
       where: {
         isActive: true,
-        // isPublished: true, // Commented out for development
+        isPublished: true,
       },
       include: {
         images: {
@@ -35,6 +36,8 @@ export async function GET() {
       compareAtCents: product.compareAtCents,
       stock: product.stock,
       isFeatured: product.isFeatured,
+      isLimitedEdition: product.isLimitedEdition,
+      isBestSeller: isBestSeller(product._count.orderItems),
       images: product.images.map((img) => ({
         url: img.url,
         alt: img.alt || product.name,

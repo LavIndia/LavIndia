@@ -8,6 +8,8 @@ const categorySchema = z.object({
   name: z.string().min(1),
   slug: z.string().min(1),
   description: z.string().optional().nullable(),
+  isFeatured: z.boolean().optional(),
+  featuredOrder: z.number().int().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -34,6 +36,7 @@ export async function POST(req: NextRequest) {
     });
 
     revalidateTag("products");
+    revalidateTag("homepage");
 
     return NextResponse.json(category, { status: 201 });
   } catch (error) {

@@ -59,7 +59,7 @@ const slideLinkStyle = css({
 
 const navButtonStyle = css({
   position: "absolute",
-  top: "1/2",
+  top: "50%",
   zIndex: "10",
   transform: "translateY(-50%)",
   display: "inline-flex",
@@ -85,7 +85,7 @@ const dotsWrapStyle = css({
   position: "absolute",
   bottom: "3",
   md: { bottom: "5" },
-  left: "1/2",
+  left: "50%",
   zIndex: "10",
   transform: "translateX(-50%)",
   display: "flex",
@@ -194,33 +194,38 @@ export function HeroBanner({
             </CarouselItem>
           ))}
         </CarouselContent>
-        {count > 1 && (
-          <>
-            <button
-              type="button"
-              className={cx(navButtonStyle, css({ left: "2", md: { left: "4" } }))}
-              onClick={() => {
-                api?.scrollPrev();
-                api?.plugins().autoplay?.reset();
-              }}
-              aria-label="Previous slide"
-            >
-              <ChevronLeft className={css({ height: "4", width: "4", md: { height: "5", width: "5" } })} />
-            </button>
-            <button
-              type="button"
-              className={cx(navButtonStyle, css({ right: "2", md: { right: "4" } }))}
-              onClick={() => {
-                api?.scrollNext();
-                api?.plugins().autoplay?.reset();
-              }}
-              aria-label="Next slide"
-            >
-              <ChevronRight className={css({ height: "4", width: "4", md: { height: "5", width: "5" } })} />
-            </button>
-          </>
-        )}
       </Carousel>
+      {/* Nav buttons live directly on the section (like the dots below,
+          which already position correctly) instead of nested inside
+          Carousel's own percentage-height wrapper — that extra layer of
+          height:"full" resolution was the likely cause of them drifting to
+          the bottom of the hero instead of staying vertically centered. */}
+      {count > 1 && (
+        <>
+          <button
+            type="button"
+            className={cx(navButtonStyle, css({ left: "2", md: { left: "4" } }))}
+            onClick={() => {
+              api?.scrollPrev();
+              api?.plugins().autoplay?.reset();
+            }}
+            aria-label="Previous slide"
+          >
+            <ChevronLeft className={css({ height: "4", width: "4", md: { height: "5", width: "5" } })} />
+          </button>
+          <button
+            type="button"
+            className={cx(navButtonStyle, css({ right: "2", md: { right: "4" } }))}
+            onClick={() => {
+              api?.scrollNext();
+              api?.plugins().autoplay?.reset();
+            }}
+            aria-label="Next slide"
+          >
+            <ChevronRight className={css({ height: "4", width: "4", md: { height: "5", width: "5" } })} />
+          </button>
+        </>
+      )}
       {count > 1 && (
         <div className={dotsWrapStyle}>
           {Array.from({ length: count }, (_, index) => (

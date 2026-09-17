@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <defs>
+    <linearGradient id="lavindia-gold" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f6d888"/>
+      <stop offset="0.5" stop-color="#c9973f"/>
+      <stop offset="1" stop-color="#8a651f"/>
+    </linearGradient>
+  </defs>
+  <!-- Faceted gem mark: a simple, scalable emblem instead of a squeezed-down wordmark -->
+  <path
+    d="M24 4 L38 16 L24 44 L10 16 Z"
+    fill="url(#lavindia-gold)"
+  />
+  <path
+    d="M24 4 L38 16 L24 24 L10 16 Z"
+    fill="#ffffff"
+    fill-opacity="0.28"
+  />
+  <path d="M10 16 L38 16" stroke="#5c421a" stroke-opacity="0.35" stroke-width="0.75"/>
+  <path d="M24 4 L24 44" stroke="#5c421a" stroke-opacity="0.25" stroke-width="0.75"/>
+  <path d="M17 16 L24 44" stroke="#5c421a" stroke-opacity="0.2" stroke-width="0.6"/>
+  <path d="M31 16 L24 44" stroke="#5c421a" stroke-opacity="0.2" stroke-width="0.6"/>
+</svg>

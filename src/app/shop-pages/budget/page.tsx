@@ -27,6 +27,9 @@ interface Product {
   stock: number;
   images: Array<{ url: string; alt: string }>;
   isFeatured: boolean;
+  isLimitedEdition: boolean;
+  isNewArrival: boolean;
+  isBestSeller: boolean;
   category: { name: string };
 }
 
@@ -215,6 +218,9 @@ function BudgetShopContent() {
                     }
                     images={product.images}
                     isFeatured={product.isFeatured}
+                    isLimitedEdition={product.isLimitedEdition}
+                    isNewArrival={product.isNewArrival}
+                    isBestSeller={product.isBestSeller}
                     stock={product.stock}
                   />
                 ))}

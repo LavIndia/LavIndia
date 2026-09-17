@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -96,6 +97,8 @@ export async function PUT(
       metadata: { title: banner.title },
     });
 
+    revalidateTag("homepage");
+
     return NextResponse.json({ banner });
   } catch (error) {
     console.error("Error updating hero banner:", error);
@@ -129,6 +132,8 @@ export async function DELETE(
       entityId: banner.id,
       metadata: { title: banner.title },
     });
+
+    revalidateTag("homepage");
 
     return NextResponse.json({ success: true });
   } catch (error) {

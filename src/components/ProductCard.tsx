@@ -8,6 +8,7 @@ import { Heart } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import AddToCartButton from "@/components/cart/AddToCartButton";
+import { ShareButton } from "@/components/ShareButton";
 import { css, cx } from "styled-system/css";
 
 interface ProductCardProps {
@@ -19,6 +20,9 @@ interface ProductCardProps {
   compareAtPrice?: number | null;
   images: Array<{ url: string; alt: string }>;
   isFeatured?: boolean;
+  isNewArrival?: boolean;
+  isBestSeller?: boolean;
+  isLimitedEdition?: boolean;
   isWishlisted?: boolean;
   stock?: number;
   variants?: Array<{
@@ -77,6 +81,25 @@ const wishlistButtonStyle = cx(
   })
 );
 
+const shareButtonStyle = css({
+  position: "absolute",
+  top: "14",
+  right: "3",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "full",
+  padding: "2",
+  cursor: "pointer",
+  background: "bg.glassStrong",
+  backdropBlur: "glassSm",
+  color: "fg.muted",
+  transition: "all 0.2s ease",
+  "&:hover": { background: "bg.glass", color: "accent.pressed" },
+});
+
+const shareIconStyle = css({ width: "4.5", height: "4.5" });
+
 const wishlistActiveStyle = css({
   background: "danger",
   color: "white",
@@ -110,6 +133,47 @@ const compareAtStyle = css({ fontSize: "xs", color: "fg.muted", textDecoration: 
 
 const lowStockStyle = css({ marginTop: "1", fontSize: "xs", fontWeight: "medium", color: "gold.600" });
 
+// One quiet tag, not a wall of stickers — a card carrying every eligible
+// label at once reads as discount-bin, not atelier. Rank the most telling
+// claim first and show only that.
+const tagStyle = css({
+  position: "absolute",
+  top: "3",
+  left: "3",
+  paddingInline: "2.5",
+  paddingBlock: "1",
+  borderRadius: "full",
+  fontSize: "2xs",
+  fontWeight: "semibold",
+  letterSpacing: "wider",
+  textTransform: "uppercase",
+  backdropBlur: "glassSm",
+});
+
+const tagFeaturedStyle = css({
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+  color: "fg.onGold",
+});
+
+const tagLimitedStyle = css({
+  background: "rgba(24,22,20,0.82)",
+  color: "gold.200",
+  border: "1px solid",
+  borderColor: "gold.400",
+});
+
+const tagBestSellerStyle = css({
+  background: "rgba(24,22,20,0.78)",
+  color: "ivory.50",
+});
+
+const tagNewArrivalStyle = css({
+  background: "bg.glassStrong",
+  color: "fg.default",
+  border: "1px solid",
+  borderColor: "border.glass",
+});
+
 export function ProductCard({
   id,
   name,
@@ -118,9 +182,21 @@ export function ProductCard({
   compareAtPrice,
   images,
   isFeatured,
+  isNewArrival,
+  isBestSeller,
+  isLimitedEdition,
   isWishlisted = false,
   stock = 0,
 }: ProductCardProps) {
+  const tag = isLimitedEdition
+    ? { label: "Limited Edition", style: tagLimitedStyle }
+    : isBestSeller
+      ? { label: "Bestseller", style: tagBestSellerStyle }
+      : isNewArrival
+        ? { label: "New Arrival", style: tagNewArrivalStyle }
+        : isFeatured
+          ? { label: "Featured", style: tagFeaturedStyle }
+          : null;
   const mainImage = images[0];
   const { data: session } = useSession();
   const [wishlisted, setWishlisted] = useState(isWishlisted);
@@ -196,13 +272,15 @@ export function ProductCard({
           />
         </button>
 
-        {isFeatured && (
-          <Badge
-            className={css({ position: "absolute", top: "3", left: "3" })}
-          >
-            Featured
-          </Badge>
-        )}
+        <ShareButton
+          title={name}
+          text={`Check out ${name} on LavIndia`}
+          url={`/product/${slug}`}
+          className={shareButtonStyle}
+          iconClassName={shareIconStyle}
+        />
+
+        {tag && <span className={cx(tagStyle, tag.style)}>{tag.label}</span>}
 
         {stock === 0 && (
           <Badge

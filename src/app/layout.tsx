@@ -7,6 +7,7 @@ import { AuthDialogProvider } from "@/components/auth/AuthDialogProvider";
 import { Toaster } from "sonner";
 import { SiteSettingsProvider } from "@/components/providers/SiteSettingsProvider";
 import { getSiteSettings } from "@/lib/site-settings";
+import { getFeaturedCategories } from "@/lib/homepage-data";
 import { css } from "styled-system/css";
 
 const bodyStyle = css({
@@ -33,6 +34,18 @@ const geistMono = Geist_Mono({
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
   return {
+    // Lets every page's relative OG/Twitter image paths (e.g. a product
+    // photo at "/assets/...") resolve to an absolute URL, which social
+    // apps and messaging previews require. NEXTAUTH_URL wins if it's set
+    // (set it explicitly if the Vercel fallback domain is what's actually
+    // live); otherwise the real custom domain in production, localhost in
+    // local dev.
+    metadataBase: new URL(
+      process.env.NEXTAUTH_URL ||
+        (process.env.NODE_ENV === "production"
+          ? "https://shoplavindia.com"
+          : "http://localhost:8002"),
+    ),
     title: settings.metaTitle || settings.businessName,
     description:
       settings.metaDescription || "Luxury handcrafted jewelry from India",
@@ -44,7 +57,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const settings = await getSiteSettings();
+  const [settings, featuredCategories] = await Promise.all([
+    getSiteSettings(),
+    getFeaturedCategories(),
+  ]);
 
   return (
     <html
@@ -57,6 +73,15 @@ export default async function RootLayout({
           value={{
             businessName: settings.businessName,
             copyrightText: settings.copyrightText,
+            navCategories: featuredCategories.map((c) => ({
+              id: c.id,
+              name: c.name,
+              slug: c.slug,
+            })),
+            contactNumber: settings.contactNumber,
+            contactEmail: settings.email,
+            address: settings.address,
+            gstNumber: settings.gstNumber,
           }}
         >
           <SessionProvider>

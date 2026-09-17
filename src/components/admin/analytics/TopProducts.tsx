@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { css } from "styled-system/css";
 import {
   Card,
@@ -54,6 +57,7 @@ const productCell = css({
 });
 
 export function TopProducts({ products }: { products: Product[] }) {
+  const router = useRouter();
   const formatPrice = (cents: number) => {
     return `₹${(cents / 100).toLocaleString("en-IN")}`;
   };
@@ -89,7 +93,11 @@ export function TopProducts({ products }: { products: Product[] }) {
                 </TableRow>
               ) : (
                 products.map((product, index) => (
-                  <TableRow key={product.productId}>
+                  <TableRow
+                    key={product.productId}
+                    onClick={() => router.push(`/admin/products/${product.productId}/edit`)}
+                    className={css({ cursor: "pointer" })}
+                  >
                     <TableCell>
                       <Badge variant={index === 0 ? "default" : "outline"}>
                         #{index + 1}

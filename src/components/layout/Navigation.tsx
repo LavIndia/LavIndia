@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   NavigationMenu,
@@ -5,6 +7,7 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
 } from "@/components/ui/navigation-menu";
+import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import { css, cx } from "styled-system/css";
 
 const listStyle = css({ display: "flex", gap: "8" });
@@ -34,25 +37,16 @@ const linkStyle = css({
   "&:hover::after, &[data-hovered]::after": { transform: "scaleX(1)" },
 });
 
-// Static — this is fixed top-level navigation for the three collections
-// featured site-wide. It previously round-tripped to /api/categories/featured
-// on every single page load just to re-render the same three links; that was
-// pure waste (an extra request + client JS + a loading flash for content that
-// never actually changed), so this is now a plain server component with zero
-// client-side fetch. If featured categories ever need to be truly dynamic
-// here, thread them down as a prop from a server-rendered parent instead of
-// re-introducing a client fetch.
-const CATEGORIES = [
-  { id: "earrings", name: "Earrings", slug: "earrings" },
-  { id: "necklaces", name: "Necklaces", slug: "necklaces" },
-  { id: "rings", name: "Rings", slug: "rings" },
-];
-
 export function Navigation() {
+  // Featured categories are fetched once, server-side, in the root layout
+  // and handed down via context — so every admin-created category marked
+  // "Show in navigation" appears here without a per-page client fetch.
+  const { navCategories } = useSiteSettings();
+
   return (
     <NavigationMenu>
       <NavigationMenuList className={listStyle}>
-        {CATEGORIES.map((category) => (
+        {navCategories.map((category) => (
           <NavigationMenuItem key={category.id}>
             <NavigationMenuLink asChild>
               <Link href={`/${category.slug}`} className={cx(linkStyle, "linkHover")}>

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { CategoriesHeader } from "@/components/admin/categories/CategoriesHeader";
-import { CategoriesTable } from "@/components/admin/categories/CategoriesTable";
+import { CategoryCards } from "@/components/admin/categories/CategoryCards";
 import { css } from "styled-system/css";
 
 async function getCategories() {
@@ -9,11 +9,27 @@ async function getCategories() {
       _count: {
         select: { products: true },
       },
+      // Only needed as a display fallback for categories with no image of
+      // their own — see the `image` mapping below.
+      products: {
+        take: 1,
+        orderBy: { createdAt: "asc" },
+        select: {
+          images: {
+            orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
+            take: 1,
+            select: { url: true },
+          },
+        },
+      },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ featuredOrder: "asc" }, { name: "asc" }],
   });
 
-  return categories;
+  return categories.map(({ products, ...category }) => ({
+    ...category,
+    image: category.image ?? products[0]?.images[0]?.url ?? null,
+  }));
 }
 
 export default async function CategoriesPage() {
@@ -21,8 +37,8 @@ export default async function CategoriesPage() {
 
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
-      <CategoriesHeader />
-      <CategoriesTable categories={categories} />
+      <CategoriesHeader nextOrder={categories.length} />
+      <CategoryCards categories={categories} />
     </div>
   );
 }

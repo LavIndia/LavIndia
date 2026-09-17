@@ -15,18 +15,9 @@ const nextConfig: NextConfig = {
     return [
       ...(storageRewrite ? [storageRewrite] : []),
       // Shop pages - maintain original URLs
-      {
-        source: "/earrings",
-        destination: "/shop-pages/earrings",
-      },
-      {
-        source: "/necklaces",
-        destination: "/shop-pages/necklaces",
-      },
-      {
-        source: "/rings",
-        destination: "/shop-pages/rings",
-      },
+      // (/earrings, /necklaces, /rings are handled directly by the generic
+      // src/app/[category]/page.tsx now, same as any other category — no
+      // rewrite needed)
       {
         source: "/bestsellers",
         destination: "/shop-pages/bestsellers",
