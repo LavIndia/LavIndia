@@ -29,6 +29,10 @@ const checkboxStyle = css({
     background: "bg.surface",
     color: "fg.onGold",
     transition: "background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
+    // Decorative only — pointer-events must fall through to the real
+    // (visually hidden) <input> underneath, otherwise clicks on the visible
+    // box never reach the input and the checkbox is inert.
+    pointerEvents: "none",
   },
   "& .box svg": {
     width: "3",

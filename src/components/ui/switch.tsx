@@ -23,6 +23,10 @@ const switchStyle = css({
     background: "border.subtle",
     border: "1px solid transparent",
     transition: "background 0.18s ease",
+    // Decorative only — pointer-events must fall through to the real
+    // (visually hidden) <input> underneath, otherwise clicks/taps on the
+    // visible track never reach the input and the switch is inert.
+    pointerEvents: "none",
   },
   "& .thumb": {
     width: "3.5",
@@ -32,6 +36,7 @@ const switchStyle = css({
     boxShadow: "card",
     transform: "translateX(0)",
     transition: "transform 0.18s ease, background 0.18s ease",
+    pointerEvents: "none",
   },
   "&[data-selected] .track": {
     background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
