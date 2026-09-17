@@ -70,13 +70,13 @@ async function getDashboardStats() {
     prisma.order.aggregate({
       _sum: { totalCents: true },
       where: {
-        status: { in: ["PROCESSING", "SHIPPED", "DELIVERED"] },
+        status: { in: ["PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
       },
     }),
     prisma.order.aggregate({
       _sum: { totalCents: true },
       where: {
-        status: { in: ["PROCESSING", "SHIPPED", "DELIVERED"] },
+        status: { in: ["PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
         createdAt: {
           gte: new Date(new Date().setMonth(new Date().getMonth() - 1)),
           lt: new Date(new Date().setDate(1)),

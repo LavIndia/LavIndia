@@ -51,9 +51,12 @@ async function getAnalytics() {
 
   const [totalRevenue, ordersCount, customersCount, topProducts] =
     await Promise.all([
-      // Total revenue (completed orders)
+      // Total revenue (same definition as Dashboard: orders past PENDING that
+      // weren't cancelled/refunded, regardless of COD vs. online payment status)
       prisma.order.aggregate({
-        where: { paymentStatus: "COMPLETED" },
+        where: {
+          status: { in: ["PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
+        },
         _sum: { totalCents: true },
       }),
 

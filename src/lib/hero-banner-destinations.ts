@@ -16,7 +16,7 @@ function labelFromSlug(slug: string) {
 export async function getHeroBannerDestinations(): Promise<
   HeroBannerDestination[]
 > {
-  const shopPagesDirectory = path.join(process.cwd(), "app", "shop-pages");
+  const shopPagesDirectory = path.join(process.cwd(), "src", "app", "shop-pages");
   const entries = await readdir(shopPagesDirectory, { withFileTypes: true });
   const pageDestinations = entries
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith("["))

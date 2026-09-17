@@ -15,8 +15,8 @@ export const siteSettings = {
   codAvailable: true,
   customerCount: "9L+",
   rating: "4.8",
-  supportHoursStart: "10:30 AM",
-  supportHoursEnd: "5:30 PM",
+  supportHoursStart: "10:30",
+  supportHoursEnd: "17:30",
   metaTitle: "Lavish India - Premium Indian Jewelry",
   metaDescription:
     "Shop beautiful handcrafted jewelry with traditional Indian designs. Earrings, necklaces, rings and more.",

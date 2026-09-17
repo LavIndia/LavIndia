@@ -38,16 +38,19 @@ async function getCustomers() {
   });
 
   return customers.map((customer) => {
-    const completedOrders = customer.orders.filter(
-      (order) => order.paymentStatus === "COMPLETED",
+    // Same definition as Dashboard/Analytics revenue: orders past PENDING that
+    // weren't cancelled/refunded, regardless of COD vs. online payment status.
+    const completedOrders = customer.orders.filter((order) =>
+      ["PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(
+        order.status,
+      ),
     );
 
     const successfulOrders = customer.orders.filter(
       (order) =>
-        order.paymentStatus === "COMPLETED" &&
-        (order.status === "DELIVERED" ||
-          order.status === "SHIPPED" ||
-          order.status === "OUT_FOR_DELIVERY"),
+        order.status === "DELIVERED" ||
+        order.status === "SHIPPED" ||
+        order.status === "OUT_FOR_DELIVERY",
     );
 
     const returnedOrders = customer.orders.filter(

@@ -498,8 +498,8 @@ model SiteSettings {
   codAvailable      Boolean  @default(true)
   customerCount     String   @default("9L+")
   rating            String   @default("4.8")
-  supportHoursStart String   @default("10:30 AM")
-  supportHoursEnd   String   @default("5:30 PM")
+  supportHoursStart String   @default("10:30")
+  supportHoursEnd   String   @default("17:30")
   
   // SEO
   metaTitle         String?
