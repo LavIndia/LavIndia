@@ -102,9 +102,9 @@ const semanticTokens = defineSemanticTokens({
 });
 
 export default defineConfig({
-  preflight: false, // Tailwind owns the reset until migration completes
+  preflight: true,
   jsxFramework: "react",
-  hash: true, // prevent utility class collisions with Tailwind during the transition
+  hash: true,
 
   include: ["./src/**/*.{js,jsx,ts,tsx}"],
   exclude: [],

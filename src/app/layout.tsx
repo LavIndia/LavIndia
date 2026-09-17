@@ -7,6 +7,12 @@ import { AuthDialogProvider } from "@/components/auth/AuthDialogProvider";
 import { Toaster } from "sonner";
 import { SiteSettingsProvider } from "@/components/providers/SiteSettingsProvider";
 import { getSiteSettings } from "@/lib/site-settings";
+import { css } from "styled-system/css";
+
+const bodyStyle = css({
+  fontFamily: "body",
+  fontSmoothing: "antialiased",
+});
 
 const display = Playfair_Display({
   variable: "--font-display",
@@ -46,7 +52,7 @@ export default async function RootLayout({
       className={`${display.variable} ${body.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
-      <body className="antialiased font-sans" suppressHydrationWarning>
+      <body className={bodyStyle} suppressHydrationWarning>
         <SiteSettingsProvider
           value={{
             businessName: settings.businessName,

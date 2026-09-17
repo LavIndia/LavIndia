@@ -9,9 +9,11 @@ const gridStyle = css({
   gap: "6",
 });
 
+const pageStyle = css({ minHeight: "100vh", background: "bg.canvas" });
+
 export default function NecklacesLoading() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className={pageStyle}>
       <HeaderSection />
       <div className={css({ maxWidth: "7xl", marginInline: "auto", paddingInline: "4", paddingBlock: "10" })}>
         <Skeleton className={css({ height: "8", width: "64", marginBottom: "8" })} />
