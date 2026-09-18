@@ -19,7 +19,7 @@ export async function GET() {
         { images: imageFiles },
         {
           headers: {
-            "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+            "Cache-Control": "no-store",
           },
         },
       );
@@ -48,7 +48,7 @@ export async function GET() {
       { images: imageFiles },
       {
         headers: {
-          "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+          "Cache-Control": "no-store",
         },
       },
     );

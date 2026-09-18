@@ -269,7 +269,12 @@ export function ProductsTable({
       const ids = Array.from(selected);
       const results = await Promise.allSettled(
         ids.map((id) =>
-          fetch(`/api/admin/products/${id}`, { method: "DELETE" }),
+          fetch(`/api/admin/products/${id}`, { method: "DELETE" }).then(
+            (res) => {
+              if (!res.ok) throw new Error(`Failed to delete ${id}`);
+              return res;
+            },
+          ),
         ),
       );
       const failed = results.filter((r) => r.status === "rejected").length;

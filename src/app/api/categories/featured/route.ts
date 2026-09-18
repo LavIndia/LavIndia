@@ -20,7 +20,7 @@ export async function GET() {
 
     return NextResponse.json(
       { categories },
-      { headers: { "Cache-Control": "public, max-age=30, stale-while-revalidate=300" } }
+      { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
     console.error("Error fetching featured categories:", error);

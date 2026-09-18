@@ -259,6 +259,8 @@ export default function ProfilePage() {
       if (response.ok) {
         setProfilePicture(null);
         toast.success("Profile picture removed");
+      } else {
+        toast.error("Failed to remove profile picture");
       }
     } catch (error) {
       console.error("Delete error:", error);

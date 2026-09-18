@@ -333,12 +333,17 @@ export function CategoryCards({ categories }: { categories: Category[] }) {
       const res = await fetch(`/api/admin/categories/${deletingCategoryId}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Failed to delete");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to delete");
+      }
 
       toast.success("Category deleted successfully");
       router.refresh();
-    } catch {
-      toast.error("Failed to delete category");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete category",
+      );
     } finally {
       setDeleting(false);
       setDeletingCategoryId(null);
@@ -537,7 +542,7 @@ export function CategoryCards({ categories }: { categories: Category[] }) {
           <DialogHeader>
             <DialogTitle>Delete category?</DialogTitle>
             <DialogDescription>
-              This will affect all products in this category. This action cannot be undone.
+              This action cannot be undone. Categories that still contain products cannot be deleted — move or delete those products first.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

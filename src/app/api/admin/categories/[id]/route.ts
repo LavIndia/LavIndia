@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { removePublicAsset } from "@/lib/imagekit-admin";
 import { z } from "zod";
 
 const categoryUpdateSchema = z.object({
@@ -27,10 +28,28 @@ export async function PATCH(
     const body = await req.json();
     const validatedData = categoryUpdateSchema.parse(body);
 
+    const previous = await prisma.category.findUnique({
+      where: { id },
+      select: { image: true },
+    });
+
     const category = await prisma.category.update({
       where: { id },
       data: validatedData,
     });
+
+    if (
+      previous?.image &&
+      previous.image.startsWith("/assets/") &&
+      validatedData.image !== undefined &&
+      validatedData.image !== previous.image
+    ) {
+      try {
+        await removePublicAsset(previous.image);
+      } catch (error) {
+        console.error("Failed to remove old category image:", error);
+      }
+    }
 
     await prisma.auditLog.create({
       data: {
@@ -69,7 +88,12 @@ export async function DELETE(
 
     const category = await prisma.category.findUnique({
       where: { id },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        _count: { select: { products: true } },
+      },
     });
 
     if (!category) {
@@ -79,7 +103,26 @@ export async function DELETE(
       );
     }
 
+    if (category._count.products > 0) {
+      return NextResponse.json(
+        {
+          error: `Cannot delete "${category.name}" because it still has ${category._count.products} product${
+            category._count.products === 1 ? "" : "s"
+          }. Move or delete those products first.`,
+        },
+        { status: 409 }
+      );
+    }
+
     await prisma.category.delete({ where: { id } });
+
+    if (category.image && category.image.startsWith("/assets/")) {
+      try {
+        await removePublicAsset(category.image);
+      } catch (error) {
+        console.error("Failed to remove category image:", error);
+      }
+    }
 
     await prisma.auditLog.create({
       data: {

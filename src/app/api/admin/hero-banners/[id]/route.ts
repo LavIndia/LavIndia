@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
+import { removePublicAsset } from "@/lib/imagekit-admin";
 
 export async function GET(
   request: NextRequest,
@@ -123,6 +124,14 @@ export async function DELETE(
     const banner = await prisma.heroBanner.delete({
       where: { id },
     });
+
+    if (banner.imagePath.startsWith("/assets/pictures/herobanner/")) {
+      try {
+        await removePublicAsset(banner.imagePath);
+      } catch (error: unknown) {
+        console.error("Failed to remove hero banner image:", error);
+      }
+    }
 
     await logAudit({
       adminId: session.user.id || "system",
