@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import Image from "next/image";
-import { Heart, Minus, Plus } from "lucide-react";
+import { Heart, Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -231,34 +231,48 @@ const dividerStyle = css({ borderTop: "1px solid", borderColor: "border.subtle",
 const detailsListStyle = css({ fontSize: "sm", color: "fg.muted", display: "flex", flexDirection: "column", gap: "1" });
 
 const reviewsSectionStyle = css({ marginTop: { base: "10", md: "14" } });
-const reviewsHeaderStyle = css({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "3", marginBottom: "6" });
+const reviewsHeaderStyle = css({ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "3", marginBottom: "5" });
 const reviewsHeadingStyle = css({ fontFamily: "display", fontSize: "2xl", fontWeight: "bold", color: "fg.default" });
 const reviewsSummaryStyle = css({ display: "flex", alignItems: "center", gap: "2", color: "fg.muted", fontSize: "sm" });
-const reviewsListStyle = css({ display: "flex", flexDirection: "column", gap: "4" });
+const reviewsListStyle = css({ display: "flex", flexDirection: "column", gap: "3" });
 const reviewCardStyle = css({
   border: "1px solid",
   borderColor: "border.subtle",
   borderRadius: "lg",
   padding: "4",
   background: "bg.surface",
+  display: "flex",
+  flexDirection: "column",
+  gap: "1.5",
 });
-const reviewHeaderStyle = css({ display: "flex", alignItems: "center", gap: "2", marginBottom: "2", flexWrap: "wrap" });
+const reviewHeaderStyle = css({ display: "flex", alignItems: "center", gap: "2", flexWrap: "wrap" });
 const reviewUserStyle = css({ fontWeight: "semibold", color: "fg.default" });
 const starsStyle = css({ display: "flex", color: "gold.400" });
 const reviewCommentStyle = css({ color: "fg.muted" });
 const noReviewsStyle = css({ color: "fg.muted", fontSize: "sm", paddingBlock: "6" });
+const reviewDeleteButtonStyle = css({
+  marginLeft: "auto",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  color: "fg.muted",
+  padding: "1",
+  borderRadius: "md",
+  "&:hover": { color: "danger", background: "bg.surface" },
+  "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
+});
 
 const writeReviewCardStyle = css({
   border: "1px solid",
   borderColor: "border.subtle",
   borderRadius: "lg",
-  padding: "5",
+  padding: "4",
   background: "bg.glass",
   backdropBlur: "glassSm",
-  marginBottom: "6",
+  marginBottom: "5",
   display: "flex",
   flexDirection: "column",
-  gap: "3",
+  gap: "2.5",
 });
 const starPickerStyle = css({ display: "flex", gap: "1" });
 const starButtonStyle = (filled: boolean) =>
@@ -304,6 +318,8 @@ export function ProductPageClient() {
   const [myRating, setMyRating] = useState(0);
   const [myComment, setMyComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
+  const isAdmin = session?.user?.role === "ADMIN";
 
   useEffect(() => {
     if (!api) return;
@@ -448,6 +464,26 @@ export function ProductPageClient() {
       toast.error(err instanceof Error ? err.message : "Failed to submit review");
     } finally {
       setSubmittingReview(false);
+    }
+  };
+
+  const deleteReview = async (reviewId: string) => {
+    if (!confirm("Delete this review? This cannot be undone.")) return;
+    setDeletingReviewId(reviewId);
+    try {
+      const res = await fetch(`/api/products/${slug}/reviews?reviewId=${reviewId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to delete review");
+      }
+      toast.success("Review deleted");
+      fetchReviews();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete review");
+    } finally {
+      setDeletingReviewId(null);
     }
   };
 
@@ -781,6 +817,18 @@ export function ProductPageClient() {
                       </div>
                       {review.isVerifiedPurchase && (
                         <Badge variant="secondary">Verified Purchase</Badge>
+                      )}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          className={reviewDeleteButtonStyle}
+                          onClick={() => deleteReview(review.id)}
+                          disabled={deletingReviewId === review.id}
+                          aria-label="Delete review"
+                          title="Delete review"
+                        >
+                          <Trash2 className={css({ width: "4", height: "4" })} />
+                        </button>
                       )}
                     </div>
                     <p className={reviewCommentStyle}>{review.comment}</p>

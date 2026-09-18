@@ -139,7 +139,7 @@ export function AdminTopbar({ user }: AdminTopbarProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/profile")}>
               <User className={css({ marginRight: "2", height: "4", width: "4" })} />
               <span>Profile</span>
             </DropdownMenuItem>

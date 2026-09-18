@@ -48,6 +48,7 @@ export async function GET(
       compareAtPrice: product.compareAtCents
         ? Math.round(product.compareAtCents / 100)
         : null,
+      stock: product.stock,
       sku: product.sku,
       isFeatured: product.isFeatured,
       images: product.images.map((image) => ({

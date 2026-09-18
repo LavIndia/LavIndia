@@ -30,5 +30,10 @@ export const getSiteSettings = cache(async () => {
     email: null as string | null,
     address: null as string | null,
     gstNumber: null as string | null,
+    amazonLink: null as string | null,
+    flipkartLink: null as string | null,
+    myntraLink: null as string | null,
+    blinkitLink: null as string | null,
+    zeptoLink: null as string | null,
   };
 });

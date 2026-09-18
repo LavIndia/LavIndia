@@ -82,6 +82,11 @@ export default async function RootLayout({
             contactEmail: settings.email,
             address: settings.address,
             gstNumber: settings.gstNumber,
+            amazonLink: settings.amazonLink,
+            flipkartLink: settings.flipkartLink,
+            myntraLink: settings.myntraLink,
+            blinkitLink: settings.blinkitLink,
+            zeptoLink: settings.zeptoLink,
           }}
         >
           <SessionProvider>

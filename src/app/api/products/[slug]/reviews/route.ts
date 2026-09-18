@@ -105,3 +105,36 @@ export async function POST(
 
   return NextResponse.json({ success: true, review });
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { slug } = await params;
+  const productId = await resolveProductId(slug);
+  if (!productId) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  const reviewId = request.nextUrl.searchParams.get("reviewId");
+  if (!reviewId) {
+    return NextResponse.json({ error: "reviewId is required" }, { status: 400 });
+  }
+
+  const review = await prisma.review.findUnique({
+    where: { id: reviewId },
+    select: { id: true, productId: true },
+  });
+  if (!review || review.productId !== productId) {
+    return NextResponse.json({ error: "Review not found" }, { status: 404 });
+  }
+
+  await prisma.review.delete({ where: { id: reviewId } });
+
+  return NextResponse.json({ success: true });
+}

@@ -17,6 +17,8 @@ const settingsSchema = z.object({
   amazonLink: z.string().url().optional().nullable().or(z.literal("")),
   flipkartLink: z.string().url().optional().nullable().or(z.literal("")),
   myntraLink: z.string().url().optional().nullable().or(z.literal("")),
+  blinkitLink: z.string().url().optional().nullable().or(z.literal("")),
+  zeptoLink: z.string().url().optional().nullable().or(z.literal("")),
 });
 
 export async function PATCH(req: NextRequest) {
@@ -40,6 +42,8 @@ export async function PATCH(req: NextRequest) {
       amazonLink: validatedData.amazonLink || null,
       flipkartLink: validatedData.flipkartLink || null,
       myntraLink: validatedData.myntraLink || null,
+      blinkitLink: validatedData.blinkitLink || null,
+      zeptoLink: validatedData.zeptoLink || null,
     };
 
     // Get first settings record or create if doesn't exist

@@ -4,11 +4,12 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { Heart } from "lucide-react";
+import { Heart, Eye } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import AddToCartButton from "@/components/cart/AddToCartButton";
 import { ShareButton } from "@/components/ShareButton";
+import { QuickViewModal } from "@/components/product/QuickViewModal";
 import { css, cx } from "styled-system/css";
 
 interface ProductCardProps {
@@ -80,6 +81,26 @@ const wishlistButtonStyle = cx(
     "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
   })
 );
+
+const quickViewButtonStyle = css({
+  position: "absolute",
+  bottom: "3",
+  right: "3",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: "full",
+  padding: "2",
+  cursor: "pointer",
+  background: "bg.glassStrong",
+  backdropBlur: "glassSm",
+  color: "fg.muted",
+  opacity: { base: 1, md: 0 },
+  transition: "all 0.2s ease",
+  "&:hover": { background: "bg.glass", color: "accent.pressed" },
+});
+
+const cardImageWrapStyle = css({ "&:hover .quick-view-trigger": { opacity: 1 } });
 
 const shareButtonStyle = css({
   position: "absolute",
@@ -201,6 +222,7 @@ export function ProductCard({
   const { data: session } = useSession();
   const [wishlisted, setWishlisted] = useState(isWishlisted);
   const [isLoading, setIsLoading] = useState(false);
+  const [quickViewOpen, setQuickViewOpen] = useState(false);
 
   const handleWishlistToggle = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -249,7 +271,7 @@ export function ProductCard({
 
   return (
     <div className={cardStyle}>
-      <div className={css({ position: "relative" })}>
+      <div className={cx(css({ position: "relative" }), cardImageWrapStyle)}>
         <Link href={`/product/${slug}`} className={imageBoxStyle}>
           <Image
             src={mainImage?.url || "/placeholder.jpg"}
@@ -290,7 +312,26 @@ export function ProductCard({
             Out of Stock
           </Badge>
         )}
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setQuickViewOpen(true);
+          }}
+          className={cx(quickViewButtonStyle, "quick-view-trigger")}
+          aria-label={`Quick view ${name}`}
+          title="Quick view"
+        >
+          <Eye className={css({ width: "4.5", height: "4.5" })} />
+        </button>
       </div>
+
+      <QuickViewModal
+        slug={quickViewOpen ? slug : null}
+        onOpenChange={(open) => setQuickViewOpen(open)}
+      />
       <div className={bodyStyle}>
         <h3 className={titleStyle}>
           <Link href={`/product/${slug}`}>{name}</Link>

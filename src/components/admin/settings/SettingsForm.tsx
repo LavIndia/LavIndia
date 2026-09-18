@@ -32,6 +32,8 @@ interface SiteSettings {
   amazonLink: string | null;
   flipkartLink: string | null;
   myntraLink: string | null;
+  blinkitLink: string | null;
+  zeptoLink: string | null;
   codAvailable: boolean;
   customerCount: string;
   rating: string;
@@ -242,6 +244,26 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               value={settings.myntraLink || ""}
               onChange={(e) => handleChange("myntraLink", e.target.value)}
               placeholder="https://myntra.com/..."
+            />
+          </div>
+
+          <div className={fieldStyle}>
+            <Label htmlFor="blinkitLink">Blinkit Store</Label>
+            <Input
+              id="blinkitLink"
+              value={settings.blinkitLink || ""}
+              onChange={(e) => handleChange("blinkitLink", e.target.value)}
+              placeholder="https://blinkit.com/..."
+            />
+          </div>
+
+          <div className={fieldStyle}>
+            <Label htmlFor="zeptoLink">Zepto Store</Label>
+            <Input
+              id="zeptoLink"
+              value={settings.zeptoLink || ""}
+              onChange={(e) => handleChange("zeptoLink", e.target.value)}
+              placeholder="https://zepto.com/..."
             />
           </div>
         </CardContent>

@@ -19,6 +19,11 @@ interface SiteSettingsValue {
   contactEmail: string | null;
   address: string | null;
   gstNumber: string | null;
+  amazonLink: string | null;
+  flipkartLink: string | null;
+  myntraLink: string | null;
+  blinkitLink: string | null;
+  zeptoLink: string | null;
 }
 
 const SiteSettingsContext = createContext<SiteSettingsValue>({
@@ -29,6 +34,11 @@ const SiteSettingsContext = createContext<SiteSettingsValue>({
   contactEmail: null,
   address: null,
   gstNumber: null,
+  amazonLink: null,
+  flipkartLink: null,
+  myntraLink: null,
+  blinkitLink: null,
+  zeptoLink: null,
 });
 
 export function SiteSettingsProvider({

@@ -38,9 +38,14 @@ const taglineStyle = css({ fontSize: "md", fontWeight: "medium", color: "fg.defa
 const contactListStyle = css({ display: "flex", flexDirection: "column", gap: "1.5", fontSize: "sm", color: "fg.muted" });
 const contactLabelStyle = css({ fontWeight: "medium", color: "fg.default" });
 
-const navGridStyle = css({
+const navGridStyle3 = css({
   display: "grid",
   gridTemplateColumns: { base: "1fr", sm: "repeat(3, 1fr)" },
+  gap: "6",
+});
+const navGridStyle2 = css({
+  display: "grid",
+  gridTemplateColumns: { base: "1fr", sm: "repeat(2, 1fr)" },
   gap: "6",
 });
 const navHeadingStyle = css({ fontFamily: "body", fontSize: "sm", fontWeight: "semibold", color: "fg.default", marginBottom: "3" });
@@ -53,6 +58,11 @@ const navLinkStyle = css({
   "&:hover, &[data-hovered]": { color: "accent.pressed" },
 });
 const availableOnListStyle = css({ display: "flex", flexDirection: "column", gap: "1.5", fontSize: "sm", color: "fg.muted" });
+const availableOnLinkStyle = css({
+  display: "block",
+  transition: "color 0.15s ease",
+  "&:hover, &[data-hovered]": { color: "accent.pressed" },
+});
 
 const newsletterSectionStyle = css({ marginBottom: "10" });
 const newsletterCardStyle = css({
@@ -88,8 +98,26 @@ const bottomBarStyle = css({
 const bottomTextStyle = css({ fontSize: "sm", color: "fg.muted" });
 
 export function FooterSection() {
-  const { businessName, copyrightText, contactNumber, contactEmail, address, gstNumber } =
-    useSiteSettings();
+  const {
+    businessName,
+    copyrightText,
+    contactNumber,
+    contactEmail,
+    address,
+    gstNumber,
+    amazonLink,
+    flipkartLink,
+    myntraLink,
+    blinkitLink,
+    zeptoLink,
+  } = useSiteSettings();
+  const marketplaceLinks = [
+    { name: "Amazon", url: amazonLink },
+    { name: "Myntra", url: myntraLink },
+    { name: "Flipkart", url: flipkartLink },
+    { name: "Blinkit", url: blinkitLink },
+    { name: "Zepto", url: zeptoLink },
+  ].filter((m): m is { name: string; url: string } => !!m.url);
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -158,7 +186,7 @@ export function FooterSection() {
           </div>
 
           {/* Footer Navigation - Right Side */}
-          <div className={navGridStyle}>
+          <div className={marketplaceLinks.length > 0 ? navGridStyle3 : navGridStyle2}>
             {/* Explore Section */}
             <div>
               <h4 className={navHeadingStyle}>Explore</h4>
@@ -198,16 +226,24 @@ export function FooterSection() {
             </div>
 
             {/* Also Available On */}
-            <div>
-              <h4 className={navHeadingStyle}>Also Available On</h4>
-              <div className={availableOnListStyle}>
-                <p>Amazon</p>
-                <p>Myntra</p>
-                <p>Flipkart</p>
-                <p>Blinkit</p>
-                <p>Zepto</p>
+            {marketplaceLinks.length > 0 && (
+              <div>
+                <h4 className={navHeadingStyle}>Also Available On</h4>
+                <div className={availableOnListStyle}>
+                  {marketplaceLinks.map((marketplace) => (
+                    <a
+                      key={marketplace.name}
+                      href={marketplace.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={availableOnLinkStyle}
+                    >
+                      {marketplace.name}
+                    </a>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

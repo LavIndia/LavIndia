@@ -501,6 +501,8 @@ model SiteSettings {
   amazonLink        String?
   flipkartLink      String?
   myntraLink        String?
+  blinkitLink       String?
+  zeptoLink         String?
   
   // Trust Badges
   codAvailable      Boolean  @default(true)

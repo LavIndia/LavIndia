@@ -11,8 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -49,6 +49,7 @@ const noDestinationValue = "__none__";
 export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [destinationChanges, setDestinationChanges] = useState<
@@ -120,8 +121,37 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
     }
   };
 
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    setTogglingId(id);
+    try {
+      const response = await fetch(`/api/admin/hero-banners/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !currentStatus }),
+      });
+      if (!response.ok) throw new Error("Failed to update banner");
+
+      toast.success(
+        currentStatus
+          ? "Banner hidden from the storefront (kept as a draft)"
+          : "Banner is live on the storefront",
+      );
+      router.refresh();
+    } catch (error) {
+      toast.error("Failed to update banner");
+      console.error(error);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this banner?")) return;
+    if (
+      !confirm(
+        "Permanently delete this banner? This removes it and its image for good — use the Active toggle instead if you just want to hide it. This cannot be undone.",
+      )
+    )
+      return;
 
     setIsDeleting(id);
     try {
@@ -148,7 +178,7 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
     if (selectedIds.length === 0) return;
     if (
       !confirm(
-        `Delete ${selectedIds.length} selected banner${selectedIds.length === 1 ? "" : "s"}?`,
+        `Permanently delete ${selectedIds.length} selected banner${selectedIds.length === 1 ? "" : "s"}? This removes them and their images for good. This cannot be undone.`,
       )
     ) {
       return;
@@ -368,9 +398,23 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
                     </Select>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={banner.active ? "default" : "secondary"}>
-                      {banner.active ? "Active" : "Inactive"}
-                    </Badge>
+                    <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
+                      <Switch
+                        checked={banner.active}
+                        onCheckedChange={() =>
+                          handleToggleActive(banner.id, banner.active)
+                        }
+                        disabled={togglingId === banner.id}
+                        aria-label={
+                          banner.active
+                            ? `Hide ${banner.title} from the storefront`
+                            : `Show ${banner.title} on the storefront`
+                        }
+                      />
+                      <span className={css({ fontSize: "sm", color: banner.active ? "fg.default" : "fg.muted" })}>
+                        {banner.active ? "Active" : "Draft"}
+                      </span>
+                    </div>
                   </TableCell>
                   <TableCell className={css({ textAlign: "right" })}>
                     <div
