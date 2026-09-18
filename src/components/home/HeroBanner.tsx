@@ -33,7 +33,7 @@ type HeroBannerProps = {
 // chain, and a percentage height only resolves against an ancestor that
 // itself has a concrete height — the embla viewport div in CarouselContent
 // has no explicit height, which breaks that chain if items only use `full`.
-const HERO_HEIGHT = { base: "340px", md: "480px", lg: "620px" };
+const HERO_HEIGHT = { base: "420px", md: "560px", lg: "760px" };
 
 const sectionStyle = css({
   position: "relative",
