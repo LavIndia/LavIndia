@@ -428,6 +428,14 @@ export function HeroBannerForm({ banner }: { banner?: HeroBanner }) {
               <p className={css({ fontSize: "xs", color: "fg.muted" })}>
                 Images are saved directly to the hero banner storage folder.
               </p>
+              <p className={css({ fontSize: "xs", color: "fg.muted" })}>
+                Recommended: a landscape image around 2400 × 800px (3:1). This
+                slot is shown at different widths and fixed heights on phone,
+                tablet, and desktop, so any title, logo, or other text should
+                sit within the middle 70% of the image — the outer edges get
+                cropped by varying amounts depending on the visitor&apos;s
+                screen.
+              </p>
             </div>
           </CardContent>
         </Card>

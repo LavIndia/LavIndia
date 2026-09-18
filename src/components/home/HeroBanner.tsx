@@ -186,7 +186,12 @@ export function HeroBanner({
                   src={slide.imagePath}
                   alt={slide.title}
                   fill
-                  className={css({ objectFit: "cover", userSelect: "none" })}
+                  // Banner artwork almost always carries its title/branding
+                  // near the top — biasing the crop there (instead of the
+                  // default center) keeps that text from being clipped when
+                  // a wide banner gets cover-cropped into this fixed-height
+                  // strip on narrower screens.
+                  className={css({ objectFit: "cover", objectPosition: "top", userSelect: "none" })}
                   draggable={false}
                   priority={index === 0}
                 />
