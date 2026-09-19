@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Crown,
   GripVertical,
   Pencil,
   Star,
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CategoryProductsDialog } from "./CategoryProductsDialog";
 import { css, cx } from "styled-system/css";
 
 interface Category {
@@ -46,6 +48,8 @@ const gridStyle = css({
   lg: { gridTemplateColumns: "repeat(4, 1fr)" },
 });
 
+const cardWrapperStyle = css({ position: "relative" });
+
 const cardStyle = css({
   display: "flex",
   flexDirection: "column",
@@ -58,6 +62,26 @@ const cardStyle = css({
   cursor: "grab",
   transition: "box-shadow 0.15s ease, opacity 0.15s ease",
   "&:hover": { boxShadow: "cardHover" },
+});
+
+const primaryBadgeStyle = css({
+  position: "absolute",
+  top: { base: "-2.5", sm: "-3" },
+  left: "50%",
+  transform: "translateX(-50%)",
+  zIndex: 1,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  height: { base: "6", sm: "7" },
+  width: { base: "6", sm: "7" },
+  borderRadius: "full",
+  background: "linear-gradient(135deg, token(colors.gold.400), token(colors.gold.600))",
+  color: "white",
+  boxShadow: "0 3px 8px rgba(20,16,8,0.35)",
+  border: "2px solid",
+  borderColor: "bg.canvas",
+  pointerEvents: "none",
 });
 
 const cardDraggingStyle = css({ opacity: 0.5 });
@@ -184,6 +208,12 @@ const actionsRowStyle = css({
   gap: "1",
 });
 
+const productsBadgeButtonStyle = css({
+  cursor: "pointer",
+  transition: "opacity 0.15s ease",
+  "&:hover": { opacity: 0.75 },
+});
+
 export function CategoryCards({ categories }: { categories: Category[] }) {
   const router = useRouter();
   const [items, setItems] = useState(categories);
@@ -191,6 +221,7 @@ export function CategoryCards({ categories }: { categories: Category[] }) {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
+  const [viewingCategory, setViewingCategory] = useState<Category | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ name: "", slug: "", description: "" });
@@ -367,18 +398,25 @@ export function CategoryCards({ categories }: { categories: Category[] }) {
     );
   }
 
+  const firstFeaturedId = items.find((c) => c.isFeatured)?.id;
+
   return (
     <>
       <div className={gridStyle}>
         {items.map((category, index) => (
-          <div
-            key={category.id}
-            draggable
-            onDragStart={() => handleDragStart(index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragEnd={handleDragEnd}
-            className={cx(cardStyle, draggedIndex === index && cardDraggingStyle)}
-          >
+          <div key={category.id} className={cardWrapperStyle}>
+            {category.id === firstFeaturedId && (
+              <div className={primaryBadgeStyle} title="Primary category">
+                <Crown className={css({ height: "3", width: "3" })} fill="currentColor" />
+              </div>
+            )}
+            <div
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragEnd={handleDragEnd}
+              className={cx(cardStyle, draggedIndex === index && cardDraggingStyle)}
+            >
             <div
               className={imageBoxStyle}
               onDragOver={(e) => {
@@ -460,10 +498,17 @@ export function CategoryCards({ categories }: { categories: Category[] }) {
                 <p className={descriptionStyle}>{category.description}</p>
               )}
               <div className={metaRowStyle}>
-                <Badge variant="outline">{category._count.products} products</Badge>
-                {category.isFeatured && (
-                  <Badge variant="secondary">Order {index + 1}</Badge>
-                )}
+                <button
+                  type="button"
+                  className={productsBadgeButtonStyle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewingCategory(category);
+                  }}
+                  aria-label={`View ${category._count.products} products in ${category.name}`}
+                >
+                  <Badge variant="outline">{category._count.products} products</Badge>
+                </button>
               </div>
               <div className={actionsRowStyle}>
                 <Button variant="ghost" size="icon" onClick={() => handleEdit(category)}>
@@ -477,6 +522,7 @@ export function CategoryCards({ categories }: { categories: Category[] }) {
                   <Trash2 className={css({ height: "4", width: "4", color: "danger" })} />
                 </Button>
               </div>
+            </div>
             </div>
           </div>
         ))}
@@ -565,6 +611,11 @@ export function CategoryCards({ categories }: { categories: Category[] }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CategoryProductsDialog
+        category={viewingCategory}
+        onOpenChange={(open) => !open && setViewingCategory(null)}
+      />
     </>
   );
 }

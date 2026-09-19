@@ -1,8 +1,6 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,11 +30,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Pencil,
   Trash2,
   Search,
-  Plus,
-  Minus,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -45,25 +40,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { css } from "styled-system/css";
+import {
+  ProductTableRow,
+  ProductMobileCard,
+  type ProductListItemProduct,
+} from "./ProductListItem";
+import { useProductStockEditor } from "./useProductStockEditor";
+import { useProductPublishToggle } from "./useProductPublishToggle";
 
-interface Product {
-  id: string;
-  name: string;
-  slug: string;
-  priceCents: number;
-  compareAtCents: number | null;
-  stock: number;
-  isPublished: boolean;
-  createdAt: Date;
-  category: {
-    id: string;
-    name: string;
-  };
-  images: Array<{
-    url: string;
-    alt: string | null;
-  }>;
-}
+type Product = ProductListItemProduct;
 
 interface ProductsTableProps {
   products: Product[];
@@ -95,9 +80,16 @@ export function ProductsTable({
   const [sort, setSort] = useState(searchParams.sort || "createdAt");
   const grouped = searchParams.group === "1";
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
-  const [editingStock, setEditingStock] = useState<{
-    [key: string]: number;
-  }>({});
+  const {
+    editingStock,
+    handleStockChange,
+    handleStockBlur,
+    incrementStock,
+    decrementStock,
+  } = useProductStockEditor(() => router.refresh());
+  const { togglingId: togglingPublishedId, togglePublished } = useProductPublishToggle(() =>
+    router.refresh(),
+  );
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -168,52 +160,6 @@ export function ProductsTable({
 
   const handleSearch = () => {
     applyFilters(search, undefined, undefined);
-  };
-
-  const updateStock = async (productId: string, newStock: number) => {
-    if (newStock < 0) return;
-
-    try {
-      const res = await fetch(`/api/admin/products/${productId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stock: newStock }),
-      });
-
-      if (!res.ok) throw new Error("Failed to update stock");
-
-      toast.success("Stock updated");
-      router.refresh();
-    } catch {
-      toast.error("Failed to update stock");
-    }
-  };
-
-  const handleStockChange = (productId: string, value: string) => {
-    const numValue = parseInt(value) || 0;
-    setEditingStock((prev) => ({ ...prev, [productId]: numValue }));
-  };
-
-  const handleStockBlur = (productId: string, currentStock: number) => {
-    const newStock = editingStock[productId];
-    if (newStock !== undefined && newStock !== currentStock) {
-      updateStock(productId, newStock);
-    }
-    setEditingStock((prev) => {
-      const updated = { ...prev };
-      delete updated[productId];
-      return updated;
-    });
-  };
-
-  const incrementStock = (productId: string, currentStock: number) => {
-    updateStock(productId, currentStock + 1);
-  };
-
-  const decrementStock = (productId: string, currentStock: number) => {
-    if (currentStock > 0) {
-      updateStock(productId, currentStock - 1);
-    }
   };
 
   const confirmDelete = async () => {
@@ -320,10 +266,6 @@ export function ProductsTable({
     } finally {
       setBulkWorking(false);
     }
-  };
-
-  const formatPrice = (cents: number) => {
-    return `₹${(cents / 100).toLocaleString("en-IN")}`;
   };
 
   return (
@@ -505,142 +447,21 @@ export function ProductsTable({
               )}
               {!(group.category && collapsedCategories.has(group.category.id)) &&
                 group.items.map((product) => (
-            <div
-              key={product.id}
-              onClick={() => router.push(`/admin/products/${product.id}/edit`)}
-              className={css({
-                borderRadius: "xl",
-                border: "1px solid",
-                borderColor: "border.subtle",
-                background: "bg.surface",
-                padding: "3",
-                display: "flex",
-                flexDirection: "column",
-                gap: "3",
-                cursor: "pointer",
-                "&:hover": { borderColor: "accent.default" },
-              })}
-            >
-              <div className={css({ display: "flex", gap: "3", alignItems: "flex-start" })}>
-                <Checkbox
-                  aria-label={`Select ${product.name}`}
-                  isSelected={selected.has(product.id)}
-                  onChange={(isSelected) => toggleSelected(product.id, isSelected)}
-                  onClick={(e) => e.stopPropagation()}
-                  className={css({ marginTop: "1" })}
-                />
-                {product.images[0] ? (
-                  <Image
-                    src={product.images[0].url}
-                    alt={product.images[0].alt || product.name}
-                    width={56}
-                    height={56}
-                    className={css({ borderRadius: "md", objectFit: "cover", flexShrink: 0 })}
+                  <ProductMobileCard
+                    key={product.id}
+                    product={product}
+                    selected={selected.has(product.id)}
+                    onToggleSelected={toggleSelected}
+                    editingStock={editingStock[product.id]}
+                    onStockChange={handleStockChange}
+                    onStockBlur={handleStockBlur}
+                    onIncrementStock={incrementStock}
+                    onDecrementStock={decrementStock}
+                    onDeleteClick={setDeleteTarget}
+                    onRowClick={(p) => router.push(`/admin/products/${p.id}/edit`)}
+                    onTogglePublished={(p) => togglePublished(p.id, p.isPublished)}
+                    togglingPublishedId={togglingPublishedId}
                   />
-                ) : (
-                  <div
-                    className={css({
-                      width: "14",
-                      height: "14",
-                      flexShrink: 0,
-                      background: "ivory.100",
-                      borderRadius: "md",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "xs",
-                      color: "fg.muted",
-                    })}
-                  >
-                    No image
-                  </div>
-                )}
-                <div className={css({ flex: "1", minWidth: "0" })}>
-                  <p className={css({ fontWeight: "medium", color: "fg.default" })}>{product.name}</p>
-                  <p className={css({ fontSize: "xs", color: "fg.muted" })}>{product.category.name}</p>
-                  <div className={css({ display: "flex", alignItems: "baseline", gap: "2", marginTop: "1" })}>
-                    <span className={css({ fontWeight: "medium" })}>{formatPrice(product.priceCents)}</span>
-                    {product.compareAtCents && (
-                      <span className={css({ fontSize: "xs", color: "fg.muted", textDecoration: "line-through" })}>
-                        {formatPrice(product.compareAtCents)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div
-                  className={css({ display: "flex", flexDirection: "column", gap: "1" })}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/admin/products/${product.id}/edit`} aria-label={`Edit ${product.name}`}>
-                      <Pencil className={css({ height: "4", width: "4" })} />
-                    </Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Delete ${product.name}`}
-                    onClick={() => setDeleteTarget(product)}
-                  >
-                    <Trash2 className={css({ height: "4", width: "4", color: "danger" })} />
-                  </Button>
-                </div>
-              </div>
-
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className={css({
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingTop: "2",
-                  borderTop: "1px solid",
-                  borderColor: "border.subtle",
-                })}
-              >
-                <div className={css({ display: "flex", alignItems: "center", gap: "1" })}>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    onClick={() => decrementStock(product.id, product.stock)}
-                  >
-                    <Minus className={css({ height: "3", width: "3" })} />
-                  </Button>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={
-                      editingStock[product.id] !== undefined
-                        ? editingStock[product.id]
-                        : product.stock
-                    }
-                    onChange={(e) => handleStockChange(product.id, e.target.value)}
-                    onBlur={() => handleStockBlur(product.id, product.stock)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
-                    }}
-                    className={css({ height: "7", width: "16", textAlign: "center", paddingInline: "1" })}
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    onClick={() => incrementStock(product.id, product.stock)}
-                  >
-                    <Plus className={css({ height: "3", width: "3" })} />
-                  </Button>
-                  <Badge
-                    variant={
-                      product.stock > 10 ? "default" : product.stock > 0 ? "outline" : "destructive"
-                    }
-                  >
-                    {product.stock > 10 ? "In Stock" : product.stock > 0 ? "Low" : "Out"}
-                  </Badge>
-                </div>
-                <Badge variant={product.isPublished ? "default" : "secondary"}>
-                  {product.isPublished ? "Published" : "Draft"}
-                </Badge>
-              </div>
-            </div>
                 ))}
             </div>
           ))
@@ -717,138 +538,21 @@ export function ProductsTable({
                     )}
                     {!(group.category && collapsedCategories.has(group.category.id)) &&
                       group.items.map((product) => (
-                  <TableRow
-                    key={product.id}
-                    onClick={() => router.push(`/admin/products/${product.id}/edit`)}
-                    className={css({ cursor: "pointer" })}
-                  >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        aria-label={`Select ${product.name}`}
-                        isSelected={selected.has(product.id)}
-                        onChange={(isSelected) => toggleSelected(product.id, isSelected)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {product.images[0] ? (
-                        <Image
-                          src={product.images[0].url}
-                          alt={product.images[0].alt || product.name}
-                          width={50}
-                          height={50}
-                          className={css({ borderRadius: "md", objectFit: "cover" })}
+                        <ProductTableRow
+                          key={product.id}
+                          product={product}
+                          selected={selected.has(product.id)}
+                          onToggleSelected={toggleSelected}
+                          editingStock={editingStock[product.id]}
+                          onStockChange={handleStockChange}
+                          onStockBlur={handleStockBlur}
+                          onIncrementStock={incrementStock}
+                          onDecrementStock={decrementStock}
+                          onDeleteClick={setDeleteTarget}
+                          onRowClick={(p) => router.push(`/admin/products/${p.id}/edit`)}
+                          onTogglePublished={(p) => togglePublished(p.id, p.isPublished)}
+                          togglingPublishedId={togglingPublishedId}
                         />
-                      ) : (
-                        <div
-                          className={css({
-                            width: "[50px]",
-                            height: "[50px]",
-                            background: "ivory.100",
-                            borderRadius: "md",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "xs",
-                            color: "fg.muted",
-                          })}
-                        >
-                          No image
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className={css({ fontWeight: "medium" })}>
-                      {product.name}
-                    </TableCell>
-                    <TableCell>{product.category.name}</TableCell>
-                    <TableCell>
-                      <div className={css({ display: "flex", flexDirection: "column" })}>
-                        <span>{formatPrice(product.priceCents)}</span>
-                        {product.compareAtCents && (
-                          <span
-                            className={css({
-                              fontSize: "xs",
-                              color: "fg.muted",
-                              textDecoration: "line-through",
-                            })}
-                          >
-                            {formatPrice(product.compareAtCents)}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className={css({ display: "flex", alignItems: "center", gap: "1" })}>
-                        <Button
-                          variant="outline"
-                          size="icon-sm"
-                          onClick={() => decrementStock(product.id, product.stock)}
-                        >
-                          <Minus className={css({ height: "3", width: "3" })} />
-                        </Button>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={
-                            editingStock[product.id] !== undefined
-                              ? editingStock[product.id]
-                              : product.stock
-                          }
-                          onChange={(e) => handleStockChange(product.id, e.target.value)}
-                          onBlur={() => handleStockBlur(product.id, product.stock)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.currentTarget.blur();
-                            }
-                          }}
-                          className={css({ height: "7", width: "16", textAlign: "center", paddingInline: "1" })}
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon-sm"
-                          onClick={() => incrementStock(product.id, product.stock)}
-                        >
-                          <Plus className={css({ height: "3", width: "3" })} />
-                        </Button>
-                        <Badge
-                          variant={
-                            product.stock > 10
-                              ? "default"
-                              : product.stock > 0
-                                ? "outline"
-                                : "destructive"
-                          }
-                          className={css({ marginLeft: "1" })}
-                        >
-                          {product.stock > 10 ? "In Stock" : product.stock > 0 ? "Low" : "Out"}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={product.isPublished ? "default" : "secondary"}>
-                        {product.isPublished ? "Published" : "Draft"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell
-                      className={css({ textAlign: "right" })}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className={css({ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "2" })}>
-                        <Button variant="ghost" size="icon" asChild>
-                          <Link href={`/admin/products/${product.id}/edit`} aria-label={`Edit ${product.name}`}>
-                            <Pencil className={css({ height: "4", width: "4" })} />
-                          </Link>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Delete ${product.name}`}
-                          onClick={() => setDeleteTarget(product)}
-                        >
-                          <Trash2 className={css({ height: "4", width: "4", color: "danger" })} />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
                       ))}
                   </Fragment>
                 ))

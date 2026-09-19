@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { ImageLightbox } from "@/components/ui/image-lightbox";
 import {
   Select,
   SelectContent,
@@ -344,25 +345,27 @@ export function HeroBannersTable({ banners }: { banners: HeroBanner[] }) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div
-                      className={css({
-                        position: "relative",
-                        width: "16",
-                        height: "10",
-                        borderRadius: "sm",
-                        overflow: "hidden",
-                        border: "1px solid",
-                        borderColor: "border.subtle",
-                      })}
-                    >
-                      <Image
-                        src={banner.imagePath}
-                        alt={banner.title}
-                        fill
-                        className={css({ objectFit: "cover" })}
-                        sizes="64px"
-                      />
-                    </div>
+                    <ImageLightbox src={banner.imagePath} alt={banner.title}>
+                      <div
+                        className={css({
+                          position: "relative",
+                          width: "16",
+                          height: "10",
+                          borderRadius: "sm",
+                          overflow: "hidden",
+                          border: "1px solid",
+                          borderColor: "border.subtle",
+                        })}
+                      >
+                        <Image
+                          src={banner.imagePath}
+                          alt={banner.title}
+                          fill
+                          className={css({ objectFit: "cover" })}
+                          sizes="64px"
+                        />
+                      </div>
+                    </ImageLightbox>
                   </TableCell>
                   <TableCell className={css({ fontWeight: "medium" })}>
                     <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>

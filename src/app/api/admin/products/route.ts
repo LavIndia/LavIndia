@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
+
+const PRODUCTS_PAGE_SIZE = 20;
 
 const imageInputSchema = z.object({
   id: z.string().optional(),
@@ -50,8 +53,10 @@ const productSchema = z.object({
   variants: z.array(variantInputSchema).optional(),
 });
 
-// GET /api/admin/products - List all products
-export async function GET() {
+// GET /api/admin/products - List products, optionally filtered by category/search
+// and paginated. With no query params this returns every product (unfiltered,
+// unpaginated), matching the original behavior of this endpoint.
+export async function GET(req: NextRequest) {
   try {
     const session = await auth();
 
@@ -59,16 +64,61 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const products = await prisma.product.findMany({
-      include: {
-        category: true,
-        images: true,
-        variants: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const { searchParams } = req.nextUrl;
+    const categoryId = searchParams.get("categoryId");
+    const search = searchParams.get("search");
+    const sort = searchParams.get("sort");
+    const pageParam = searchParams.get("page");
 
-    return NextResponse.json(products);
+    const where: Prisma.ProductWhereInput = {};
+    if (categoryId) where.categoryId = categoryId;
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { sku: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: "desc" };
+    if (sort === "name_asc") orderBy = { name: "asc" };
+    if (sort === "name_desc") orderBy = { name: "desc" };
+    if (sort === "price_asc") orderBy = { priceCents: "asc" };
+    if (sort === "price_desc") orderBy = { priceCents: "desc" };
+    if (sort === "stock_asc") orderBy = { stock: "asc" };
+    if (sort === "stock_desc") orderBy = { stock: "desc" };
+
+    // Pagination only kicks in when a page is explicitly requested, so this
+    // endpoint's default (no params) response shape is unchanged for any
+    // existing caller.
+    const page = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : null;
+
+    const [products, totalCount] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        orderBy,
+        include: {
+          category: true,
+          images: page ? { where: { isPrimary: true }, take: 1 } : true,
+          variants: true,
+        },
+        ...(page ? { skip: (page - 1) * PRODUCTS_PAGE_SIZE, take: PRODUCTS_PAGE_SIZE } : {}),
+      }),
+      prisma.product.count({ where }),
+    ]);
+
+    if (!page) {
+      return NextResponse.json(products);
+    }
+
+    return NextResponse.json({
+      products,
+      pagination: {
+        page,
+        pageSize: PRODUCTS_PAGE_SIZE,
+        totalCount,
+        totalPages: Math.max(1, Math.ceil(totalCount / PRODUCTS_PAGE_SIZE)),
+      },
+    });
   } catch (error) {
     console.error("Error fetching products:", error);
     return NextResponse.json(
