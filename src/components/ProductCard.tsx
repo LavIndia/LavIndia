@@ -37,163 +37,29 @@ interface ProductCardProps {
   }>;
 }
 
-// Restrained, editorial treatment (per 2026 luxury e-commerce research: quiet
-// whitespace-led grids, no decorative framing, large imagery, minimal text)
-// — the card itself carries no border/background; separation between cards
-// comes from grid gutter spacing (set by the parent grid), not a box.
-const cardStyle = css({ background: "transparent" });
-
-const imageBoxStyle = css({
-  display: "block",
-  position: "relative",
-  width: "full",
-  aspectRatio: "1 / 1",
-  overflow: "hidden",
-  borderRadius: "lg",
-  background: "bg.surface",
-  boxShadow: "0 1px 2px rgba(31,29,27,0.06)",
-  transition: "box-shadow 0.35s ease",
-  "&:hover": { boxShadow: "card" },
-  "&:hover img": { transform: "scale(1.045)" },
-});
-
-const imageStyle = css({
-  objectFit: "cover",
-  transition: "transform 0.6s cubic-bezier(0.22,1,0.36,1)",
-});
-
-const wishlistButtonStyle = cx(
-  css({
-    position: "absolute",
-    top: "3",
-    right: "3",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: "full",
-    padding: "2",
-    cursor: "pointer",
-    background: "bg.glassStrong",
-    backdropBlur: "glassSm",
-    color: "fg.muted",
-    transition: "all 0.2s ease",
-    "&:hover": { background: "danger", color: "white" },
-    "&:disabled": { opacity: 0.5, cursor: "not-allowed" },
-  })
-);
-
-const quickViewButtonStyle = css({
-  position: "absolute",
-  bottom: "3",
-  right: "3",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: "full",
-  padding: "2",
-  cursor: "pointer",
-  background: "bg.glassStrong",
-  backdropBlur: "glassSm",
-  color: "fg.muted",
-  opacity: { base: 1, md: 0 },
-  transition: "all 0.2s ease",
-  "&:hover": { background: "bg.glass", color: "accent.pressed" },
-});
-
-const cardImageWrapStyle = css({ "&:hover .quick-view-trigger": { opacity: 1 } });
-
-const shareButtonStyle = css({
-  position: "absolute",
-  top: "14",
-  right: "3",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: "full",
-  padding: "2",
-  cursor: "pointer",
-  background: "bg.glassStrong",
-  backdropBlur: "glassSm",
-  color: "fg.muted",
-  transition: "all 0.2s ease",
-  "&:hover": { background: "bg.glass", color: "accent.pressed" },
-});
-
-const shareIconStyle = css({ width: "4.5", height: "4.5" });
-
-const wishlistActiveStyle = css({
-  background: "danger",
-  color: "white",
-});
-
-const bodyStyle = css({ paddingTop: "3.5" });
-
-const titleStyle = css({
-  fontFamily: "display",
-  fontSize: "md",
-  fontWeight: "medium",
-  letterSpacing: "wide",
-  color: "fg.default",
-  "&:hover": { color: "accent.pressed" },
-});
-
-const priceRowStyle = css({
-  marginTop: "1.5",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: "2",
-});
-
-const priceGroupStyle = css({ display: "flex", alignItems: "baseline", gap: "2", flexWrap: "wrap" });
-
-const priceStyle = css({ fontFamily: "display", fontSize: "md", fontWeight: "semibold", color: "fg.default" });
-
-const compareAtStyle = css({ fontSize: "xs", color: "fg.muted", textDecoration: "line-through" });
-
-
-const lowStockStyle = css({ marginTop: "1", fontSize: "xs", fontWeight: "medium", color: "gold.600" });
-
-// One quiet tag, not a wall of stickers — a card carrying every eligible
-// label at once reads as discount-bin, not atelier. Rank the most telling
-// claim first and show only that.
-const tagStyle = css({
-  position: "absolute",
-  top: "3",
-  left: "3",
-  paddingInline: "2.5",
-  paddingBlock: "1",
-  borderRadius: "full",
-  fontSize: "2xs",
-  fontWeight: "semibold",
-  letterSpacing: "wider",
-  textTransform: "uppercase",
-  backdropBlur: "glassSm",
-});
-
-const tagFeaturedStyle = css({
-  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
-  color: "fg.onGold",
-});
-
-const tagLimitedStyle = css({
-  background: "rgba(24,22,20,0.82)",
-  color: "gold.200",
-  border: "1px solid",
-  borderColor: "gold.400",
-});
-
-const tagBestSellerStyle = css({
-  background: "rgba(24,22,20,0.78)",
-  color: "ivory.50",
-});
-
-const tagNewArrivalStyle = css({
-  background: "bg.glassStrong",
-  color: "fg.default",
-  border: "1px solid",
-  borderColor: "border.glass",
-});
+import {
+  cardStyle,
+  imageBoxStyle,
+  imageStyle,
+  wishlistButtonStyle,
+  quickViewButtonStyle,
+  cardHoverStyle,
+  shareButtonStyle,
+  shareIconStyle,
+  wishlistActiveStyle,
+  bodyStyle,
+  titleStyle,
+  priceRowStyle,
+  priceGroupStyle,
+  priceStyle,
+  compareAtStyle,
+  lowStockStyle,
+  tagStyle,
+  tagFeaturedStyle,
+  tagLimitedStyle,
+  tagBestSellerStyle,
+  tagNewArrivalStyle,
+} from "./product-card.styles";
 
 export function ProductCard({
   id,
@@ -270,8 +136,8 @@ export function ProductCard({
   };
 
   return (
-    <div className={cardStyle}>
-      <div className={cx(css({ position: "relative" }), cardImageWrapStyle)}>
+    <div className={cx(cardStyle, cardHoverStyle)}>
+      <div className={css({ position: "relative" })}>
         <Link href={`/product/${slug}`} className={imageBoxStyle}>
           <Image
             src={mainImage?.url || "/placeholder.jpg"}

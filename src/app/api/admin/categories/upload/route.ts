@@ -2,8 +2,7 @@ import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { uploadPublicAsset } from "@/lib/imagekit-admin";
-
-const publicDirectory = "/assets/pictures/categories";
+import { categoryImageFolder, publicAssetPath } from "@/lib/imagekit-paths";
 const allowedTypes = new Map([
   ["image/jpeg", ".jpg"],
   ["image/png", ".png"],
@@ -32,6 +31,10 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file");
     const requestedName = formData.get("categoryName");
+    // A category being created has no slug yet, so the folder is derived from
+    // whichever identifier the caller has — the slug when it exists, the name
+    // otherwise. Both reduce to the same segment.
+    const requestedSlug = formData.get("categorySlug");
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "No image uploaded" }, { status: 400 });
@@ -60,7 +63,11 @@ export async function POST(request: NextRequest) {
           : originalName,
       ) || "category";
     const filename = `${baseName}-${Date.now()}-${randomUUID().slice(0, 8)}${extension}`;
-    const publicPath = `${publicDirectory}/${filename}`;
+    const folderKey =
+      (typeof requestedSlug === "string" && requestedSlug.trim()) ||
+      (typeof requestedName === "string" && requestedName.trim()) ||
+      "";
+    const publicPath = publicAssetPath(categoryImageFolder(folderKey), filename);
     await uploadPublicAsset(
       publicPath,
       Buffer.from(await file.arrayBuffer()),

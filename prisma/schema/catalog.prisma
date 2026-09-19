@@ -1,0 +1,233 @@
+// =========================================================================
+// CATALOG DOMAIN
+//
+// Owns what LavIndia sells: the product, its sellable variants, its imagery
+// and the taxonomy that organises them. Catalog owns price and description.
+// It does NOT own physical stock - that belongs to the Inventory domain.
+//
+// Products, variants and product images are created only in
+// Admin > Catalog > Products. No other domain may create them.
+// =========================================================================
+
+// ---------------------------------------------------------
+// Category (Earrings, Necklaces, Rings)
+// ---------------------------------------------------------
+model Category {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  slug          String   @unique
+  description   String?
+  image         String? // Hero image for category
+  isFeatured    Boolean  @default(false) // Show in Explore Section
+  featuredOrder Int      @default(0) // Order in Explore Section
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  products Product[]
+  filters  FilterCategory[]
+
+  @@map("categories")
+}
+
+// ---------------------------------------------------------
+// Product
+// ---------------------------------------------------------
+model Product {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  description      String?
+  priceCents       Int // stored in paisa/cents to avoid floats
+  compareAtCents   Int?
+  discountPercent  Int?
+  // DEPRECATED. Physical stock is owned by the Inventory domain and tracked
+  // per sellable variant (InventoryLevel). Kept for historical/auditing
+  // reasons only — nothing in the app reads it as a source of truth.
+  stock            Int      @default(0)
+  sku              String?  @unique
+  isActive         Boolean  @default(true)
+  isFeatured       Boolean  @default(false)
+  isLimitedEdition Boolean  @default(false)
+  isPublished      Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Foreign Keys
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  // Relations
+  images        ProductImage[]
+  variants      ProductVariant[]
+  collections   ProductCollection[]
+  wishlistItems WishlistItem[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+  events        ProductEvent[]
+
+  @@map("products")
+}
+
+// ---------------------------------------------------------
+// Product Variants
+// ---------------------------------------------------------
+model ProductVariant {
+  id                    String                 @id @default(cuid())
+  name                  String
+  priceCents            Int?
+  sku                   String?                @unique
+  // Internal Code 128 barcode. NOT a registered EAN/GTIN — it is only
+  // meaningful inside LavIndia. Owned by the sellable variant, and distinct
+  // from the SKU (a human-facing code) on purpose.
+  barcode               String?                @unique
+  color                 String?
+  size                  String?
+  material              String?
+  // DEPRECATED source of truth. Physical stock now lives in the Inventory
+  // domain (InventoryLevel). Kept only so historical rows aren't lost and
+  // so the migration that seeded inventory stays auditable. Do not read.
+  stock                 Int                    @default(0)
+  // How this variant's stock is counted. QUANTITY is an interchangeable run
+  // of identical pieces; SERIAL means each physical unit is distinguishable
+  // and would be tracked individually.
+  //
+  // Only QUANTITY is implemented today. The column exists so that a piece
+  // can be DECLARED unique now — which already lets the admin screens treat
+  // it as one-of-a-kind — and so that adding per-unit tracking later is an
+  // additive change rather than a redefinition of what an item is.
+  // See src/modules/inventory/SERIALISATION.md.
+  trackingMode          StockTrackingMode      @default(QUANTITY)
+  // The level at or below which this variant is flagged Low stock.
+  //
+  // Per variant rather than one global number, because "running low" is not a
+  // fixed quantity: three is sensible for an everyday stud and far too late
+  // for a piece that sells one a month. Defaults to 3 so existing rows keep
+  // the behaviour they had.
+  reorderPoint          Int                    @default(3)
+  // The implicit single variant of a product that has no meaningful
+  // options. Every product has exactly one sellable variant at minimum so
+  // Inventory/POS/Billing only ever deal with variants.
+  isDefault             Boolean                @default(false)
+  position              Int                    @default(0)
+  isActive              Boolean                @default(true)
+  productId             String
+  product               Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  images                ProductImage[]
+  inventoryLevels       InventoryLevel[]
+  inventoryMovements    InventoryMovement[]
+  inventoryReservations InventoryReservation[]
+
+  @@index([productId])
+  @@map("product_variants")
+}
+
+// ---------------------------------------------------------
+// Product Images
+// ---------------------------------------------------------
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  alt       String?
+  position  Int     @default(0)
+  isPrimary Boolean @default(false)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // When set, this image belongs to one specific variant's gallery (e.g. a
+  // Gold color variant's own photos) instead of the product's general
+  // gallery. Null means it's a general product image.
+  variantId String?
+  variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@map("product_images")
+}
+
+// ---------------------------------------------------------
+// Collections (for grouping products on homepage)
+// ---------------------------------------------------------
+model Collection {
+  id          String              @id @default(cuid())
+  name        String
+  slug        String              @unique
+  description String?
+  imagePath   String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  products    ProductCollection[]
+
+  @@map("collections")
+}
+
+model ProductCollection {
+  productId    String
+  collectionId String
+  product      Product    @relation(fields: [productId], references: [id])
+  collection   Collection @relation(fields: [collectionId], references: [id])
+
+  @@id([productId, collectionId])
+  @@map("product_collections")
+}
+
+// ---------------------------------------------------------
+// Product Filters (e.g., Price, Metal Type, Stone Type, etc.)
+// ---------------------------------------------------------
+model Filter {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "Price Range", "Metal Type", "Stone Type"
+  slug        String   @unique
+  type        String // "RANGE" (price), "CHECKBOX" (multi-select), "DROPDOWN", "COLOR"
+  description String?
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  options    FilterOption[]
+  categories FilterCategory[]
+
+  @@map("filters")
+}
+
+model FilterOption {
+  id        String   @id @default(cuid())
+  filterId  String
+  label     String // e.g., "Under ₹5,000", "Gold", "Diamond"
+  value     String // e.g., "0-5000", "gold", "diamond"
+  color     String? // For color filters (hex code)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  filter Filter @relation(fields: [filterId], references: [id], onDelete: Cascade)
+
+  @@unique([filterId, value])
+  @@map("filter_options")
+}
+
+model FilterCategory {
+  filterId   String
+  categoryId String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  filter   Filter   @relation(fields: [filterId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([filterId, categoryId])
+  @@map("filter_categories")
+}
+
+/// How a sellable variant's stock is counted.
+///
+/// Today every variant is QUANTITY. SERIAL is declared but not yet
+/// implemented: see src/modules/inventory/SERIALISATION.md for the design
+/// this enum reserves room for.
+enum StockTrackingMode {
+  /// Interchangeable pieces. Stock is a number; any unit satisfies any sale.
+  QUANTITY
+
+  /// Individually identifiable pieces, each with its own certificate and
+  /// provenance. Reserved for certified stones and one-of-a-kind work.
+  SERIAL
+}

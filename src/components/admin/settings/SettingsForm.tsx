@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { InfoHint } from "@/components/ui/info-hint";
 
 interface SiteSettings {
   id: string;
@@ -25,6 +26,8 @@ interface SiteSettings {
   contactNumber: string | null;
   email: string | null;
   gstNumber: string | null;
+  upiVpa: string | null;
+  upiPayeeName: string | null;
   facebook: string | null;
   instagram: string | null;
   twitter: string | null;
@@ -153,6 +156,75 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               onChange={(e) => handleChange("gstNumber", e.target.value)}
               placeholder="22AAAAA0000A1Z5"
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Payments — the UPI details used to build the counter bill QR. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Payments
+            <InfoHint label="How to set up UPI collection" below>
+              Two details are needed, both from the UPI app you already
+              collect payments in. Once saved, every counter bill shows a QR
+              with the exact amount filled in, so a customer cannot pay the
+              wrong figure.
+            </InfoHint>
+          </CardTitle>
+          <CardDescription>
+            Used to show a scannable UPI QR on counter bills.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className={cardBody}>
+          <div className={fieldRow}>
+            <div className={fieldStyle}>
+              <Label htmlFor="upiVpa">
+                UPI ID
+                <InfoHint label="Where to find your UPI ID" below>
+                  Step 1 — open the UPI app you take payments in (GPay,
+                  PhonePe, Paytm or your bank).
+                  <br />
+                  Step 2 — open your profile, where it is shown as your
+                  &ldquo;UPI ID&rdquo; or &ldquo;VPA&rdquo;.
+                  <br />
+                  Step 3 — copy it exactly. It looks like an email address but
+                  is not one, for example{" "}
+                  <strong>lavindia@okhdfcbank</strong>.
+                  <br />
+                  Step 4 — paste it here and save, then take one ₹1 test
+                  payment from your own phone to confirm it reaches the right
+                  account. A wrong ID sends your customers&rsquo; money to a
+                  stranger, and nothing in this system can recover it.
+                </InfoHint>
+              </Label>
+              <Input
+                id="upiVpa"
+                value={settings.upiVpa || ""}
+                onChange={(e) => handleChange("upiVpa", e.target.value)}
+                placeholder="yourname@okhdfcbank"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </div>
+            <div className={fieldStyle}>
+              <Label htmlFor="upiPayeeName">
+                Name shown to the customer
+                <InfoHint label="About the payee name" below>
+                  What appears in the customer&rsquo;s UPI app before they
+                  confirm the payment. Use the trading name they would
+                  recognise from your shopfront — an unfamiliar name makes
+                  people hesitate to pay. Leave blank to use the business name
+                  above.
+                </InfoHint>
+              </Label>
+              <Input
+                id="upiPayeeName"
+                value={settings.upiPayeeName || ""}
+                onChange={(e) => handleChange("upiPayeeName", e.target.value)}
+                placeholder="LavIndia"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -35,6 +35,11 @@ interface ProductImage {
 }
 
 interface ImageUploadProps {
+  /**
+   * Decides which media-library folder the images are filed under, so the
+   * ImageKit structure mirrors the catalog. Uploads are rejected without it.
+   */
+  categoryId?: string;
   images: ProductImage[];
   setImages: (images: ProductImage[]) => void;
   productName?: string;
@@ -44,6 +49,7 @@ export function ImageUpload({
   images,
   setImages,
   productName,
+  categoryId,
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
@@ -63,6 +69,7 @@ export function ImageUpload({
           const formData = new FormData();
           formData.append("file", file);
           formData.append("productName", productName || "");
+          formData.append("categoryId", categoryId || "");
 
           const response = await fetch("/api/admin/products/upload", {
             method: "POST",

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
+import { BESTSELLERS_TAG } from "@/lib/bestseller-ranking";
 
 const orderUpdateSchema = z.object({
   status: z.enum([
@@ -64,6 +66,10 @@ export async function PATCH(
         },
       },
     });
+
+    // Cancelling an order removes its units from the bestseller ranking, so
+    // the cached aggregate is dropped whenever a status changes.
+    revalidateTag(BESTSELLERS_TAG);
 
     return NextResponse.json(order);
   } catch (error) {

@@ -1,0 +1,37 @@
+// =========================================================================
+// ECOMMERCE DOMAIN
+//
+// Owns the storefront shopping session. A cart is a statement of intent
+// only: it reserves no stock and is not a source of truth for price, both
+// of which are recomputed server-side at checkout.
+// =========================================================================
+
+// ---------------------------------------------------------
+// Shopping Cart
+// ---------------------------------------------------------
+model Cart {
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id         String   @id @default(cuid())
+  cartId     String
+  productId  String
+  variantId  String?
+  quantity   Int      @default(1)
+  priceCents Int // Price at time of adding to cart
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  cart Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@map("cart_items")
+}

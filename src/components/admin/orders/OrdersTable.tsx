@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -20,511 +19,228 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
-import { Search, Eye, Loader2 } from "lucide-react";
+import { Eye, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { css, cx } from "styled-system/css";
+import {
+  orderCustomerContact,
+  orderCustomerName,
+} from "@/modules/orders/customer-display";
+import { ORDER_STATUSES } from "@/modules/orders/order-filters";
+import { OrderCardList } from "./OrderCardList";
+import { OrderDetailSheet } from "./OrderDetailSheet";
+import {
+  ChannelBadge,
+  OrderStatusBadge,
+  PaymentStatusBadge,
+  formatOrderDate,
+  formatRupees,
+  itemSummary,
+  paymentDescription,
+} from "./OrderBadges";
+import type { OrderRow, OrderStatus } from "./order-types";
 
-type OrderStatus =
-  | "PENDING"
-  | "PROCESSING"
-  | "SHIPPED"
-  | "OUT_FOR_DELIVERY"
-  | "DELIVERED"
-  | "CANCELLED"
-  | "REFUNDED";
-
-type PaymentStatus = "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  totalCents: number;
-  status: OrderStatus;
-  paymentStatus: PaymentStatus;
-  paymentMethod: string | null;
-  createdAt: Date;
-  user: {
-    name: string | null;
-    email: string | null;
-    mobile: string | null;
-  };
-  items: Array<{
-    id: string;
-    name: string;
-    quantity: number;
-    priceCents: number;
-  }>;
-  address: {
-    fullName: string;
-    addressLine1: string;
-    city: string;
-    state: string;
-    pincode: string;
-  };
-}
-
-interface OrdersTableProps {
-  orders: Order[];
-  searchParams: {
-    search?: string;
-    status?: string;
-    paymentStatus?: string;
-  };
-}
-
-const filterBarStyle = css({
-  display: "flex",
-  flexDirection: "column",
-  gap: "3",
-  borderRadius: "xl",
-  border: "1px solid",
-  borderColor: "border.subtle",
-  background: "bg.surface",
-  padding: "3",
-  boxShadow: "card",
-  lg: { flexDirection: "row", alignItems: "center" },
-});
-
-const searchWrapStyle = css({ position: "relative", minWidth: 0, flex: "1" });
-
-const searchIconStyle = css({
-  position: "absolute",
-  left: "3",
-  top: "50%",
-  transform: "translateY(-50%)",
-  height: "4",
-  width: "4",
-  color: "fg.muted",
-  pointerEvents: "none",
-});
-
-const tableWrapStyle = css({
+const wrapStyle = css({
   overflow: "hidden",
   borderRadius: "xl",
   border: "1px solid",
   borderColor: "border.subtle",
   background: "bg.surface",
   boxShadow: "card",
+  display: { base: "none", md: "block" },
 });
+const emptyCellStyle = css({ textAlign: "center", paddingBlock: "10", color: "fg.muted" });
+const nameStyle = css({ fontWeight: "medium", color: "fg.default" });
+const subStyle = css({ fontSize: "xs", color: "fg.muted" });
+const stackStyle = css({ display: "flex", flexDirection: "column", gap: "0.5", minWidth: 0 });
+const numericStyle = css({ fontWeight: "medium", fontVariantNumeric: "tabular-nums" });
+const rightStyle = css({ textAlign: "right" });
+const actionsStyle = css({ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "1" });
+const iconStyle = css({ height: "4", width: "4" });
+const spinStyle = css({ height: "3", width: "3", animation: "spin" });
+const dashStyle = css({ color: "fg.muted" });
 
-const emptyCellStyle = css({
-  textAlign: "center",
-  paddingBlock: "8",
-  color: "fg.muted",
-});
+/** The stages a status can actually be moved to, without the "any" option. */
+const ASSIGNABLE_STATUSES = ORDER_STATUSES.filter((option) => option.value !== "all");
 
-const customerNameStyle = css({ fontWeight: "medium", color: "fg.default" });
-const customerSubStyle = css({ fontSize: "xs", color: "fg.muted" });
-const paymentColStyle = css({ display: "flex", flexDirection: "column", gap: "1" });
-
-const sectionTitleStyle = css({
-  fontFamily: "display",
-  fontSize: "md",
-  fontWeight: "semibold",
-  color: "fg.default",
-  marginBottom: "2",
-});
-
-const infoTextStyle = css({ fontSize: "sm", color: "fg.default" });
-const infoMutedStyle = css({ fontSize: "sm", color: "fg.muted" });
-
-const itemRowStyle = css({
-  display: "flex",
-  justifyContent: "space-between",
-  gap: "3",
-  fontSize: "sm",
-  borderBottom: "1px solid",
-  borderColor: "border.subtle",
-  paddingBottom: "2",
-});
-
-const totalRowStyle = css({
-  display: "flex",
-  justifyContent: "space-between",
-  fontWeight: "bold",
-  fontSize: "lg",
-  borderTop: "1px solid",
-  borderColor: "border.subtle",
-  paddingTop: "4",
-});
-
-export function OrdersTable({ orders, searchParams }: OrdersTableProps) {
+/**
+ * Every order, both channels, one table.
+ *
+ * The channel is a column rather than a separate screen — see
+ * src/modules/orders/order-filters.ts for why. Each row links to its invoice
+ * when one has been raised, so going from a sale to the bill handed over is
+ * one click and never a search.
+ */
+export function OrdersTable({ orders }: { orders: OrderRow[] }) {
   const router = useRouter();
-  const [search, setSearch] = useState(searchParams.search || "");
-  const [statusFilter, setStatusFilter] = useState(
-    searchParams.status || "all",
-  );
-  const [paymentFilter, setPaymentFilter] = useState(
-    searchParams.paymentStatus || "all",
-  );
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<OrderRow | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const handleSearch = () => {
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    if (statusFilter !== "all") params.set("status", statusFilter);
-    if (paymentFilter !== "all") params.set("paymentStatus", paymentFilter);
-    router.push(`/admin/orders?${params.toString()}`);
-  };
-
-  const handleStatusUpdate = async (
-    orderId: string,
-    newStatus: OrderStatus,
-  ) => {
-    setUpdatingOrderId(orderId);
+  const updateStatus = async (orderId: string, status: OrderStatus) => {
+    setUpdatingId(orderId);
     try {
       const res = await fetch(`/api/admin/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status }),
       });
-
-      if (!res.ok) throw new Error("Failed to update");
-
-      toast.success("Order status updated");
+      if (!res.ok) throw new Error("Failed");
+      toast.success("Order updated");
       router.refresh();
     } catch {
-      toast.error("Failed to update status");
+      toast.error("Could not update the order");
     } finally {
-      setUpdatingOrderId(null);
+      setUpdatingId(null);
     }
-  };
-
-  const formatPrice = (cents: number) => {
-    return `₹${(cents / 100).toLocaleString("en-IN")}`;
-  };
-
-  const getStatusBadge = (status: OrderStatus) => {
-    const config: Record<
-      OrderStatus,
-      {
-        variant: "default" | "secondary" | "destructive" | "outline";
-        label: string;
-      }
-    > = {
-      PENDING: { variant: "outline", label: "Pending" },
-      PROCESSING: { variant: "secondary", label: "Processing" },
-      SHIPPED: { variant: "default", label: "Shipped" },
-      OUT_FOR_DELIVERY: { variant: "default", label: "Out for Delivery" },
-      DELIVERED: { variant: "default", label: "Delivered" },
-      CANCELLED: { variant: "destructive", label: "Cancelled" },
-      REFUNDED: { variant: "destructive", label: "Refunded" },
-    };
-
-    const { variant, label } = config[status];
-    return <Badge variant={variant}>{label}</Badge>;
-  };
-
-  const getPaymentBadge = (status: PaymentStatus) => {
-    const config: Record<
-      PaymentStatus,
-      {
-        variant: "default" | "secondary" | "destructive" | "outline";
-        label: string;
-      }
-    > = {
-      PENDING: { variant: "outline", label: "Pending" },
-      COMPLETED: { variant: "default", label: "Paid" },
-      FAILED: { variant: "destructive", label: "Failed" },
-      REFUNDED: { variant: "secondary", label: "Refunded" },
-    };
-
-    const { variant, label } = config[status];
-    return <Badge variant={variant}>{label}</Badge>;
   };
 
   return (
     <>
-      <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
-        {/* Filters */}
-        <div className={filterBarStyle}>
-          <div className={searchWrapStyle}>
-            <Search className={searchIconStyle} />
-            <Input
-              placeholder="Search by order number, customer name, or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              className={css({ paddingLeft: "9" })}
-            />
-          </div>
+      <OrderCardList orders={orders} onSelect={setSelected} />
 
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className={css({ width: "full", lg: { width: "45" } })}>
-              <SelectValue placeholder="Order Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="PROCESSING">Processing</SelectItem>
-              <SelectItem value="SHIPPED">Shipped</SelectItem>
-              <SelectItem value="OUT_FOR_DELIVERY">Out for Delivery</SelectItem>
-              <SelectItem value="DELIVERED">Delivered</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-            <SelectTrigger className={css({ width: "full", lg: { width: "45" } })}>
-              <SelectValue placeholder="Payment Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Payments</SelectItem>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="COMPLETED">Completed</SelectItem>
-              <SelectItem value="FAILED">Failed</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button onClick={handleSearch} className={css({ width: "full", lg: { width: "auto" } })}>
-            Apply
-          </Button>
-        </div>
-
-        {/* Mobile card list — no horizontal scroll, one order per card */}
-        <div className={css({ display: { base: "flex", md: "none" }, flexDirection: "column", gap: "3" })}>
-          {orders.length === 0 ? (
-            <div className={cx(tableWrapStyle, css({ padding: "8", textAlign: "center", color: "fg.muted" }))}>
-              No orders found
-            </div>
-          ) : (
-            orders.map((order) => (
-              <button
-                key={order.id}
-                type="button"
-                onClick={() => setSelectedOrder(order)}
-                className={css({
-                  textAlign: "left",
-                  borderRadius: "xl",
-                  border: "1px solid",
-                  borderColor: "border.subtle",
-                  background: "bg.surface",
-                  boxShadow: "card",
-                  padding: "3",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "2",
-                })}
-              >
-                <div className={css({ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "2" })}>
-                  <div>
-                    <p className={css({ fontWeight: "medium", color: "fg.default" })}>{order.orderNumber}</p>
-                    <p className={customerSubStyle}>
-                      {new Date(order.createdAt).toLocaleDateString("en-IN")} · {order.items.length} items
-                    </p>
-                  </div>
-                  <p className={css({ fontWeight: "medium", color: "fg.default", whiteSpace: "nowrap" })}>
-                    {formatPrice(order.totalCents)}
-                  </p>
-                </div>
-
-                <div>
-                  <span className={customerNameStyle}>{order.user.name || "N/A"}</span>
-                  <span className={customerSubStyle}> · {order.user.email || order.user.mobile}</span>
-                </div>
-
-                <div
-                  className={css({
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    paddingTop: "2",
-                    borderTop: "1px solid",
-                    borderColor: "border.subtle",
-                  })}
-                >
-                  <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
-                    {getPaymentBadge(order.paymentStatus)}
-                    {getStatusBadge(order.status)}
-                  </div>
-                  <Eye className={css({ height: "4", width: "4", color: "fg.muted" })} />
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-
-        {/* Table — desktop/tablet only */}
-        <div className={cx(tableWrapStyle, css({ display: { base: "none", md: "block" } }))}>
-          <Table>
-            <TableHeader>
+      <div className={wrapStyle}>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Order</TableHead>
+              <TableHead>Channel</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead className={rightStyle}>Value</TableHead>
+              <TableHead>Payment</TableHead>
+              <TableHead>Stage</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead className={rightStyle}>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orders.length === 0 ? (
               <TableRow>
-                <TableHead>Order #</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className={css({ textAlign: "right" })}>Actions</TableHead>
+                <TableCell colSpan={9} className={emptyCellStyle}>
+                  No orders match these filters.
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className={emptyCellStyle}>
-                    No orders found
+            ) : (
+              orders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell>
+                    <span className={stackStyle}>
+                      <span className={nameStyle}>{order.orderNumber}</span>
+                      {order.invoice && (
+                        <span className={subStyle}>{order.invoice.invoiceNumber}</span>
+                      )}
+                    </span>
                   </TableCell>
-                </TableRow>
-              ) : (
-                orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className={css({ fontWeight: "medium" })}>
-                      {order.orderNumber}
-                    </TableCell>
-                    <TableCell>
-                      <div className={css({ display: "flex", flexDirection: "column" })}>
-                        <span className={customerNameStyle}>
-                          {order.user.name || "N/A"}
-                        </span>
-                        <span className={customerSubStyle}>
-                          {order.user.email || order.user.mobile}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{order.items.length} items</TableCell>
-                    <TableCell className={css({ fontWeight: "medium" })}>
-                      {formatPrice(order.totalCents)}
-                    </TableCell>
-                    <TableCell>
-                      <div className={paymentColStyle}>
-                        {getPaymentBadge(order.paymentStatus)}
-                        <span className={customerSubStyle}>
-                          {order.paymentMethod === "cod"
-                            ? "Cash on Delivery"
-                            : "Online Payment"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
+
+                  <TableCell>
+                    <ChannelBadge channel={order.source} />
+                  </TableCell>
+
+                  <TableCell>
+                    <span className={stackStyle}>
+                      <span className={nameStyle}>{orderCustomerName(order)}</span>
+                      {orderCustomerContact(order) && (
+                        <span className={subStyle}>{orderCustomerContact(order)}</span>
+                      )}
+                    </span>
+                  </TableCell>
+
+                  {/* Pieces, not lines — see itemSummary. */}
+                  <TableCell>
+                    <span className={stackStyle}>
+                      <span className={css({ fontSize: "sm" })}>
+                        {itemSummary(order.items).pieces}
+                      </span>
+                      {itemSummary(order.items).products && (
+                        <span className={subStyle}>{itemSummary(order.items).products}</span>
+                      )}
+                    </span>
+                  </TableCell>
+
+                  <TableCell className={cx(numericStyle, rightStyle)}>
+                    {formatRupees(order.totalCents)}
+                  </TableCell>
+
+                  <TableCell>
+                    <span className={stackStyle}>
+                      <PaymentStatusBadge status={order.paymentStatus} />
+                      <span className={subStyle}>{paymentDescription(order)}</span>
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    {/* A counter sale is finished the moment it is paid — it is
+                        handed over across the counter, so there is nothing to
+                        advance and a dropdown would only invite a mistake. */}
+                    {order.source === "STORE" ? (
+                      <OrderStatusBadge status={order.status} />
+                    ) : (
                       <Select
                         value={order.status}
-                        onValueChange={(value) =>
-                          handleStatusUpdate(order.id, value as OrderStatus)
-                        }
-                        disabled={updatingOrderId === order.id}
+                        onValueChange={(value) => updateStatus(order.id, value as OrderStatus)}
+                        disabled={updatingId === order.id}
                       >
-                        <SelectTrigger className={css({ width: "40" })}>
+                        <SelectTrigger className={css({ width: "44" })} aria-label="Order stage">
                           <SelectValue>
-                            <div className={css({ display: "flex", alignItems: "center", gap: "1.5" })}>
-                              {updatingOrderId === order.id && (
-                                <Loader2
-                                  className={css({ height: "3", width: "3", animation: "spin" })}
-                                />
-                              )}
-                              {getStatusBadge(order.status)}
-                            </div>
+                            <span className={css({ display: "flex", alignItems: "center", gap: "1.5" })}>
+                              {updatingId === order.id && <Loader2 className={spinStyle} />}
+                              <OrderStatusBadge status={order.status} />
+                            </span>
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="PENDING">Pending</SelectItem>
-                          <SelectItem value="PROCESSING">
-                            Processing
-                          </SelectItem>
-                          <SelectItem value="SHIPPED">Shipped</SelectItem>
-                          <SelectItem value="OUT_FOR_DELIVERY">
-                            Out for Delivery
-                          </SelectItem>
-                          <SelectItem value="DELIVERED">Delivered</SelectItem>
-                          <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                          <SelectItem value="REFUNDED">Refunded</SelectItem>
+                          {ASSIGNABLE_STATUSES.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(order.createdAt).toLocaleDateString("en-IN")}
-                    </TableCell>
-                    <TableCell className={css({ textAlign: "right" })}>
+                    )}
+                  </TableCell>
+
+                  <TableCell className={subStyle}>{formatOrderDate(order.createdAt)}</TableCell>
+
+                  <TableCell>
+                    <span className={actionsStyle}>
+                      {/* Shown only once a bill exists, so the link is never dead. */}
+                      {order.invoice ? (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          asChild
+                          aria-label={`Invoice ${order.invoice.invoiceNumber}`}
+                        >
+                          <Link href={`/admin/invoices/${order.id}`} title="Open the invoice">
+                            <FileText className={iconStyle} />
+                          </Link>
+                        </Button>
+                      ) : (
+                        <span
+                          className={dashStyle}
+                          title="No invoice yet — one is raised when the sale is settled"
+                        >
+                          —
+                        </span>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        onClick={() => setSelectedOrder(order)}
-                        aria-label={`View order ${order.orderNumber}`}
+                        onClick={() => setSelected(order)}
+                        aria-label={`View ${order.orderNumber}`}
                       >
-                        <Eye className={css({ height: "4", width: "4" })} />
+                        <Eye className={iconStyle} />
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                    </span>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
-      {/* Order quick-view: a slide-over Sheet instead of a full page nav keeps
-          "check an order's items" to a single click, using data already fetched
-          for the row. */}
-      <Sheet
-        open={!!selectedOrder}
-        onOpenChange={(open) => !open && setSelectedOrder(null)}
-      >
-        <SheetContent side="right" className={css({ maxWidth: "28rem" })}>
-          <SheetHeader>
-            <SheetTitle>Order #{selectedOrder?.orderNumber}</SheetTitle>
-            <SheetDescription>
-              Placed {selectedOrder && new Date(selectedOrder.createdAt).toLocaleDateString("en-IN")}
-            </SheetDescription>
-          </SheetHeader>
-
-          {selectedOrder && (
-            <div className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
-              <div>
-                <h3 className={sectionTitleStyle}>Customer</h3>
-                <div className={css({ display: "flex", flexDirection: "column", gap: "0.5" })}>
-                  <p className={infoTextStyle}>{selectedOrder.user.name}</p>
-                  <p className={infoMutedStyle}>{selectedOrder.user.email}</p>
-                  <p className={infoMutedStyle}>{selectedOrder.user.mobile}</p>
-                </div>
-              </div>
-
-              <div>
-                <h3 className={sectionTitleStyle}>Shipping Address</h3>
-                <div className={infoTextStyle}>
-                  <p>{selectedOrder.address.fullName}</p>
-                  <p>{selectedOrder.address.addressLine1}</p>
-                  <p>
-                    {selectedOrder.address.city}, {selectedOrder.address.state}{" "}
-                    {selectedOrder.address.pincode}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <h3 className={sectionTitleStyle}>Order Items</h3>
-                <div className={css({ display: "flex", flexDirection: "column", gap: "2" })}>
-                  {selectedOrder.items.map((item) => (
-                    <div key={item.id} className={itemRowStyle}>
-                      <div>
-                        <p className={css({ fontWeight: "medium", color: "fg.default" })}>
-                          {item.name}
-                        </p>
-                        <p className={infoMutedStyle}>Qty: {item.quantity}</p>
-                      </div>
-                      <p className={css({ fontWeight: "medium", color: "fg.default" })}>
-                        {formatPrice(item.priceCents * item.quantity)}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className={totalRowStyle}>
-                <span>Total</span>
-                <span>{formatPrice(selectedOrder.totalCents)}</span>
-              </div>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      <OrderDetailSheet order={selected} onClose={() => setSelected(null)} />
     </>
   );
 }

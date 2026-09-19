@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { checkoutService } from "@/modules/ecommerce";
+import { OrderId } from "@/modules/_shared/ids";
+import { BESTSELLERS_TAG } from "@/lib/bestseller-ranking";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -81,6 +85,32 @@ export async function POST(req: NextRequest) {
       );
       if (eligibilityError) {
         return NextResponse.json({ error: eligibilityError }, { status: 400 });
+      }
+    }
+
+    // Stock is checked and HELD server-side. The client's prices and
+    // quantities are advisory; this is what actually decides whether the
+    // sale may proceed, and it is what stops two people buying the same
+    // last piece.
+    const stockLines = validated.items
+      .filter((item) => item.variantId)
+      .map((item) => ({ variantId: item.variantId!, quantity: item.quantity }));
+
+    if (stockLines.length > 0) {
+      const check = await checkoutService.validate(stockLines);
+      if (!check.ok) {
+        const first = check.problems[0];
+        return NextResponse.json(
+          {
+            error:
+              first.available === 0
+                ? `${first.productName} has just sold out`
+                : `Only ${first.available} left of ${first.productName}`,
+            code: "INSUFFICIENT_STOCK",
+            problems: check.problems,
+          },
+          { status: 409 },
+        );
       }
     }
 
@@ -173,6 +203,17 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      // Held inside the same transaction as the order, so an order never
+      // exists without its stock set aside. COD is settled immediately —
+      // there is no gateway step to wait for — while a gateway payment keeps
+      // the hold until it is confirmed.
+      if (stockLines.length > 0) {
+        await checkoutService.reserveForOrder(OrderId(newOrder.id), stockLines, tx);
+        if (validated.paymentMethod === "cod") {
+          await checkoutService.commitPaidOrder(OrderId(newOrder.id), stockLines, tx);
+        }
+      }
+
       if (validated.paymentMethod === "cod") {
         // For COD, add another tracking entry
         await tx.orderTracking.create({
@@ -187,6 +228,11 @@ export async function POST(req: NextRequest) {
 
       return newOrder;
     });
+
+    // A new order changes the bestseller ranking, so its cache is dropped
+    // here rather than waiting for the revalidate window to lapse.
+    revalidateTag(BESTSELLERS_TAG);
+    revalidateTag("homepage");
 
     // Fetch complete order details
     const orderWithDetails = await prisma.order.findUnique({

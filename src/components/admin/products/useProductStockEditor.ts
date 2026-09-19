@@ -11,18 +11,28 @@ export function useProductStockEditor(onUpdated?: () => void) {
     if (newStock < 0) return;
 
     try {
-      const res = await fetch(`/api/admin/products/${productId}`, {
-        method: "PATCH",
+      // Goes through the Inventory domain, which records the change as an
+      // adjustment with a reason. Writing Product.stock directly would move
+      // stock silently and leave the real levels untouched.
+      const res = await fetch("/api/admin/inventory/set-product-stock", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stock: newStock }),
+        body: JSON.stringify({ productId, quantity: newStock }),
       });
 
-      if (!res.ok) throw new Error("Failed to update stock");
+      const data = await res.json().catch(() => ({}));
 
-      toast.success("Stock updated");
+      if (!res.ok) {
+        // The server's message is the specific one — for example that the
+        // product has several options and must be stocked per option.
+        toast.error(data.error ?? "Could not update stock");
+        return;
+      }
+
+      if (!data.unchanged) toast.success("Stock updated");
       onUpdated?.();
     } catch {
-      toast.error("Failed to update stock");
+      toast.error("Could not reach the server. Nothing was changed.");
     }
   };
 

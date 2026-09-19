@@ -69,6 +69,8 @@ interface RazorpayOptions {
     name?: string;
     email?: string;
     contact?: string;
+    /** Opens the gateway straight on this instrument's screen. */
+    method?: "upi" | "card" | "netbanking" | "wallet";
   };
   notes?: Record<string, string>;
   theme?: {
@@ -95,6 +97,11 @@ interface RazorpayCheckoutProps {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  /**
+   * What the customer chose at checkout. Both settle through the same
+   * gateway; this only saves them a tap by opening on the right screen.
+   */
+  preferredMethod?: "upi" | "card";
   onSuccess: () => void;
   onFailure: () => void;
   onCancel: () => void;
@@ -108,6 +115,7 @@ export default function RazorpayCheckout({
   customerName,
   customerEmail,
   customerPhone,
+  preferredMethod,
   onSuccess,
   onFailure,
   onCancel,
@@ -244,6 +252,9 @@ export default function RazorpayCheckout({
           name: customerName,
           email: customerEmail,
           contact: customerPhone,
+          // Honours the choice already made at checkout, so the customer is
+          // not asked the same question twice.
+          ...(preferredMethod ? { method: preferredMethod } : {}),
         },
         notes: {
           orderNumber: orderNumber,
@@ -315,12 +326,10 @@ export default function RazorpayCheckout({
             </div>
           </div>
           <h3 className={headingStyle}>
-            {razorpayLoaded
-              ? "Opening Payment Gateway..."
-              : "Loading Payment Gateway..."}
+            {razorpayLoaded ? "Opening secure payment…" : "Preparing secure payment…"}
           </h3>
           <p className={subTextStyle}>
-            Please wait while we redirect you to secure payment
+            One moment while your payment is set up
           </p>
           <p className={orderNumStyle}>Order #{orderNumber}</p>
         </div>

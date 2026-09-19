@@ -57,7 +57,7 @@ const ROUTE_CONFIG: Record<string, string> = {
   categories: "Categories",
 };
 
-function generateBreadcrumbs(pathname: string) {
+function generateBreadcrumbs(pathname: string, currentLabel?: string) {
   // Always start with home
   const breadcrumbs = [{ label: "Home", href: "/" }];
 
@@ -77,14 +77,19 @@ function generateBreadcrumbs(pathname: string) {
 
     // Handle product route specially - skip 'product' and use next segment as product name
     if (segment === "product" && i + 1 < segments.length) {
-      const productSlug = segments[i + 1];
-      // Convert slug to readable name (e.g., "gold-earrings-1761479122480" -> "Gold Earrings").
-      // Product slugs always end in a numeric uniqueness suffix — strip it for display.
-      const productName = productSlug
-        .replace(/-\d+$/, "")
-        .split("-")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
+      const productSegment = segments[i + 1];
+
+      // The product route is addressed by id, not slug, so deriving a name
+      // from the URL yields a title-cased database id. A caller that knows
+      // the real name passes it instead; the slug fallback below only helps
+      // on routes that genuinely carry a slug.
+      const productName =
+        currentLabel ??
+        productSegment
+          .replace(/-\d+$/, "")
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
 
       breadcrumbs.push({
         label: productName,
@@ -112,9 +117,14 @@ function generateBreadcrumbs(pathname: string) {
   return breadcrumbs;
 }
 
-export function BreadcrumbNavigation() {
+export function BreadcrumbNavigation({
+  /** Overrides the final crumb, for routes whose URL carries an id rather than a readable slug. */
+  currentLabel,
+}: {
+  currentLabel?: string;
+} = {}) {
   const pathname = usePathname();
-  const breadcrumbs = generateBreadcrumbs(pathname);
+  const breadcrumbs = generateBreadcrumbs(pathname, currentLabel);
 
   // Don't show breadcrumbs on home page
   if (breadcrumbs.length <= 1) {

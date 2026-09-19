@@ -8,6 +8,15 @@ import { useCart } from "@/components/cart/useCart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import RazorpayCheckout from "@/components/payment/RazorpayCheckout";
+import {
+  PaymentMethodChoice,
+  isOnlinePayment,
+  type CheckoutPaymentChoice,
+} from "@/components/checkout/PaymentMethodChoice";
+import {
+  ShippingMethodChoice,
+  type CheckoutShippingChoice,
+} from "@/components/checkout/ShippingMethodChoice";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -63,23 +72,6 @@ const fieldGridStyle = css({
 });
 const fieldSpanStyle = css({ gridColumn: { md: "1 / -1" } });
 
-const optionRowStyle = css({ display: "grid", gap: "3" });
-const optionLabelStyle = css({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  border: "1px solid",
-  borderColor: "border.subtle",
-  borderRadius: "md",
-  padding: "3",
-  cursor: "pointer",
-  transition: "background 0.15s ease, border-color 0.15s ease",
-  "&:hover": { background: "bg.surface", borderColor: "accent.default" },
-});
-const optionLabelTextStyle = css({ fontSize: "sm", color: "fg.default" });
-const optionRightStyle = css({ display: "flex", alignItems: "center", gap: "3" });
-const optionPriceStyle = css({ fontSize: "sm", fontWeight: "medium", color: "fg.default" });
-const radioStyle = css({ accentColor: "token(colors.accent.default)", width: "4", height: "4" });
 
 const asideStyle = css({
   gridColumn: { lg: "2" },
@@ -173,8 +165,9 @@ export default function CheckoutPage() {
     state: "",
     postalCode: "",
     phone: "",
-    shippingMethod: "standard",
-    paymentMethod: "cod", // cash on delivery by default
+    shippingMethod: "standard" as CheckoutShippingChoice,
+    // UPI first: it is how most customers here actually pay.
+    paymentMethod: "upi" as CheckoutPaymentChoice,
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -349,9 +342,14 @@ export default function CheckoutPage() {
       const { address } = await addressResponse.json();
 
       // Step 2: Create order in database
+      // The API records the route the money takes, not the instrument: UPI
+      // and card both settle through the online gateway, and which one was
+      // used is captured against the payment once the gateway confirms it.
+      const paidOnline = isOnlinePayment(form.paymentMethod);
+
       const orderPayload = {
         addressId: address.id,
-        paymentMethod: form.paymentMethod,
+        paymentMethod: paidOnline ? "razorpay" : "cod",
         shippingMethod: form.shippingMethod,
         items: items.map((item) => {
           const orderItem: {
@@ -400,14 +398,13 @@ export default function CheckoutPage() {
 
       const { order } = await orderResponse.json();
 
-      // Step 3: Handle payment method
-      if (form.paymentMethod === "cod") {
-        // COD: Order is already created and processing
+      // Step 3: Settle the payment
+      if (!paidOnline) {
+        // Cash on delivery: the order is already through and processing.
         toast.success("Order placed successfully!");
         clear();
         router.push(`/order-success?order=${order.orderNumber}`);
-      } else if (form.paymentMethod === "razorpay") {
-        // Razorpay: Show Razorpay checkout component
+      } else {
         setRazorpayData({
           orderId: order.id,
           orderNumber: order.orderNumber,
@@ -524,70 +521,18 @@ export default function CheckoutPage() {
 
               <section className={sectionStyle}>
                 <h2 className={sectionHeadingStyle}>Shipping method</h2>
-                <div className={optionRowStyle}>
-                  <label className={optionLabelStyle}>
-                    <span className={optionLabelTextStyle}>Standard (3-7 days)</span>
-                    <div className={optionRightStyle}>
-                      <span className={optionPriceStyle}>₹99</span>
-                      <input
-                        type="radio"
-                        name="shipping"
-                        className={radioStyle}
-                        checked={form.shippingMethod === "standard"}
-                        onChange={() =>
-                          setForm({ ...form, shippingMethod: "standard" })
-                        }
-                      />
-                    </div>
-                  </label>
-                  <label className={optionLabelStyle}>
-                    <span className={optionLabelTextStyle}>Express (1-2 days)</span>
-                    <div className={optionRightStyle}>
-                      <span className={optionPriceStyle}>₹199</span>
-                      <input
-                        type="radio"
-                        name="shipping"
-                        className={radioStyle}
-                        checked={form.shippingMethod === "express"}
-                        onChange={() =>
-                          setForm({ ...form, shippingMethod: "express" })
-                        }
-                      />
-                    </div>
-                  </label>
-                </div>
+                <ShippingMethodChoice
+                  value={form.shippingMethod}
+                  onChange={(shippingMethod) => setForm({ ...form, shippingMethod })}
+                />
               </section>
 
               <section className={sectionStyle}>
                 <h2 className={sectionHeadingStyle}>Payment</h2>
-                <div className={optionRowStyle}>
-                  <label className={optionLabelStyle}>
-                    <span className={optionLabelTextStyle}>Cash on Delivery (COD)</span>
-                    <input
-                      type="radio"
-                      name="payment"
-                      className={radioStyle}
-                      checked={form.paymentMethod === "cod"}
-                      onChange={() =>
-                        setForm({ ...form, paymentMethod: "cod" })
-                      }
-                    />
-                  </label>
-                  <label className={optionLabelStyle}>
-                    <span className={optionLabelTextStyle}>
-                      Card / UPI / Wallet (Razorpay)
-                    </span>
-                    <input
-                      type="radio"
-                      name="payment"
-                      className={radioStyle}
-                      checked={form.paymentMethod === "razorpay"}
-                      onChange={() =>
-                        setForm({ ...form, paymentMethod: "razorpay" })
-                      }
-                    />
-                  </label>
-                </div>
+                <PaymentMethodChoice
+                  value={form.paymentMethod}
+                  onChange={(paymentMethod) => setForm({ ...form, paymentMethod })}
+                />
               </section>
             </div>
 
@@ -723,6 +668,7 @@ export default function CheckoutPage() {
           orderId={razorpayData.orderId}
           orderNumber={razorpayData.orderNumber}
           amount={razorpayData.amount}
+          preferredMethod={form.paymentMethod === "card" ? "card" : "upi"}
           customerName={`${form.firstName} ${form.lastName}`.trim()}
           customerEmail={form.email}
           customerPhone={form.phone}

@@ -1,0 +1,139 @@
+// =========================================================================
+// MARKETING DOMAIN
+//
+// Owns the merchandising surfaces: banners, coupons, homepage composition
+// and the price-tier entry points. It reads the catalog but never writes
+// to it.
+// =========================================================================
+
+// ---------------------------------------------------------
+// Discounts and Coupons
+// ---------------------------------------------------------
+model Discount {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  title         String
+  description   String?
+  discountType  String // PERCENTAGE, FIXED_AMOUNT
+  discountValue Int // percentage (10 = 10%) or fixed amount in paisa
+  minPurchase   Int? // minimum purchase amount in paisa
+  maxDiscount   Int? // maximum discount amount in paisa (for percentage type)
+  startDate     DateTime // overall campaign window the recurrence (if any) is bounded by
+  endDate       DateTime
+  isActive      Boolean  @default(true)
+  usageLimit    Int? // null = unlimited
+  usedCount     Int      @default(0)
+
+  // Recurring activation: the coupon is only live during startDate..endDate
+  // AND, when isRecurring is true, only on the matching recurrence slice.
+  isRecurring          Boolean @default(false)
+  recurrenceType       String? // "DAILY" | "WEEKLY" | "MONTHLY"
+  recurrenceDaysOfWeek Int[]   @default([]) // WEEKLY: 0=Sun..6=Sat
+  recurrenceDayOfMonth Int? // MONTHLY: 1-31
+  recurrenceStartTime  String? // "HH:MM" 24h — optional time-of-day window
+  recurrenceEndTime    String? // "HH:MM" 24h
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("discounts")
+}
+
+// ---------------------------------------------------------
+// Hero Banners for homepage
+// ---------------------------------------------------------
+model HeroBanner {
+  id        String  @id @default(cuid())
+  title     String
+  subtitle  String?
+  imagePath String
+  linkUrl   String?
+  order     Int     @default(0)
+  active    Boolean @default(true)
+
+  // Optional scheduling — same convention/logic as Discount and
+  // PromoBanner (see src/lib/scheduling.ts). Null dates = no bound.
+  startDate            DateTime?
+  endDate              DateTime?
+  isRecurring          Boolean   @default(false)
+  recurrenceType       String?
+  recurrenceDaysOfWeek Int[]     @default([])
+  recurrenceDayOfMonth Int?
+  recurrenceStartTime  String?
+  recurrenceEndTime    String?
+
+  createdAt DateTime @default(now())
+
+  @@map("hero_banners")
+}
+
+// ---------------------------------------------------------
+// Promotional Banners (Top scroll, Free gifts, etc.)
+// ---------------------------------------------------------
+model PromoBanner {
+  id        String    @id @default(cuid())
+  type      String // 'top_scroll', 'free_gifts', 'special_offer'
+  title     String?
+  message   String
+  bgColor   String? // Background color or gradient
+  textColor String?
+  isActive  Boolean   @default(true)
+  startDate DateTime?
+  endDate   DateTime?
+
+  // See src/lib/scheduling.ts — same recurrence convention as Discount/HeroBanner.
+  isRecurring          Boolean @default(false)
+  recurrenceType       String?
+  recurrenceDaysOfWeek Int[]   @default([])
+  recurrenceDayOfMonth Int?
+  recurrenceStartTime  String?
+  recurrenceEndTime    String?
+
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("promo_banners")
+}
+
+// ---------------------------------------------------------
+// Budget Tiers for Shop Under Budget Section
+// ---------------------------------------------------------
+model BudgetTier {
+  id        String   @id @default(cuid())
+  title     String
+  maxPrice  Int // in paisa
+  gradient  String // CSS gradient string
+  icon      String? // Optional icon name
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("budget_tiers")
+}
+
+// ---------------------------------------------------------
+// Homepage Section Visibility & Order
+// ---------------------------------------------------------
+model HomePageSection {
+  id        String   @id @default(cuid())
+  name      String   @unique // 'hero', 'explore', 'bestsellers', 'budget', 'free_gifts', 'new_arrivals', 'trust_badges', 'coupons'
+  title     String? // Override default title
+  isVisible Boolean  @default(true)
+  order     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("homepage_sections")
+}
+
+// ---------------------------------------------------------
+// Newsletter
+// ---------------------------------------------------------
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+
+  @@map("newsletter_subscribers")
+}

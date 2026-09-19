@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isNewArrival, isBestSeller } from "@/lib/product-tags";
+import { availabilityByProduct, availabilityByVariant } from "@/modules/inventory";
 
 export async function GET(request: NextRequest) {
   try {
@@ -160,7 +161,7 @@ export async function GET(request: NextRequest) {
           },
           variants: {
             where: { isActive: true },
-            orderBy: { stock: "desc" },
+            orderBy: { position: "asc" },
           },
           category: true,
           _count: { select: { orderItems: true } },
@@ -170,6 +171,13 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.product.count({ where }),
+    ]);
+
+    // Stock comes from the Inventory domain, never the deprecated
+    // Product.stock column. Two batched lookups serve the whole page.
+    const [productAvailability, variantAvailability] = await Promise.all([
+      availabilityByProduct(products.map((p) => p.id)),
+      availabilityByVariant(products.flatMap((p) => p.variants.map((v) => v.id))),
     ]);
 
     // Transform data for frontend
@@ -182,7 +190,7 @@ export async function GET(request: NextRequest) {
       compareAtPrice: product.compareAtCents
         ? product.compareAtCents / 100
         : null,
-      stock: product.stock || 0, // Add stock field
+      stock: productAvailability.get(product.id)?.available ?? 0,
       sku: product.sku,
       isFeatured: product.isFeatured,
       isLimitedEdition: product.isLimitedEdition,
@@ -203,7 +211,7 @@ export async function GET(request: NextRequest) {
         color: variant.color,
         size: variant.size,
         material: variant.material,
-        stock: variant.stock,
+        stock: variantAvailability.get(variant.id) ?? 0,
       })),
       category: {
         name: product.category.name,

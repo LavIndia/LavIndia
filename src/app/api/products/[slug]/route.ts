@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { availabilityByProduct, availabilityByVariant } from "@/modules/inventory";
 
 export async function GET(
   request: NextRequest,
@@ -28,7 +29,7 @@ export async function GET(
         },
         variants: {
           where: { isActive: true },
-          orderBy: { stock: "desc" },
+          orderBy: { position: "asc" },
         },
         category: true,
       },
@@ -37,6 +38,13 @@ export async function GET(
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
+
+    // Stock comes from the Inventory domain, never the deprecated
+    // Product.stock column.
+    const [productAvailability, variantAvailability] = await Promise.all([
+      availabilityByProduct([product.id]),
+      availabilityByVariant(product.variants.map((v) => v.id)),
+    ]);
 
     // Transform data for frontend
     const transformedProduct = {
@@ -48,7 +56,7 @@ export async function GET(
       compareAtPrice: product.compareAtCents
         ? Math.round(product.compareAtCents / 100)
         : null,
-      stock: product.stock,
+      stock: productAvailability.get(product.id)?.available ?? 0,
       sku: product.sku,
       isFeatured: product.isFeatured,
       images: product.images.map((image) => ({
@@ -64,7 +72,7 @@ export async function GET(
         color: variant.color,
         size: variant.size,
         material: variant.material,
-        stock: variant.stock,
+        stock: variantAvailability.get(variant.id) ?? 0,
       })),
       category: {
         name: product.category.name,

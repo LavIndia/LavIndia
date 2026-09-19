@@ -1,0 +1,162 @@
+// =========================================================================
+// CUSTOMERS DOMAIN
+//
+// Owns identity, authentication and the records a customer owns about
+// themselves. Shared by the storefront and the admin shell. POS may attach
+// a customer to a sale, but never owns the customer record.
+// =========================================================================
+
+// ---------------------------------------------------------
+// User Authentication & Profile
+// ---------------------------------------------------------
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  username       String    @unique
+  email          String?   @unique
+  emailVerified  DateTime?
+  mobile         String?   @unique
+  mobileVerified DateTime?
+  password       String? // Hashed password for email/mobile login
+  profilePicture String? // User uploaded profile picture
+  role           Role      @default(CUSTOMER)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  addresses     Address[]
+  carts         Cart[]
+  wishlistItems WishlistItem[]
+  orders        Order[]
+  reviews       Review[]
+  loginEvents   LoginEvent[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------
+// OAuth Accounts (Google, etc.)
+// ---------------------------------------------------------
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+// ---------------------------------------------------------
+// User Sessions
+// ---------------------------------------------------------
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------
+// Login history / device info — shown to the user on their
+// own "Active Sessions" / login-activity page. Only stores
+// standard, non-invasive fields (no precise geolocation).
+// ---------------------------------------------------------
+model LoginEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  ipAddress  String?
+  userAgent  String?
+  browser    String? // parsed from user agent, e.g. "Chrome"
+  os         String? // parsed from user agent, e.g. "Windows"
+  deviceType String? // "Desktop", "Mobile", "Tablet"
+  city       String? // coarse, derived from IP (not GPS)
+  region     String?
+  country    String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("login_events")
+}
+
+// ---------------------------------------------------------
+// User Addresses
+// ---------------------------------------------------------
+model Address {
+  id           String   @id @default(cuid())
+  userId       String
+  fullName     String
+  mobile       String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  pincode      String
+  country      String   @default("India")
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@map("addresses")
+}
+
+// ---------------------------------------------------------
+// Product Reviews
+// ---------------------------------------------------------
+model Review {
+  id                 String   @id @default(cuid())
+  rating             Int
+  comment            String
+  isVerifiedPurchase Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@map("reviews")
+}
+
+// ---------------------------------------------------------
+// Wishlist
+// ---------------------------------------------------------
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlist_items")
+}

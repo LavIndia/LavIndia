@@ -1,0 +1,63 @@
+// =========================================================================
+// PAYMENTS DOMAIN
+//
+// Owns money movement and gateway reconciliation. Server-authoritative: a
+// browser-reported success is never the final word.
+// =========================================================================
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ---------------------------------------------------------
+// Payment & Transactions
+// ---------------------------------------------------------
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String        @unique
+  razorpayOrderId   String?       @unique // Razorpay order_id
+  razorpayPaymentId String?       @unique // Razorpay payment_id
+  razorpaySignature String?
+  amountCents       Int
+  currency          String        @default("INR")
+  status            PaymentStatus @default(PENDING)
+  method            String? // card, upi, netbanking, wallet, cod, CASH, CARD, UPI
+  /**
+   * The instrument in the customer's words — "HDFC Bank •••• 4242",
+   * "ananya@okicici", "Net banking · ICICI".
+   *
+   * `method` says the KIND of payment; this says which one. A gateway order
+   * that only ever reads "Card / UPI online" is useless when reconciling a
+   * statement or answering "how did they pay?", and the gateway already knows
+   * — it is on the payment entity, so it is fetched once at verification and
+   * frozen here rather than looked up again later.
+   */
+  instrumentDetail  String?
+  errorCode         String?
+  errorDescription  String?
+  // Free-form payment reference for non-gateway methods (UPI txn id, card
+  // approval code, cheque number). Gateway payments use the razorpay* fields.
+  reference         String?
+  // Who paid, and the bank's reference for it.
+  //
+  // A plain upi:// QR cannot supply these — the money reaches the merchant's
+  // UPI app and this system never hears about it, so they are entered by the
+  // cashier from the customer's confirmation screen. A Razorpay QR fills them
+  // automatically from its webhook. Either way they belong on the invoice,
+  // because "paid by UPI" without a reference is not reconcilable.
+  payerVpa          String?
+  /**
+   * UPI RRN / UTR — the 12-digit bank reference for the transfer.
+   */
+  utr               String?
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("payments")
+}

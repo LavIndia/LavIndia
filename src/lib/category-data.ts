@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { isNewArrival, isBestSeller } from "@/lib/product-tags";
+import { availabilityByProduct, availabilityByVariant } from "@/modules/inventory";
 
 async function fetchCategoryProducts(categorySlug: string, limit: number) {
   const [products, totalCount] = await Promise.all([
@@ -8,7 +9,7 @@ async function fetchCategoryProducts(categorySlug: string, limit: number) {
       where: { isActive: true, isPublished: true, category: { slug: categorySlug } },
       include: {
         images: { orderBy: { position: "asc" }, take: 3 },
-        variants: { where: { isActive: true }, orderBy: { stock: "desc" } },
+        variants: { where: { isActive: true }, orderBy: { position: "asc" } },
         category: true,
         _count: { select: { orderItems: true } },
       },
@@ -20,6 +21,13 @@ async function fetchCategoryProducts(categorySlug: string, limit: number) {
     }),
   ]);
 
+  // Two batched lookups for the whole page — product rollups for the cards
+  // and per-variant figures for the option pickers.
+  const [productAvailability, variantAvailability] = await Promise.all([
+    availabilityByProduct(products.map((p) => p.id)),
+    availabilityByVariant(products.flatMap((p) => p.variants.map((v) => v.id))),
+  ]);
+
   const transformedProducts = products.map((product) => ({
     id: product.id,
     name: product.name,
@@ -29,7 +37,7 @@ async function fetchCategoryProducts(categorySlug: string, limit: number) {
     compareAtPrice: product.compareAtCents
       ? product.compareAtCents / 100
       : null,
-    stock: product.stock || 0,
+    stock: productAvailability.get(product.id)?.available ?? 0,
     sku: product.sku,
     isFeatured: product.isFeatured,
     isLimitedEdition: product.isLimitedEdition,
@@ -50,7 +58,7 @@ async function fetchCategoryProducts(categorySlug: string, limit: number) {
       color: variant.color,
       size: variant.size,
       material: variant.material,
-      stock: variant.stock,
+      stock: variantAvailability.get(variant.id) ?? 0,
     })),
     category: {
       name: product.category.name,

@@ -542,7 +542,7 @@ export function ProductPageClient() {
       <main className={mainStyle}>
         <div className={containerStyle}>
           <div className={crumbStyle}>
-            <BreadcrumbNavigation />
+            <BreadcrumbNavigation currentLabel={product.name} />
           </div>
 
           <div className={gridStyle}>
@@ -729,15 +729,18 @@ export function ProductPageClient() {
                 <ul className={detailsListStyle}>
                   {selectedVariant ? (
                     <>
-                      <li>Material: {selectedVariant.material || "Not specified"}</li>
-                      <li>Color: {selectedVariant.color || "Not specified"}</li>
-                      <li>Size: {selectedVariant.size || "Not specified"}</li>
+                      {/* A field with no value is left out entirely rather
+                          than printed as "Not specified" — an empty label
+                          tells a customer nothing and reads as neglect. */}
+                      {selectedVariant.material && <li>Material: {selectedVariant.material}</li>}
+                      {selectedVariant.color && <li>Color: {selectedVariant.color}</li>}
+                      {selectedVariant.size && <li>Size: {selectedVariant.size}</li>}
                       <li>Stock: {selectedVariant.stock} available</li>
                     </>
                   ) : (
                     <>
                       <li>Category: {product.category.name}</li>
-                      <li>SKU: {product.sku || "Not available"}</li>
+                      {product.sku && <li>SKU: {product.sku}</li>}
                       <li>Price: ₹{product.price.toLocaleString()}</li>
                       {product.compareAtPrice && (
                         <li>Original Price: ₹{product.compareAtPrice.toLocaleString()}</li>

@@ -1,0 +1,143 @@
+// =========================================================================
+// INVENTORY DOMAIN ("Jabitha")
+//
+// Owns physical stock and nothing else. Catalog rows are referenced by id
+// through the Catalog contract; this domain stores no product name, price
+// or image of its own.
+//
+// ONE source of truth: storefront sales and POS sales consume the same
+// InventoryLevel rows. There is no separate "website stock".
+// =========================================================================
+
+model InventoryLocation {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true)
+  // The location used when a caller doesn't specify one. Exactly one row
+  // should carry this; the architecture is multi-location from day one.
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  levels       InventoryLevel[]
+  movements    InventoryMovement[]
+  reservations InventoryReservation[]
+
+  @@map("inventory_locations")
+}
+
+model InventoryLevel {
+  id               String   @id @default(cuid())
+  variantId        String
+  locationId       String
+  quantity         Int      @default(0)
+  // Held for in-flight online payments. Available = quantity - reserved.
+  reservedQuantity Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  variant  ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  location InventoryLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, locationId])
+  @@index([locationId])
+  @@map("inventory_levels")
+}
+
+enum InventoryMovementType {
+  RECEIVE
+  SALE
+  RETURN
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  DAMAGE
+  RESERVE
+  RELEASE
+}
+
+// Append-only ledger. Every change to an InventoryLevel writes one of
+// these in the same transaction — stock never moves silently.
+model InventoryMovement {
+  id             String                @id @default(cuid())
+  variantId      String
+  locationId     String
+  type           InventoryMovementType
+  // Always positive; the type decides the direction.
+  quantity       Int
+  beforeQuantity Int
+  afterQuantity  Int
+  referenceType  String? // "ORDER" | "ADJUSTMENT" | "RECEIPT" | ...
+  referenceId    String?
+  reason         String?
+  createdBy      String?
+  // Guards against a retried request applying the same movement twice. A
+  // dropped response on a flaky counter connection is a routine event; the
+  // caller retries with the same key and the second attempt is a no-op
+  // rather than a second sale. Null for operations with no natural key.
+  idempotencyKey String?               @unique
+  createdAt      DateTime              @default(now())
+
+  variant  ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  location InventoryLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([variantId, createdAt])
+  @@index([locationId, createdAt])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+  @@map("inventory_movements")
+}
+
+/// A named hold on stock for one in-flight order.
+///
+/// `InventoryLevel.reservedQuantity` is the fast aggregate the sell path
+/// reads; these rows are the detail behind it, and the two are always written
+/// in the same transaction.
+///
+/// Holding a bare counter alone was not enough for two reasons:
+///
+///   1. A hold has to be releasable by WHOSE it is. With only a counter,
+///      releasing "2" cannot tell one abandoned checkout from another, and a
+///      duplicate release would silently free stock nobody gave back.
+///   2. A hold must expire. If a shopper abandons a payment and the release
+///      never runs — a crashed process, a closed tab, a gateway that never
+///      calls back — an unexpiring counter strands that stock forever, and
+///      the last piece in the shop becomes permanently unsellable.
+model InventoryReservation {
+  id         String                     @id @default(cuid())
+  variantId  String
+  locationId String
+  quantity   Int
+  status     InventoryReservationStatus @default(HELD)
+
+  /// What the hold is for; an order id in practice.
+  referenceType String
+  referenceId   String
+
+  /// When an untouched hold becomes eligible for automatic release.
+  expiresAt  DateTime
+  releasedAt DateTime?
+  consumedAt DateTime?
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  variant  ProductVariant    @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  location InventoryLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  /// One hold per variant per reference, so a retried checkout cannot stack
+  /// duplicate holds for the same order line.
+  @@unique([referenceType, referenceId, variantId])
+  @@index([status, expiresAt])
+  @@index([variantId, status])
+  @@map("inventory_reservations")
+}
+
+enum InventoryReservationStatus {
+  /// Stock is held and unavailable to anyone else.
+  HELD
+  /// Returned to the pool — payment failed, was cancelled, or the hold expired.
+  RELEASED
+  /// Settled into a completed sale.
+  CONSUMED
+}

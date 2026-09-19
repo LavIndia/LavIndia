@@ -3,8 +3,8 @@ import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { uploadPublicAsset } from "@/lib/imagekit-admin";
-
-const publicDirectory = "/assets/pictures/products";
+import { productImageFolder, publicAssetPath } from "@/lib/imagekit-paths";
+import { prisma } from "@/lib/prisma";
 const allowedTypes = new Map([
   ["image/jpeg", ".jpg"],
   ["image/png", ".png"],
@@ -33,9 +33,29 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file");
     const productName = formData.get("productName");
+    const categoryId = formData.get("categoryId");
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "No image uploaded" }, { status: 400 });
+    }
+
+    // The image is filed under its category's folder, so the media library
+    // mirrors the catalog. Resolving the slug from the id server-side means a
+    // client can never steer a file into an arbitrary folder.
+    if (typeof categoryId !== "string" || !categoryId.trim()) {
+      return NextResponse.json(
+        { error: "Choose a category before uploading images" },
+        { status: 400 },
+      );
+    }
+
+    const category = await prisma.category.findUnique({
+      where: { id: categoryId },
+      select: { slug: true },
+    });
+
+    if (!category) {
+      return NextResponse.json({ error: "Unknown category" }, { status: 400 });
     }
 
     const extension = allowedTypes.get(file.type);
@@ -62,7 +82,7 @@ export async function POST(request: NextRequest) {
       ) || "product-image";
     const filename = `${baseName}-${Date.now()}-${randomUUID().slice(0, 8)}${extension}`;
 
-    const publicPath = `${publicDirectory}/${filename}`;
+    const publicPath = publicAssetPath(productImageFolder(category.slug), filename);
     await uploadPublicAsset(
       publicPath,
       Buffer.from(await file.arrayBuffer()),

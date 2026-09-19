@@ -1,0 +1,136 @@
+// =========================================================================
+// LavIndia platform schema - root
+//
+// The datamodel is split across this folder, one file per business domain,
+// mirroring the modules under src/modules/. Prisma merges every *.prisma
+// file here into a single datamodel, so this remains ONE database with ONE
+// migration history and ONE generated client. The split exists so that data
+// ownership is obvious at a glance and so a domain can later be lifted out
+// as its own service by taking its file with it.
+//
+//     catalog.prisma     -> src/modules/catalog
+//     inventory.prisma   -> src/modules/inventory     (product name: "Jabitha")
+//     customers.prisma   -> src/modules/customers
+//     ecommerce.prisma   -> src/modules/ecommerce
+//     orders.prisma      -> src/modules/orders
+//     payments.prisma    -> src/modules/payments
+//     billing.prisma     -> src/modules/billing
+//     marketing.prisma   -> src/modules/marketing
+//     analytics.prisma   -> engagement measurement
+//     platform.prisma    -> this file: cross-cutting concerns
+//
+// -------------------------------------------------------------------------
+// HOW THE DOMAINS RELATE - the ER contract
+// -------------------------------------------------------------------------
+//
+//   Catalog   --(variantId)--> Inventory    stock is tracked per variant
+//   Catalog   --(snapshot)---> Orders       copied at sale time, not referenced
+//   Orders    --(movements)--> Inventory    a completed sale consumes stock
+//   Orders    --(orderId)----> Payments     at most one payment per order
+//   Orders    --(orderId)----> Billing      at most one invoice per order
+//   Customers --(userId)-----> Orders       optional: a walk-in sale has none
+//
+// Coupling rules this datamodel is designed to enforce:
+//
+//   1. Domains join on stable identifiers only - VariantId, OrderId,
+//      LocationId, CustomerId - never on a whole row handed across a
+//      boundary. Modules exchange DTOs, not database objects.
+//
+//   2. Historical records snapshot what they need. OrderItem copies the
+//      product name, variant name, SKU, barcode and price at sale time, and
+//      Invoice freezes its entire render payload, so Billing can render a
+//      five-year-old bill without reading the catalog at all.
+//
+//   3. Writes never cross a domain boundary directly. A POS sale does not
+//      UPDATE an inventory level; it calls the Inventory service, which
+//      writes the level and its ledger movement in one transaction.
+//
+//   4. Reads may cross a boundary, but only through a documented read model
+//      owned by the reading module - for example the Inventory stock screen,
+//      which joins variant and product rows to render a line an operator can
+//      recognise. This is a deliberate trade-off: splitting Inventory into
+//      its own service later replaces those joins with a Catalog lookup,
+//      while today it keeps each admin screen to a single query instead of
+//      an N+1 waterfall.
+//
+//   5. Prisma requires a relation field on both sides of a foreign key, so
+//      the presence of a back-relation is NOT permission to traverse it. The
+//      boundary is enforced by each module's repository being the only code
+//      that touches that module's tables.
+//
+// Money is stored as integer paisa throughout. The `*Cents` suffix is kept
+// for continuity with the original schema. Never floats.
+// =========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------
+// Site Settings
+// ---------------------------------------------------------
+model SiteSettings {
+  id            String  @id @default(cuid())
+  businessName  String  @default("lavindia")
+  address       String?
+  contactNumber String?
+  email         String?
+  gstNumber     String?
+
+  // UPI collection details, used to build the payment QR shown on a counter
+  // bill. Held in settings rather than an env var so the owner can change
+  // them without a deploy — and because a wrong VPA sends money to a
+  // stranger, the QR is simply not shown until both are set.
+  upiVpa       String?
+  upiPayeeName String?
+  facebook     String?
+  instagram    String?
+  twitter      String?
+  linkedin     String?
+  amazonLink   String?
+  flipkartLink String?
+  myntraLink   String?
+  blinkitLink  String?
+  zeptoLink    String?
+
+  // Trust Badges
+  codAvailable      Boolean @default(true)
+  customerCount     String  @default("9L+")
+  rating            String  @default("4.8")
+  supportHoursStart String  @default("10:30")
+  supportHoursEnd   String  @default("17:30")
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
+
+  // Footer
+  copyrightText String @default("© 2025 lavindia. All rights reserved.")
+
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+// ---------------------------------------------------------
+// Audit Log (for tracking admin actions)
+// ---------------------------------------------------------
+model AuditLog {
+  id        String   @id @default(cuid())
+  adminId   String
+  adminName String?
+  action    String // CREATE, UPDATE, DELETE, etc.
+  entity    String // Product, Order, Category, etc.
+  entityId  String?
+  metadata  Json? // Additional context
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}

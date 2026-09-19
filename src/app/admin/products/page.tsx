@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
+import { availabilityByProduct } from "@/modules/inventory";
 import { ProductsTable } from "@/components/admin/products/ProductsTable";
 import { ProductsHeader } from "@/components/admin/products/ProductsHeader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,14 +43,15 @@ async function getProducts(searchParams: {
   let orderBy:
     | { createdAt: "desc" }
     | { name: "asc" | "desc" }
-    | { priceCents: "asc" | "desc" }
-    | { stock: "asc" | "desc" } = { createdAt: "desc" };
+    | { priceCents: "asc" | "desc" } = { createdAt: "desc" };
   if (sort === "name_asc") orderBy = { name: "asc" };
   if (sort === "name_desc") orderBy = { name: "desc" };
   if (sort === "price_asc") orderBy = { priceCents: "asc" };
   if (sort === "price_desc") orderBy = { priceCents: "desc" };
-  if (sort === "stock_asc") orderBy = { stock: "asc" };
-  if (sort === "stock_desc") orderBy = { stock: "desc" };
+  // Stock is not a product column any more, so it cannot be an ORDER BY here.
+  // It is applied after availability is resolved, below.
+  const sortByStock =
+    sort === "stock_asc" ? "asc" : sort === "stock_desc" ? "desc" : null;
 
   const [products, totalCount] = await Promise.all([
     prisma.product.findMany({
@@ -67,8 +69,21 @@ async function getProducts(searchParams: {
     prisma.product.count({ where }),
   ]);
 
+  // Stock comes from the Inventory domain. The deprecated Product.stock
+  // column is no longer maintained, so reading it showed every row as Out.
+  const availability = await availabilityByProduct(products.map((p) => p.id));
+  const withStock = products.map((product) => ({
+    ...product,
+    stock: availability.get(product.id)?.available ?? 0,
+  }));
+  if (sortByStock) {
+    withStock.sort((a, b) =>
+      sortByStock === "asc" ? a.stock - b.stock : b.stock - a.stock,
+    );
+  }
+
   return {
-    products,
+    products: withStock,
     pagination: {
       page,
       pageSize: PAGE_SIZE,

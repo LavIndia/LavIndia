@@ -2,8 +2,14 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { syncHeroBannersFromStorage } from "@/lib/hero-banners";
+import { availabilityByProduct } from "@/modules/inventory";
 
-function formatProducts(
+/**
+ * Stock comes from the Inventory domain, never from the deprecated
+ * `Product.stock` column — that counter is no longer maintained, so reading
+ * it showed every product as out of stock.
+ */
+async function formatProducts(
   products: Array<{
     id: string;
     name: string;
@@ -17,6 +23,9 @@ function formatProducts(
     images: Array<{ url: string; alt: string | null }>;
   }>,
 ) {
+  // One batched lookup for the whole rail rather than a query per card.
+  const availability = await availabilityByProduct(products.map((p) => p.id));
+
   return products.map((product) => ({
     id: product.id,
     name: product.name,
@@ -24,7 +33,7 @@ function formatProducts(
     description: product.description,
     priceCents: product.priceCents,
     compareAtCents: product.compareAtCents,
-    stock: product.stock,
+    stock: availability.get(product.id)?.available ?? 0,
     isFeatured: product.isFeatured,
     isLimitedEdition: product.isLimitedEdition,
     images: product.images.map((img) => ({
@@ -117,7 +126,7 @@ export async function getBestsellers() {
     });
   }
 
-  return formatProducts(products).map((product) => ({
+  return (await formatProducts(products)).map((product) => ({
     ...product,
     isBestSeller: hasRealSalesData,
   }));
@@ -135,7 +144,7 @@ export async function getNewArrivals() {
     orderBy: { createdAt: "desc" },
   });
 
-  return formatProducts(products).map((product) => ({
+  return (await formatProducts(products)).map((product) => ({
     ...product,
     isNewArrival: true,
   }));

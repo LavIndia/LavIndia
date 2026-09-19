@@ -1,0 +1,122 @@
+// =========================================================================
+// ORDERS DOMAIN
+//
+// ONE order system for both sales channels. An online checkout and a POS
+// sale produce the same Order shape, distinguished only by `source`.
+// OrderItem carries a frozen snapshot, so an order never depends on the
+// current state of the catalog.
+// =========================================================================
+
+// ---------------------------------------------------------
+// Orders
+// ---------------------------------------------------------
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderSource {
+  ONLINE
+  STORE
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  // Null for walk-in POS sales, which have no account. Online orders always
+  // have both a user and a shipping address.
+  userId          String?
+  addressId       String?
+  orderNumber     String        @unique
+  // ONE order system for both channels — see src/modules/orders. The channel is
+  // an attribute of the order, never a separate table.
+  source          OrderSource   @default(ONLINE)
+  totalCents      Int
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentMethod   String? // cod, razorpay, etc.
+  paymentId       String? // Razorpay payment_id
+  paymentProvider String? // razorpay, stripe, etc.
+  shippingCents   Int           @default(0)
+  taxCents        Int           @default(0)
+  // Snapshot of an applied coupon at order time — a code, not a relation,
+  // same convention as OrderItem's name/image snapshots — so the order's
+  // history stays accurate even if the Discount record is later edited.
+  discountCode    String?
+  discountCents   Int           @default(0)
+  notes           String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Customer snapshot. For STORE orders this is the whole customer record
+  // (walk-in sales are not required to create an account); for ONLINE orders
+  // it mirrors the address at order time so invoices never depend on a
+  // profile that may later be edited.
+  customerName   String?
+  customerMobile String?
+  customerGstin  String?
+
+  user     User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address  Address?        @relation(fields: [addressId], references: [id])
+  items    OrderItem[]
+  payment  Payment?
+  tracking OrderTracking[]
+  invoice  Invoice?
+
+  @@index([source, createdAt])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String
+  variantId  String?
+  quantity   Int
+  // The price actually charged per unit (after any POS override/discount).
+  // Named priceCents for backwards compatibility with existing orders.
+  priceCents Int
+  name       String // Product name snapshot
+  image      String? // Product image snapshot
+
+  // Immutable snapshot taken at order time. Invoices render from these
+  // fields only, so editing the catalog later can never change an old bill.
+  variantName       String?
+  sku               String?
+  barcode           String?
+  hsnCode           String?
+  catalogPriceCents Int? // list price before any override/discount
+  discountCents     Int     @default(0)
+  taxCents          Int     @default(0)
+  taxRateBps        Int? // basis points, e.g. 300 = 3% GST
+  overrideReason    String?
+  overriddenBy      String?
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// ---------------------------------------------------------
+// Order Tracking & Shipment
+// ---------------------------------------------------------
+model OrderTracking {
+  id          String   @id @default(cuid())
+  orderId     String
+  status      String // Order placed, Payment confirmed, Processing, Packed, Shipped, Out for delivery, Delivered
+  location    String?
+  description String?
+  updatedBy   String? // Admin ID or system
+  createdAt   DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_tracking")
+}

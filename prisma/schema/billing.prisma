@@ -1,0 +1,56 @@
+// =========================================================================
+// BILLING DOMAIN
+//
+// Consumes completed orders and owns invoice identity, financial-year
+// numbering and the frozen render payload. Billing owns no product, no
+// stock and no catalog price.
+// =========================================================================
+
+enum InvoiceStatus {
+  ISSUED
+  VOID
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  // Financial-year sequential, e.g. INV/26-27/000123. Deliberately NOT
+  // derived from the order number — see src/modules/billing/invoices/invoice-number.ts.
+  invoiceNumber String        @unique
+  orderId       String        @unique
+  financialYear String // "26-27"
+  sequence      Int
+  status        InvoiceStatus @default(ISSUED)
+  issuedAt      DateTime      @default(now())
+  voidedAt      DateTime?
+  voidReason    String?
+
+  subtotalCents Int
+  discountCents Int @default(0)
+  taxCents      Int @default(0)
+  totalCents    Int
+
+  // Fully-rendered invoice payload frozen at issue time. The invoice UI
+  // reads this and never re-queries the catalog, so an old bill is
+  // immutable by construction.
+  snapshot  Json
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([financialYear, sequence])
+  @@index([issuedAt])
+  @@map("invoices")
+}
+
+// Single-row-per-financial-year counter. Incremented inside the same
+// transaction that creates the invoice, under a row lock, so two
+// simultaneous sales can never share an invoice number.
+model InvoiceSequence {
+  financialYear String   @id
+  lastNumber    Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@map("invoice_sequences")
+}

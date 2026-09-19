@@ -9,6 +9,7 @@ import { heroBanners } from "./seed-data/hero-banners";
 import { earrings } from "./seed-data/products-earrings";
 import { necklaces } from "./seed-data/products-necklaces";
 import { rings } from "./seed-data/products-rings";
+import { assertLocalDatabase } from "./guard-destructive";
 
 const prisma = new PrismaClient();
 
@@ -254,6 +255,12 @@ async function seedRings() {
  * Main seeding function
  */
 async function main() {
+  // FIRST, before anything else: this script destroys data, so it must not be
+  // able to run against a production database. A DATABASE_URL exported in the
+  // shell silently overrides .env, so the target is checked at runtime rather
+  // than trusted from a file.
+  assertLocalDatabase("prisma/seed.ts");
+
   console.log("🌱 Starting database seeding...");
   console.log("=====================================\n");
 

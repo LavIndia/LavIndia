@@ -1,14 +1,30 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isBestSeller } from "@/lib/product-tags";
+import { getBestsellerRanking } from "@/lib/bestseller-ranking";
+import { availabilityByProduct } from "@/modules/inventory";
 
 export async function GET() {
   try {
-    // Get products that appear most in orders
-    const products = await prisma.product.findMany({
+    // The ranking is a cached aggregate over the whole order history — see
+    // lib/bestseller-ranking.ts. It is recomputed only when an order is
+    // placed, so this rail costs no counting query on a normal page view.
+    const ranking = await getBestsellerRanking();
+    const rankedIds = ranking.slice(0, 24).map((entry) => entry.productId);
+
+    if (rankedIds.length === 0) {
+      return NextResponse.json({ products: [] });
+    }
+
+    // Only products that have ACTUALLY sold qualify. The rail previously
+    // returned the entire catalog merely sorted by sales, so items that had
+    // never sold were presented as bestsellers — and it disagreed with the
+    // badge, which uses isBestSeller(count > 0).
+    const unsorted = await prisma.product.findMany({
       where: {
         isActive: true,
         isPublished: true,
+        id: { in: rankedIds },
       },
       include: {
         images: {
@@ -19,12 +35,17 @@ export async function GET() {
           select: { orderItems: true },
         },
       },
-      orderBy: {
-        orderItems: {
-          _count: "desc",
-        },
-      },
     });
+
+    // Restore the ranked order, which the id-filtered query does not preserve,
+    // then cap the rail.
+    const position = new Map(rankedIds.map((id, index) => [id, index]));
+    const products = unsorted
+      .sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0))
+      .slice(0, 12);
+
+    // One batched lookup for the whole rail rather than a query per card.
+    const availability = await availabilityByProduct(products.map((p) => p.id));
 
     // Transform to match frontend interface
     const formattedProducts = products.map((product) => ({
@@ -34,7 +55,7 @@ export async function GET() {
       description: product.description,
       priceCents: product.priceCents,
       compareAtCents: product.compareAtCents,
-      stock: product.stock,
+      stock: availability.get(product.id)?.available ?? 0,
       isFeatured: product.isFeatured,
       isLimitedEdition: product.isLimitedEdition,
       isBestSeller: isBestSeller(product._count.orderItems),

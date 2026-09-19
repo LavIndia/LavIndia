@@ -293,6 +293,8 @@ export function CategoryCards({ categories }: { categories: Category[] }) {
       const uploadForm = new FormData();
       uploadForm.append("file", file);
       uploadForm.append("categoryName", category.name);
+      // Files the image under this category's own folder in the media library.
+      if (category.slug) uploadForm.append("categorySlug", category.slug);
 
       const uploadRes = await fetch("/api/admin/categories/upload", {
         method: "POST",

@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { isValidVpa } from "@/modules/payments/upi/upi-link";
 
 const settingsSchema = z.object({
   businessName: z.string().min(1),
@@ -10,6 +11,17 @@ const settingsSchema = z.object({
   contactNumber: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
   gstNumber: z.string().optional().nullable(),
+  // UPI collection details. Validated as a VPA rather than free text, because
+  // a malformed one silently produces a QR that pays nobody.
+  upiVpa: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .refine((value) => !value || isValidVpa(value), {
+      message: "That does not look like a valid UPI ID, e.g. yourname@okhdfcbank",
+    }),
+  upiPayeeName: z.string().trim().max(120).optional().nullable(),
   facebook: z.string().url().optional().nullable().or(z.literal("")),
   instagram: z.string().url().optional().nullable().or(z.literal("")),
   twitter: z.string().url().optional().nullable().or(z.literal("")),

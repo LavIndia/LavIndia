@@ -408,6 +408,7 @@ function VariantGallery({
   variantKey,
   images,
   productName,
+  categoryId,
   onAssign,
   onUnassign,
   onUploaded,
@@ -415,6 +416,9 @@ function VariantGallery({
   variantKey: string;
   images: ProductImage[];
   productName: string;
+  // Decides the media-library folder these uploads are filed under, so
+  // ImageKit mirrors the catalog rather than collecting loose files.
+  categoryId: string;
   onAssign: (image: ProductImage) => void;
   onUnassign: (image: ProductImage) => void;
   onUploaded: (image: ProductImage) => void;
@@ -442,6 +446,7 @@ function VariantGallery({
           const formData = new FormData();
           formData.append("file", file);
           formData.append("productName", productName || "");
+          formData.append("categoryId", categoryId || "");
 
           const res = await fetch("/api/admin/products/upload", {
             method: "POST",
@@ -1103,6 +1108,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
                       variantKey={variant.clientId}
                       images={images}
                       productName={formData.name}
+                      categoryId={formData.categoryId}
                       onAssign={(image) =>
                         setImages((prev) =>
                           prev.map((img) =>
@@ -1210,6 +1216,7 @@ export function ProductForm({ product, categories }: ProductFormProps) {
               images={generalImages}
               setImages={setGeneralImages}
               productName={formData.name}
+              categoryId={formData.categoryId}
             />
           </CardContent>
         </Card>

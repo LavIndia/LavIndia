@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { availabilityByProduct } from "@/modules/inventory";
 
 export async function GET() {
   try {
@@ -40,6 +41,9 @@ export async function GET() {
       });
     }
 
+    // One batched lookup for the whole rail rather than a query per card.
+    const availability = await availabilityByProduct(products.map((p) => p.id));
+
     // Transform to match frontend interface
     const formattedProducts = products.map((product) => ({
       id: product.id,
@@ -48,7 +52,7 @@ export async function GET() {
       description: product.description,
       priceCents: product.priceCents,
       compareAtCents: product.compareAtCents,
-      stock: product.stock,
+      stock: availability.get(product.id)?.available ?? 0,
       isFeatured: product.isFeatured,
       isLimitedEdition: product.isLimitedEdition,
       isNewArrival: withinWindow,

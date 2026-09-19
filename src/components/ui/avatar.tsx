@@ -52,8 +52,8 @@ const avatarImageStyle = css({
   objectFit: "cover",
 });
 
-export interface AvatarImageProps
-  extends Omit<React.ComponentProps<"img">, "onError" | "onLoad"> {}
+/** Load state is owned by the avatar itself, so the handlers are not passed in. */
+export type AvatarImageProps = Omit<React.ComponentProps<"img">, "onError" | "onLoad">;
 
 const AvatarImage = React.forwardRef<HTMLImageElement, AvatarImageProps>(
   ({ className, src, ...props }, ref) => {

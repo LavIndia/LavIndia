@@ -21,6 +21,12 @@ import {
   ListFilter,
   Menu,
   ChevronDown,
+  Store,
+  Boxes,
+  PackagePlus,
+  SlidersHorizontal,
+  History,
+  ScanLine,
 } from "lucide-react";
 import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import {
@@ -56,9 +62,23 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "Orders",
+    label: "Inventory",
     items: [
+      { name: "Stock", href: "/admin/inventory/stock", icon: Boxes },
+      { name: "Receive Stock", href: "/admin/inventory/receive", icon: PackagePlus },
+      { name: "Adjustments", href: "/admin/inventory/adjustments", icon: SlidersHorizontal },
+      { name: "Movements", href: "/admin/inventory/movements", icon: History },
+      { name: "Barcodes", href: "/admin/inventory/barcodes", icon: ScanLine },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [
+      { name: "Store POS", href: "/admin/pos", icon: Store },
+      // One Orders screen covers BOTH channels, filtered by channel — a
+      // separate "Online Orders" entry implied counter sales lived elsewhere.
       { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+      { name: "Sales Insights", href: "/admin/sales-insights", icon: BarChart3 },
       { name: "Customers", href: "/admin/customers", icon: Users },
     ],
   },

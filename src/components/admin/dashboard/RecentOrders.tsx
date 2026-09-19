@@ -10,6 +10,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDistanceToNow } from "date-fns";
+import {
+  orderCustomerContact,
+  orderCustomerName,
+} from "@/modules/orders/customer-display";
 import { css } from "styled-system/css";
 
 async function getRecentOrders() {
@@ -85,8 +89,14 @@ export async function RecentOrders() {
                   </TableCell>
                   <TableCell>
                     <div className={css({ display: "flex", flexDirection: "column" })}>
-                      <span className={css({ fontWeight: "medium" })}>{order.user.name}</span>
-                      <span className={customerSubStyle}>{order.user.email}</span>
+                      <span className={css({ fontWeight: "medium" })}>
+                        {orderCustomerName(order)}
+                      </span>
+                      {/* Omitted entirely when the order has no contact line,
+                          rather than rendering an empty row. */}
+                      {orderCustomerContact(order) && (
+                        <span className={customerSubStyle}>{orderCustomerContact(order)}</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className={css({ fontWeight: "medium" })}>

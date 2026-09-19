@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { unparse } from "papaparse";
+import { orderCustomerName } from "@/modules/orders/customer-display";
 
 export async function GET(req: NextRequest) {
   try {
@@ -99,8 +100,8 @@ async function exportOrders() {
 
   const data = orders.map((o) => ({
     OrderNumber: o.orderNumber,
-    CustomerName: o.user.name || "",
-    CustomerEmail: o.user.email || "",
+    CustomerName: orderCustomerName(o),
+    CustomerEmail: o.user?.email || "",
     Total: (o.totalCents / 100).toFixed(2),
     Status: o.status,
     PaymentStatus: o.paymentStatus,
