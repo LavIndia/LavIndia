@@ -22,6 +22,10 @@ const settingsSchema = z.object({
       message: "That does not look like a valid UPI ID, e.g. yourname@okhdfcbank",
     }),
   upiPayeeName: z.string().trim().max(120).optional().nullable(),
+  // Paise, so the fee is stored in the same unit as every other amount and
+  // never accumulates rounding. Capped at a figure no delivery fee should
+  // ever reach, which catches a rupees-entered-as-paise slip.
+  codFeeCents: z.coerce.number().int().min(0).max(1_000_000).optional(),
   facebook: z.string().url().optional().nullable().or(z.literal("")),
   instagram: z.string().url().optional().nullable().or(z.literal("")),
   twitter: z.string().url().optional().nullable().or(z.literal("")),

@@ -42,6 +42,12 @@ model Order {
   paymentId       String? // Razorpay payment_id
   paymentProvider String? // razorpay, stripe, etc.
   shippingCents   Int           @default(0)
+  /// What the customer was charged for paying cash on delivery, in paise.
+  ///
+  /// Recorded per order rather than read back from settings, because the
+  /// rate the owner charges today is not necessarily the rate this customer
+  /// agreed to — an invoice has to state what was actually charged.
+  codFeeCents     Int           @default(0)
   taxCents        Int           @default(0)
   // Snapshot of an applied coupon at order time — a code, not a relation,
   // same convention as OrderItem's name/image snapshots — so the order's

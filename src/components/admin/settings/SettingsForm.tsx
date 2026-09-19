@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { InfoHint } from "@/components/ui/info-hint";
+import { DeliveryChargesSection } from "./DeliveryChargesSection";
 
 interface SiteSettings {
   id: string;
@@ -28,6 +29,7 @@ interface SiteSettings {
   gstNumber: string | null;
   upiVpa: string | null;
   upiPayeeName: string | null;
+  codFeeCents: number;
   facebook: string | null;
   instagram: string | null;
   twitter: string | null;
@@ -92,7 +94,10 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
     }
   };
 
-  const handleChange = (field: keyof SiteSettings, value: string) => {
+  // Not every setting is a string — the cash-on-delivery fee is a number of
+  // paise, and coercing it to text here would send "1500" through as a
+  // string and fail validation on the way in.
+  const handleChange = <K extends keyof SiteSettings>(field: K, value: SiteSettings[K]) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -228,6 +233,13 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* What delivery costs the customer. Sits next to payments because it
+          is the other half of the same conversation. */}
+      <DeliveryChargesSection
+        codFeeCents={settings.codFeeCents ?? 0}
+        onChange={(codFeeCents) => handleChange("codFeeCents", codFeeCents)}
+      />
 
       {/* Social Media */}
       <Card>

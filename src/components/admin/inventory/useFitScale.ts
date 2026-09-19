@@ -21,33 +21,71 @@ const PX_PER_MM = 96 / 25.4;
  * @param contentWidthMm physical width of the thing being scaled
  * @param maxScale       ceiling, so small stock is enlarged but not blown up
  */
-export function useFitScale(contentWidthMm: number, maxScale = 1) {
-  const [available, setAvailable] = useState<number | null>(null);
+export function useFitScale(
+  contentWidthMm: number,
+  maxScale = 1,
+  /**
+   * Physical height, when the whole thing should be visible at once rather
+   * than merely fitting across. Fitting only the width leaves an A4 sheet
+   * three screens tall — technically not overflowing sideways, but the
+   * operator still cannot see the page they are about to print.
+   */
+  contentHeightMm?: number,
+) {
+  const [box, setBox] = useState<{ width: number; height: number } | null>(null);
   const element = useRef<HTMLDivElement | null>(null);
 
-  const ref = useCallback((node: HTMLDivElement | null) => {
-    element.current = node;
-    if (node) setAvailable(node.clientWidth);
+  const measure = useCallback((node: HTMLDivElement) => {
+    // Height is what is left between the top of the frame and the bottom of
+    // the window, less a gutter so the sheet never sits flush against the
+    // edge of the screen.
+    const top = node.getBoundingClientRect().top;
+    setBox({
+      width: node.clientWidth,
+      height: Math.max(240, window.innerHeight - top - 32),
+    });
   }, []);
+
+  const ref = useCallback(
+    (node: HTMLDivElement | null) => {
+      element.current = node;
+      if (node) measure(node);
+    },
+    [measure],
+  );
 
   useEffect(() => {
     const node = element.current;
-    if (!node || typeof ResizeObserver === "undefined") return;
+    if (!node) return;
 
-    const observer = new ResizeObserver(([entry]) => {
-      setAvailable(entry.contentRect.width);
-    });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+    const onChange = () => measure(node);
+    window.addEventListener("resize", onChange);
+    window.addEventListener("scroll", onChange, { passive: true });
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(onChange);
+      observer.observe(node);
+    }
+
+    return () => {
+      window.removeEventListener("resize", onChange);
+      window.removeEventListener("scroll", onChange);
+      observer?.disconnect();
+    };
+  }, [measure]);
 
   const contentWidthPx = contentWidthMm * PX_PER_MM;
+  const contentHeightPx = contentHeightMm ? contentHeightMm * PX_PER_MM : null;
+
   // Before the first measurement, render at the ceiling rather than at zero:
   // a brief oversize beats a flash of nothing.
-  const scale =
-    available === null
-      ? maxScale
-      : Math.max(0.1, Math.min(maxScale, available / contentWidthPx));
+  let scale = maxScale;
+  if (box) {
+    const byWidth = box.width / contentWidthPx;
+    const byHeight = contentHeightPx ? box.height / contentHeightPx : Infinity;
+    scale = Math.max(0.1, Math.min(maxScale, byWidth, byHeight));
+  }
 
   return { ref, scale, contentWidthPx };
 }

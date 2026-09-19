@@ -151,14 +151,17 @@ export function labelsPerPage(format: LabelFormat): number {
  * 0.19mm most handheld scanners start to struggle, so this scales with the
  * label but never goes under that floor — a slightly cramped label that scans
  * beats a tidy one that does not.
+ *
+ * The caller passes the symbol's real module count rather than an assumed
+ * one, because the width of a Code 128 symbol depends on what it encodes.
+ *
+ * @param totalModules width of the symbol in modules, quiet zones included
  */
-export function barcodeModuleWidthMm(format: LabelFormat): number {
+export function barcodeModuleWidthMm(format: LabelFormat, totalModules: number): number {
   const usableWidth = format.labelWidthMm - 4; // 2mm padding each side
-  // A 13-character Code 128 symbol is 178 modules including quiet zones.
-  const ideal = usableWidth / 178;
+  const ideal = usableWidth / Math.max(1, totalModules);
   return Math.max(0.19, Math.min(ideal, 0.33));
 }
-
 
 /* Vertical space budgeting now lives in ./label-layout, which needs to know
    what a given label actually contains — see that file. */

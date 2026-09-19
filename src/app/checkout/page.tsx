@@ -8,6 +8,7 @@ import { useCart } from "@/components/cart/useCart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import RazorpayCheckout from "@/components/payment/RazorpayCheckout";
+import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import {
   PaymentMethodChoice,
   isOnlinePayment,
@@ -170,6 +171,7 @@ export default function CheckoutPage() {
     paymentMethod: "upi" as CheckoutPaymentChoice,
   });
 
+  const { codFeeCents } = useSiteSettings();
   const [isProcessing, setIsProcessing] = useState(false);
   const [couponInput, setCouponInput] = useState("");
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
@@ -239,6 +241,18 @@ export default function CheckoutPage() {
     [totalPrice, form.shippingMethod]
   );
 
+  /**
+   * What cash on delivery adds to the bill.
+   *
+   * Charged only when the customer actually chooses to pay cash, and only on
+   * a non-empty basket, so an empty checkout never shows a fee for a service
+   * nobody has asked for. The rate is the owner's, set in Settings.
+   */
+  const codFee = useMemo(
+    () => (totalPrice > 0 && form.paymentMethod === "cod" ? Math.round(codFeeCents / 100) : 0),
+    [totalPrice, form.paymentMethod, codFeeCents],
+  );
+
   const tax = useMemo(() => 0, []); // placeholder, GST/VAT can be calculated later
 
   const discountRupees = appliedCoupon
@@ -246,8 +260,8 @@ export default function CheckoutPage() {
     : 0;
 
   const grandTotal = useMemo(
-    () => Math.max(0, totalPrice + shippingFee + tax - discountRupees),
-    [totalPrice, shippingFee, tax, discountRupees]
+    () => Math.max(0, totalPrice + shippingFee + codFee + tax - discountRupees),
+    [totalPrice, shippingFee, codFee, tax, discountRupees]
   );
 
   const grandTotalCents = useMemo(() => grandTotal * 100, [grandTotal]);
@@ -617,6 +631,14 @@ export default function CheckoutPage() {
                     ₹{shippingFee.toLocaleString()}
                   </span>
                 </div>
+                {/* Shown only when it applies, so a card customer is never
+                    told about a fee they are not paying. */}
+                {codFee > 0 && (
+                  <div className={totalsRowStyle}>
+                    <span className={totalsLabelStyle}>Cash on delivery fee</span>
+                    <span className={totalsValueStyle}>₹{codFee.toLocaleString()}</span>
+                  </div>
+                )}
                 {tax > 0 && (
                   <div className={totalsRowStyle}>
                     <span className={totalsLabelStyle}>Tax</span>

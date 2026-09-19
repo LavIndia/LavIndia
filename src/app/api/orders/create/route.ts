@@ -72,6 +72,16 @@ export async function POST(req: NextRequest) {
     // Determine shipping fee based on shipping method
     const shippingCents = validated.shippingMethod === "express" ? 19900 : 9900;
 
+    // The cash-on-delivery fee is read from settings here, never taken from
+    // the request — the same rule the shipping charge and the discount
+    // follow. A client that asked to be charged nothing would otherwise be
+    // obliged.
+    const settings = await prisma.siteSettings.findFirst({
+      select: { codFeeCents: true },
+    });
+    const codFeeCents =
+      validated.paymentMethod === "cod" ? (settings?.codFeeCents ?? 0) : 0;
+
     // Pre-check the coupon outside the transaction so a bad/expired code
     // fails fast with a clear message before any writes happen.
     if (validated.discountCode) {
@@ -142,6 +152,7 @@ export async function POST(req: NextRequest) {
       const grandTotalCents =
         validated.totalCents +
         shippingCents +
+        codFeeCents +
         validated.taxCents -
         discountCents;
 
@@ -153,6 +164,7 @@ export async function POST(req: NextRequest) {
           orderNumber,
           totalCents: validated.totalCents,
           shippingCents,
+          codFeeCents,
           taxCents: validated.taxCents,
           discountCode,
           discountCents,

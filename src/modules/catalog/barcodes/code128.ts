@@ -105,12 +105,35 @@ export function buildCode128(text: string): Code128Symbol {
   return { bars, totalModules: x };
 }
 
+/**
+ * Total width of the rendered symbol, in modules, quiet zones included.
+ *
+ * A Code 128 symbol's width depends on its contents — digit pairs compress
+ * into a single character under Code C, letters do not — so the only honest
+ * way to fit one to a label is to measure the symbol that will actually be
+ * printed. Assuming a fixed module count for "about thirteen characters"
+ * gets it wrong by enough to push the bars past the edge of the stock.
+ */
+export function code128TotalModules(text: string, quietZoneModules = 10): number {
+  return buildCode128(text).totalModules + quietZoneModules * 2;
+}
+
 export interface Code128SvgOptions {
-  /** Width of one module in user units. Bigger means a wider, easier scan. */
+  /** Width of one module, in `unit`. Bigger means a wider, easier scan. */
   moduleWidth?: number;
+  /** Height of the bars, in `unit`. */
   height?: number;
   /** Quiet zone each side, in modules. The spec requires at least 10. */
   quietZoneModules?: number;
+  /**
+   * CSS unit the dimensions are expressed in.
+   *
+   * Millimetres by default, because a barcode is a physical object before it
+   * is a picture: whether it scans depends on the width of the narrow bar in
+   * the real world, not on how many pixels it happens to occupy. Callers that
+   * genuinely want pixels pass "px".
+   */
+  unit?: "mm" | "px" | "in" | "pt";
 }
 
 /**
@@ -124,6 +147,7 @@ export function code128Svg(text: string, options: Code128SvgOptions = {}): strin
   const moduleWidth = options.moduleWidth ?? 1;
   const height = options.height ?? 40;
   const quietZone = options.quietZoneModules ?? 10;
+  const unit = options.unit ?? "mm";
 
   const { bars, totalModules } = buildCode128(text);
   const widthModules = totalModules + quietZone * 2;
@@ -137,9 +161,14 @@ export function code128Svg(text: string, options: Code128SvgOptions = {}): strin
     )
     .join("");
 
+  // The viewBox stays in the same unitless numbers as the rects, while the
+  // width and height carry the real unit. Without the unit an SVG length is
+  // read as pixels, so a symbol asked for in millimetres came out at roughly
+  // a quarter of its intended size — small enough that the narrow bar fell
+  // under the width a handheld scanner can resolve.
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width.toFixed(3)} ${height}" ` +
-    `width="${width.toFixed(3)}" height="${height}" shape-rendering="crispEdges" ` +
+    `width="${width.toFixed(3)}${unit}" height="${height}${unit}" shape-rendering="crispEdges" ` +
     `role="img" aria-label="Barcode ${text}">` +
     `<rect width="100%" height="100%" fill="#fff"/>` +
     `<g fill="#000">${rects}</g>` +

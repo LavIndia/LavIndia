@@ -87,6 +87,7 @@ export default async function RootLayout({
             myntraLink: settings.myntraLink,
             blinkitLink: settings.blinkitLink,
             zeptoLink: settings.zeptoLink,
+            codFeeCents: settings.codFeeCents,
           }}
         >
           <SessionProvider>

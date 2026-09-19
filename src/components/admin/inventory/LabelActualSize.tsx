@@ -11,6 +11,7 @@ import type {
   LabelLayout,
   LabelLayoutOverrides,
 } from "@/modules/catalog/barcodes/label-layout";
+import { code128TotalModules } from "@/modules/catalog/barcodes/code128";
 import { BarcodeLabel, type LabelData } from "./BarcodeLabel";
 
 const fieldStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
@@ -81,7 +82,7 @@ export function LabelActualSize({
   /** True when nothing is chosen yet and a stand-in is being shown. */
   isPlaceholder?: boolean;
 }) {
-  const moduleWidth = barcodeModuleWidthMm(format);
+  const moduleWidth = barcodeModuleWidthMm(format, code128TotalModules(sample.barcode));
 
   return (
     <div className={fieldStyle}>

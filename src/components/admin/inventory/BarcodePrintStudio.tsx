@@ -43,14 +43,18 @@ import type { LookupResult } from "./useVariantLookup";
 const gridStyle = css({
   display: "grid",
   gridTemplateColumns: {
-    base: "1fr",
+    // minmax(0, ...) rather than a bare 1fr: a grid track otherwise refuses
+    // to shrink below its content, and the sheet inside the preview is a
+    // fixed 210mm. Without this the whole page inherits that width and
+    // scrolls sideways on a phone.
+    base: "minmax(0, 1fr)",
     lg: "minmax(0, 22rem) minmax(0, 1fr)",
     xl: "minmax(0, 21rem) minmax(0, 20rem) minmax(0, 1fr)",
   },
   gap: "6",
   alignItems: "start",
 });
-const panelStyle = css({ display: "flex", flexDirection: "column", gap: "4" });
+const panelStyle = css({ display: "flex", flexDirection: "column", gap: "4", minWidth: "0" });
 const fieldStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
 const hintStyle = css({ fontSize: "xs", color: "fg.muted" });
 const previewFrameStyle = css({
@@ -80,7 +84,10 @@ const dividerStyle = css({
   xl: { borderTop: "none", paddingTop: "0" },
 });
 /** The preview column spans the full width once the controls stack. */
-const previewColumnStyle = css({ gridColumn: { base: "auto", lg: "1 / -1", xl: "auto" } });
+const previewColumnStyle = css({
+  gridColumn: { base: "auto", lg: "1 / -1", xl: "auto" },
+  minWidth: "0",
+});
 const previewEmptyStyle = css({
   display: "flex",
   flexDirection: "column",
@@ -179,6 +186,9 @@ export function BarcodePrintStudio() {
   const { ref: previewRef, scale: previewScale } = useFitScale(
     sheetWidthMm,
     format.kind === "SHEET" ? 1 : 2.5,
+    // A whole sheet is shown at once so its alignment can be judged; a single
+    // roll label is small enough that only its width needs constraining.
+    format.kind === "SHEET" ? sheetHeightMm : undefined,
   );
 
   const totalLabels = labels.length;
@@ -298,6 +308,7 @@ export function BarcodePrintStudio() {
             <div
               style={{
                 height: `${sheetHeightMm * previewScale * pageCount}mm`,
+                width: "100%",
                 overflow: "hidden",
               }}
             >

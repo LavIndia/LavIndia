@@ -35,5 +35,8 @@ export const getSiteSettings = cache(async () => {
     myntraLink: null as string | null,
     blinkitLink: null as string | null,
     zeptoLink: null as string | null,
+    // Free until the owner says otherwise — a fallback must never invent a
+    // charge the customer was not told about.
+    codFeeCents: 0,
   };
 });

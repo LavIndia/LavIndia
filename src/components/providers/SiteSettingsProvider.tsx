@@ -24,6 +24,14 @@ interface SiteSettingsValue {
   myntraLink: string | null;
   blinkitLink: string | null;
   zeptoLink: string | null;
+  /**
+   * What cash on delivery costs the customer, in paise.
+   *
+   * Carried in the shared settings rather than fetched at checkout so the
+   * order summary can show the charge the moment the customer picks cash,
+   * with no request in the middle of a purchase.
+   */
+  codFeeCents: number;
 }
 
 const SiteSettingsContext = createContext<SiteSettingsValue>({
@@ -39,6 +47,7 @@ const SiteSettingsContext = createContext<SiteSettingsValue>({
   myntraLink: null,
   blinkitLink: null,
   zeptoLink: null,
+  codFeeCents: 0,
 });
 
 export function SiteSettingsProvider({

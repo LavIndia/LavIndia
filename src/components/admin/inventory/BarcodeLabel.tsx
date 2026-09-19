@@ -1,4 +1,4 @@
-import { code128Svg } from "@/modules/catalog/barcodes/code128";
+import { code128Svg, code128TotalModules } from "@/modules/catalog/barcodes/code128";
 import {
   barcodeModuleWidthMm,
   type LabelFormat,
@@ -160,10 +160,15 @@ function BarcodeBlock({
   format: LabelFormat;
   layout: LabelLayout;
 }) {
+  // Measured from the symbol that will actually print, so the bars are as
+  // wide as the stock allows without running past its edge.
+  const quietZoneModules = 10;
+  const totalModules = code128TotalModules(data.barcode, quietZoneModules);
+
   const svg = code128Svg(data.barcode, {
-    moduleWidth: barcodeModuleWidthMm(format),
+    moduleWidth: barcodeModuleWidthMm(format, totalModules),
     height: layout.barcodeHeightMm,
-    quietZoneModules: 10,
+    quietZoneModules,
   });
 
   return (

@@ -99,6 +99,13 @@ model SiteSettings {
   blinkitLink  String?
   zeptoLink    String?
 
+  /// What cash on delivery costs the customer, in paise.
+  ///
+  /// Held here rather than in code because it is a commercial decision the
+  /// owner changes with the cost of collection, not something that should
+  /// wait for a deploy. Zero means cash on delivery is offered free.
+  codFeeCents Int @default(0)
+
   // Trust Badges
   codAvailable      Boolean @default(true)
   customerCount     String  @default("9L+")
