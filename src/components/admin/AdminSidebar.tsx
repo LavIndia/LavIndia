@@ -9,6 +9,7 @@ import {
   FolderTree,
   ShoppingCart,
   Users,
+  UserCheck,
   BarChart3,
   Settings,
   FileText,
@@ -80,6 +81,9 @@ const NAV_GROUPS: NavGroup[] = [
       { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
       { name: "Sales Insights", href: "/admin/sales-insights", icon: BarChart3 },
       { name: "Customers", href: "/admin/customers", icon: Users },
+      // Segmentation sits beside the customer list rather than under
+      // analytics: it is a list of people to act on, not a report to read.
+      { name: "Customer Segments", href: "/admin/customers/rfm", icon: UserCheck },
     ],
   },
   {
