@@ -1,0 +1,70 @@
+# Sweeps stock holds that have outlived their window.
+#
+# This lives here rather than in vercel.json because Vercel's Hobby plan
+# limits cron jobs to **once per day**, and a more frequent expression fails
+# the whole deployment:
+#
+#   "Hobby accounts are limited to daily cron jobs. This cron expression
+#    (*/10 * * * *) would run more than once per day."
+#
+# Once a day is no use for this job. An abandoned checkout holds stock, and
+# with single-piece runs the last item would sit unsellable for up to 24
+# hours with no screen explaining why. GitHub Actions schedules the same
+# endpoint for free at the cadence the job actually needs.
+#
+# On upgrading to Vercel Pro, delete this workflow and put the cron back in
+# vercel.json — Vercel's scheduler is more punctual than this one:
+#
+#   { "crons": [ { "path": "/api/cron/release-expired-reservations",
+#                  "schedule": "*/10 * * * *" } ] }
+#
+# Required once, in GitHub → Settings → Secrets and variables → Actions:
+#   secret  CRON_SECRET     must match the value set in Vercel's env vars
+#   var     PRODUCTION_URL  optional; defaults to the Vercel domain below
+
+name: Release expired reservations
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub runs these on a best-effort basis and can be
+    # several minutes late under load, which this job tolerates — it only
+    # releases holds that have already expired.
+    - cron: "*/10 * * * *"
+  # So the job can be run by hand from the Actions tab when testing.
+  workflow_dispatch:
+
+# A slow run must never pile up behind the next tick.
+concurrency:
+  group: release-expired-reservations
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the sweeper
+        env:
+          BASE_URL: ${{ vars.PRODUCTION_URL || 'https://lav-india.vercel.app' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+          # --fail-with-body so a non-2xx still prints the server's message,
+          # which is the useful part when this goes wrong.
+          status=$(curl --silent --show-error --fail-with-body \
+            --max-time 60 --retry 2 --retry-delay 5 \
+            --write-out '\n%{http_code}' \
+            --header "Authorization: Bearer ${CRON_SECRET}" \
+            "${BASE_URL}/api/cron/release-expired-reservations" | tee /dev/stderr | tail -1)
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Sweeper returned HTTP ${status}"
+            exit 1
+          fi
+          echo "Sweep completed."
