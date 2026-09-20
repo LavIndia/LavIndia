@@ -46,6 +46,7 @@ const DESTINATIONS: Command[] = [
   { id: "hero-banners", label: "Hero Banners", href: "/admin/hero-banners", icon: ImageIcon },
   { id: "promo-banners", label: "Promo Banners", href: "/admin/promo-banners", icon: Megaphone },
   { id: "homepage-layout", label: "Homepage Layout", href: "/admin/homepage-layout", icon: LayoutGrid },
+  { id: "content-pages", label: "Page Content", href: "/admin/content-pages", icon: FileText },
   { id: "settings", label: "Settings", href: "/admin/settings", icon: Settings },
   { id: "audit-logs", label: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
 ];

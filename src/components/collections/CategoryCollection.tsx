@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -23,6 +21,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/ProductCard";
 import { BreadcrumbNavigation } from "@/components/layout/BreadcrumbNavigation";
+import { FilterPanel } from "@/components/collections/facets/FilterPanel";
+import {
+  activeFilterCount,
+  buildFacets,
+  priceBoundsOf,
+} from "@/components/collections/facets/facet-model";
 import { css } from "styled-system/css";
 
 interface Product {
@@ -34,6 +38,7 @@ interface Product {
   compareAtPrice: number | null;
   stock: number;
   sku: string | null;
+  material: string | null;
   isFeatured: boolean;
   isLimitedEdition: boolean;
   isNewArrival: boolean;
@@ -161,37 +166,6 @@ const panelStyle = css({
   top: "24",
 });
 
-const panelTitleStyle = css({
-  fontFamily: "display",
-  fontSize: "lg",
-  fontWeight: "semibold",
-  color: "fg.default",
-  marginBottom: "4",
-});
-
-const facetSectionStyle = css({
-  marginBottom: "6",
-});
-
-const facetHeadingStyle = css({
-  fontSize: "sm",
-  fontWeight: "semibold",
-  color: "fg.default",
-  marginBottom: "3",
-});
-
-const priceValuesStyle = css({
-  display: "flex",
-  justifyContent: "space-between",
-  fontSize: "sm",
-  color: "fg.muted",
-  marginTop: "2",
-});
-
-const facetOptionsStyle = css({ display: "flex", flexDirection: "column", gap: "2" });
-
-const panelActionsStyle = css({ display: "flex", gap: "2" });
-
 const mobileTriggerWrapStyle = css({ display: { base: "block", lg: "none" }, marginBottom: "4" });
 
 const activeFiltersStyle = css({ marginBottom: "4", display: "flex", flexWrap: "wrap", gap: "2" });
@@ -235,64 +209,6 @@ const spinnerStyle = css({
   animation: "pulse",
 });
 
-function PriceFacet({
-  priceRange,
-  onChange,
-}: {
-  priceRange: [number, number];
-  onChange: (value: [number, number]) => void;
-}) {
-  return (
-    <div className={facetSectionStyle}>
-      <h4 className={facetHeadingStyle}>Price Range (₹)</h4>
-      <Slider
-        value={priceRange}
-        onValueChange={(value) => onChange(value as [number, number])}
-        max={30000}
-        min={100}
-        step={100}
-      />
-      <div className={priceValuesStyle}>
-        <span>₹{priceRange[0].toLocaleString()}</span>
-        <span>₹{priceRange[1].toLocaleString()}</span>
-      </div>
-    </div>
-  );
-}
-
-function AttrFacets({
-  dynamicFilters,
-  selectedAttrs,
-  onToggle,
-  idPrefix,
-}: {
-  dynamicFilters: DynamicFilter[];
-  selectedAttrs: string[];
-  onToggle: (value: string, checked: boolean) => void;
-  idPrefix: string;
-}) {
-  return (
-    <>
-      {dynamicFilters.map((filter) => (
-        <div key={`${idPrefix}-${filter.id}`} className={facetSectionStyle}>
-          <h4 className={facetHeadingStyle}>{filter.name}</h4>
-          <div className={facetOptionsStyle}>
-            {filter.options.map((option) => (
-              <Checkbox
-                key={option.id}
-                checked={selectedAttrs.includes(option.value)}
-                onCheckedChange={(checked) => onToggle(option.value, checked)}
-              >
-                {option.label}
-              </Checkbox>
-            ))}
-          </div>
-        </div>
-      ))}
-    </>
-  );
-}
-
 const SORT_OPTIONS = [
   { value: "createdAt", label: "Newest First" },
   { value: "priceCents-asc", label: "Price: Low to High" },
@@ -317,10 +233,25 @@ export function CategoryCollection({
   const [filters, setFilters] = useState<Filters>({ applied: {} });
   const [sortBy, setSortBy] = useState("createdAt");
 
+  // The slider spans what the unfiltered listing actually costs, and the
+  // facets count what is loaded — neither needs another request.
+  const bounds = useMemo(() => priceBoundsOf(initialProducts), [initialProducts]);
+  // Facets describe the collection, not the current results: they are built
+  // from the unfiltered listing the server rendered, so applying "50 cm"
+  // narrows the products but never takes "40 cm" away as a choice. A value
+  // no product in the collection carries is hidden once that listing is
+  // known to be complete, and dimmed until then.
+  const facets = useMemo(
+    () =>
+      buildFacets(initialFilters, initialProducts, {
+        complete: initialProducts.length >= initialPagination.totalCount,
+      }),
+    [initialFilters, initialProducts, initialPagination.totalCount],
+  );
+
   // Filter states
-  const [priceRange, setPriceRange] = useState<[number, number]>([100, 30000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([bounds.min, bounds.max]);
   const [selectedAttrs, setSelectedAttrs] = useState<string[]>([]);
-  const [dynamicFilters] = useState<DynamicFilter[]>(initialFilters);
 
   // Refs to prevent infinite loops
   const isFetchingRef = useRef(false);
@@ -406,12 +337,14 @@ export function CategoryCollection({
     return () => window.removeEventListener("scroll", handleScroll);
   }, [pagination?.hasNextPage, loading, loadingMore]);
 
-  // Apply filters
+  // Apply filters. The slider at its ends is not a filter, so only a
+  // narrowed range is sent — otherwise every apply would pin a chip to
+  // "Min: ₹100" and count as a choice the shopper never made.
   const applyFilters = () => {
     const newFilters: Filters = {
       applied: {
-        priceMin: priceRange[0],
-        priceMax: priceRange[1],
+        priceMin: priceRange[0] > bounds.min ? priceRange[0] : undefined,
+        priceMax: priceRange[1] < bounds.max ? priceRange[1] : undefined,
         attrValues: selectedAttrs.length > 0 ? selectedAttrs : undefined,
       },
     };
@@ -421,11 +354,18 @@ export function CategoryCollection({
 
   // Clear filters
   const clearFilters = () => {
-    setPriceRange([100, 30000]);
+    setPriceRange([bounds.min, bounds.max]);
     setSelectedAttrs([]);
     setFilters({ applied: {} });
     setFilterChangeTrigger((prev) => prev + 1);
   };
+
+  const activeCount = activeFilterCount(filters.applied, bounds);
+  const hasPendingChanges =
+    (filters.applied.priceMin ?? bounds.min) !== priceRange[0] ||
+    (filters.applied.priceMax ?? bounds.max) !== priceRange[1] ||
+    [...selectedAttrs].sort().join("|") !==
+      [...(filters.applied.attrValues ?? [])].sort().join("|");
 
   // Refetch when filters or sort change (skip the very first run —
   // initial data already arrived server-rendered via props)
@@ -489,24 +429,18 @@ export function CategoryCollection({
           {/* Filters Sidebar (desktop) */}
           <div className={desktopPanelWrapStyle}>
             <div className={panelStyle}>
-              <h3 className={panelTitleStyle}>Filters</h3>
-
-              <PriceFacet priceRange={priceRange} onChange={setPriceRange} />
-              <AttrFacets
-                dynamicFilters={dynamicFilters}
-                selectedAttrs={selectedAttrs}
+              <FilterPanel
+                facets={facets}
+                bounds={bounds}
+                priceRange={priceRange}
+                onPriceChange={setPriceRange}
+                selected={selectedAttrs}
                 onToggle={toggleAttr}
-                idPrefix="desktop"
+                activeCount={activeCount}
+                hasPendingChanges={hasPendingChanges}
+                onApply={applyFilters}
+                onClear={clearFilters}
               />
-
-              <div className={panelActionsStyle}>
-                <Button onClick={applyFilters} className={css({ flex: "1" })}>
-                  Apply Filters
-                </Button>
-                <Button variant="outline" onClick={clearFilters}>
-                  Clear
-                </Button>
-              </div>
             </div>
           </div>
 
@@ -518,7 +452,7 @@ export function CategoryCollection({
                 <SheetTrigger asChild>
                   <Button variant="outline" className={css({ width: "full" })}>
                     <Filter className={css({ width: "4", height: "4" })} />
-                    Filters
+                    Filters{activeCount > 0 ? ` (${activeCount})` : ""}
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom">
@@ -526,21 +460,19 @@ export function CategoryCollection({
                     <SheetTitle>Filters</SheetTitle>
                   </SheetHeader>
                   <div className={css({ marginTop: "2" })}>
-                    <PriceFacet priceRange={priceRange} onChange={setPriceRange} />
-                    <AttrFacets
-                      dynamicFilters={dynamicFilters}
-                      selectedAttrs={selectedAttrs}
+                    <FilterPanel
+                      facets={facets}
+                      bounds={bounds}
+                      priceRange={priceRange}
+                      onPriceChange={setPriceRange}
+                      selected={selectedAttrs}
                       onToggle={toggleAttr}
-                      idPrefix="mobile"
+                      activeCount={activeCount}
+                      hasPendingChanges={hasPendingChanges}
+                      onApply={applyFilters}
+                      onClear={clearFilters}
+                      showTitle={false}
                     />
-                    <div className={panelActionsStyle}>
-                      <Button onClick={applyFilters} className={css({ flex: "1" })}>
-                        Apply Filters
-                      </Button>
-                      <Button variant="outline" onClick={clearFilters}>
-                        Clear
-                      </Button>
-                    </div>
                   </div>
                 </SheetContent>
               </Sheet>

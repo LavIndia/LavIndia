@@ -9,18 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { css } from "styled-system/css";
-
-interface Address {
-  id: string;
-  fullName: string;
-  mobile: string;
-  addressLine1: string;
-  addressLine2?: string;
-  city: string;
-  state: string;
-  pincode: string;
-  isDefault: boolean;
-}
+import type { Address } from "@/components/profile/profile-types";
 
 interface AddressFormProps {
   address?: Address | null;

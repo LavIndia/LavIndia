@@ -1,30 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
-import Image from "next/image";
+import { useState, useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Upload, X, Star, GripVertical } from "lucide-react";
+import { Upload } from "lucide-react";
+import { ImageTile } from "@/components/admin/products/ImageTile";
 import { toast } from "sonner";
-import { css, cx } from "styled-system/css";
-
-const imageCardStyle = css({
-  "&:hover .image-actions": { opacity: 1 },
-});
-
-const imageActionsStyle = css({
-  position: "absolute",
-  inset: 0,
-  background: "rgba(18, 17, 16, 0.5)",
-  opacity: 0,
-  transition: "opacity 0.15s ease",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "2",
-  borderRadius: "md",
-});
+import { css } from "styled-system/css";
 
 interface ProductImage {
   id?: string;
@@ -43,6 +24,19 @@ interface ImageUploadProps {
   images: ProductImage[];
   setImages: (images: ProductImage[]) => void;
   productName?: string;
+  /** Blocks uploading while a prerequisite (the category) is missing. */
+  disabled?: boolean;
+  /**
+   * Where an upload failure is reported. When given, it replaces the toast
+   * so the caller can show the message somewhere the admin will not miss.
+   */
+  onError?: (message: string) => void;
+  /**
+   * Rendered beneath each image's alt text. Lets the caller add a control
+   * that means something only to it — moving the image to another group —
+   * without this component having to know what a group is.
+   */
+  renderImageFooter?: (index: number) => ReactNode;
 }
 
 export function ImageUpload({
@@ -50,6 +44,9 @@ export function ImageUpload({
   setImages,
   productName,
   categoryId,
+  disabled = false,
+  onError,
+  renderImageFooter,
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
@@ -57,7 +54,7 @@ export function ImageUpload({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const uploadFiles = async (fileList: File[]) => {
-    if (fileList.length === 0) return;
+    if (fileList.length === 0 || disabled) return;
 
     setUploading(true);
 
@@ -98,8 +95,13 @@ export function ImageUpload({
           : "Image added",
       );
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to upload images";
+      if (onError) {
+        onError(message);
+        return;
+      }
       toast.error(
-        error instanceof Error ? error.message : "Failed to upload images",
+        message,
       );
     } finally {
       setUploading(false);
@@ -127,6 +129,7 @@ export function ImageUpload({
 
   const handleDropzoneDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    if (disabled) return;
     if (e.dataTransfer.types.includes("Files")) setIsDraggingFiles(true);
   };
 
@@ -207,7 +210,7 @@ export function ImageUpload({
           type="button"
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || disabled}
         >
           <Upload className={css({ height: "4", width: "4" })} />
           {uploading ? "Uploading..." : "Upload Images"}
@@ -228,102 +231,21 @@ export function ImageUpload({
           })}
         >
           {images.map((image, index) => (
-            <Card
-              key={index}
-              className={cx(
-                imageCardStyle,
-                css({ position: "relative", cursor: "grab" }),
-              )}
-              draggable
+            <ImageTile
+              key={image.id ?? `${image.url}-${index}`}
+              url={image.url}
+              alt={image.alt}
+              isPrimary={image.isPrimary}
+              onSetPrimary={() => setPrimary(index)}
+              onRemove={() => removeImage(index)}
+              onAltChange={(alt) =>
+                setImages(images.map((img, i) => (i === index ? { ...img, alt } : img)))
+              }
               onDragStart={() => handleDragStart(index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDragEnd={handleDragEnd}
-            >
-              <div className={css({ aspectRatio: "1 / 1", position: "relative" })}>
-                <Image
-                  src={image.url}
-                  alt={image.alt || "Product image"}
-                  fill
-                  className={css({ objectFit: "cover", borderRadius: "md" })}
-                />
-
-                {/* Drag Handle */}
-                <div
-                  className={css({
-                    position: "absolute",
-                    top: "2",
-                    left: "2",
-                    background: "rgba(255,255,255,0.85)",
-                    borderRadius: "md",
-                    padding: "1",
-                  })}
-                >
-                  <GripVertical className={css({ height: "4", width: "4" })} />
-                </div>
-
-                {/* Primary Badge */}
-                {image.isPrimary && (
-                  <div
-                    className={css({
-                      position: "absolute",
-                      top: "2",
-                      right: "2",
-                      background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
-                      color: "fg.onGold",
-                      fontSize: "xs",
-                      paddingInline: "2",
-                      paddingBlock: "1",
-                      borderRadius: "full",
-                    })}
-                  >
-                    Primary
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className={cx("image-actions", imageActionsStyle)}>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="secondary"
-                    onClick={() => setPrimary(index)}
-                    title="Set as primary"
-                  >
-                    <Star
-                      className={css({
-                        height: "4",
-                        width: "4",
-                        color: image.isPrimary ? "gold.500" : "currentColor",
-                        fill: image.isPrimary ? "token(colors.gold.500)" : "none",
-                      })}
-                    />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="destructive"
-                    onClick={() => removeImage(index)}
-                    title="Remove"
-                  >
-                    <X className={css({ height: "4", width: "4" })} />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Alt Text */}
-              <div className={css({ padding: "2" })}>
-                <Input
-                  placeholder="Alt text"
-                  value={image.alt || ""}
-                  onChange={(e) => {
-                    const newImages = [...images];
-                    newImages[index].alt = e.target.value;
-                    setImages(newImages);
-                  }}
-                  className={css({ fontSize: "xs" })}
-                />
-              </div>
-            </Card>
+              footer={renderImageFooter?.(index)}
+            />
           ))}
         </div>
       )}

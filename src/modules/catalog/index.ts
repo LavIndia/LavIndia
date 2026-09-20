@@ -13,3 +13,33 @@ export type {
 } from "./contracts";
 export { catalogService } from "./catalog-service";
 export { formatSku, formatBarcode, allocateIdentifiers } from "./variants/identifiers";
+export type {
+  CatalogAttribute,
+  CuratedOptionValue,
+  FilterWithOptions,
+  VariantOptionDimension,
+} from "./variants/option-dimensions";
+export {
+  CATALOG_ATTRIBUTES,
+  VARIANT_OPTION_DIMENSIONS,
+  dimensionForFilter,
+  groupOptionsByDimension,
+  isVariantOptionDimension,
+} from "./variants/option-dimensions";
+export {
+  DEFAULT_VARIANT_NAME,
+  allocateMissingIdentifiers,
+  enforceVariantInvariants,
+  ensureDefaultVariant,
+  normaliseDefaultFlags,
+} from "./variants/variant-integrity";
+export type { GroupedImage, ImageGroup, VariantAttributes } from "./images/image-groups";
+export {
+  availableGroups,
+  groupOf,
+  imageMatchesVariant,
+  imagesForVariant,
+  productImageUrl,
+  sameGroup,
+  variantImageUrl,
+} from "./images/image-groups";

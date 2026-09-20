@@ -58,10 +58,17 @@ export async function GET(
         : null,
       stock: productAvailability.get(product.id)?.available ?? 0,
       sku: product.sku,
+      material: product.material,
       isFeatured: product.isFeatured,
+      // Each image carries the option value it is filed under, so the page
+      // can show the Gold photographs when Gold is chosen.
       images: product.images.map((image) => ({
         url: image.url,
         alt: image.alt || product.name,
+        position: image.position,
+        isPrimary: image.isPrimary,
+        optionDimension: image.optionDimension,
+        optionValue: image.optionValue,
       })),
       variants: product.variants.map((variant) => ({
         id: variant.id,

@@ -1,6 +1,6 @@
+import { notFound } from "next/navigation";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
-import { BreadcrumbNavigation } from "@/components/layout/BreadcrumbNavigation";
 import { TopPromoBannerServer } from "@/components/home/TopPromoBannerServer";
 import { CategoryCollection } from "@/components/collections/CategoryCollection";
 import { getCategoryPageData } from "@/lib/category-data";
@@ -23,41 +23,10 @@ export default async function CategoryPage({
   const { category, products, pagination, filters } =
     await getCategoryPageData(categorySlug);
 
+  // An unknown slug is a 404, not a page. Answering with a body and a 200
+  // made every mistyped URL look like a real page to search engines.
   if (!category) {
-    return (
-      <div className={pageStyle}>
-        <HeaderSection />
-        <main className={css({ paddingBlock: "8" })}>
-          <div
-            className={css({
-              maxWidth: "7xl",
-              marginInline: "auto",
-              paddingInline: "4",
-              textAlign: "center",
-            })}
-          >
-            <div className={css({ marginBottom: "6", textAlign: "left" })}>
-              <BreadcrumbNavigation />
-            </div>
-            <h1
-              className={css({
-                fontFamily: "display",
-                fontSize: "3xl",
-                fontWeight: "bold",
-                marginBottom: "4",
-                color: "fg.default",
-              })}
-            >
-              Category Not Found
-            </h1>
-            <p className={css({ color: "fg.muted" })}>
-              The category you&apos;re looking for doesn&apos;t exist.
-            </p>
-          </div>
-        </main>
-        <FooterSection />
-      </div>
-    );
+    notFound();
   }
 
   return (

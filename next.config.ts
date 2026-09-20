@@ -2,6 +2,26 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // /wishlist and /addresses were never pages in their own right: both are
+  // tabs of the profile page. They are kept as URLs because they are linked,
+  // bookmarked and guarded by middleware, so they redirect to the tab that
+  // actually holds the content rather than falling through to the catch-all
+  // category route.
+  async redirects() {
+    return [
+      {
+        source: "/wishlist",
+        destination: "/profile?tab=wishlist",
+        permanent: false,
+      },
+      {
+        source: "/addresses",
+        destination: "/profile?tab=addresses",
+        permanent: false,
+      },
+    ];
+  },
+
   async rewrites() {
     const storageRewrite =
       process.env.IMAGEKIT_ENABLED === "true" &&
@@ -30,9 +50,11 @@ const nextConfig: NextConfig = {
         source: "/product/:id",
         destination: "/shop-pages/product/:id",
       },
+      // "Shop all jewelry" — the default hero-banner destination, and the
+      // only listing that is not scoped to a single category.
       {
-        source: "/checkout",
-        destination: "/shop-pages/checkout",
+        source: "/shop",
+        destination: "/shop-pages/all",
       },
       {
         source: "/budget",

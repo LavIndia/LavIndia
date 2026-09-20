@@ -3,10 +3,21 @@ import { prisma } from "@/lib/prisma";
 import { isNewArrival, isBestSeller } from "@/lib/product-tags";
 import { availabilityByProduct, availabilityByVariant } from "@/modules/inventory";
 
-async function fetchCategoryProducts(categorySlug: string, limit: number) {
+// `categorySlug` of null means the whole catalogue rather than one category,
+// which is what the shop-everything listing asks for. Keeping it as one
+// function rather than two means the card/variant transform below stays the
+// single source of truth for what a listed product looks like.
+function productScope(categorySlug: string | null) {
+  return categorySlug
+    ? { isActive: true, isPublished: true, category: { slug: categorySlug } }
+    : { isActive: true, isPublished: true };
+}
+
+async function fetchCategoryProducts(categorySlug: string | null, limit: number) {
+  const where = productScope(categorySlug);
   const [products, totalCount] = await Promise.all([
     prisma.product.findMany({
-      where: { isActive: true, isPublished: true, category: { slug: categorySlug } },
+      where,
       include: {
         images: { orderBy: { position: "asc" }, take: 3 },
         variants: { where: { isActive: true }, orderBy: { position: "asc" } },
@@ -16,9 +27,7 @@ async function fetchCategoryProducts(categorySlug: string, limit: number) {
       orderBy: { createdAt: "desc" },
       take: limit,
     }),
-    prisma.product.count({
-      where: { isActive: true, isPublished: true, category: { slug: categorySlug } },
-    }),
+    prisma.product.count({ where }),
   ]);
 
   // Two batched lookups for the whole page — product rollups for the cards
@@ -39,6 +48,9 @@ async function fetchCategoryProducts(categorySlug: string, limit: number) {
       : null,
     stock: productAvailability.get(product.id)?.available ?? 0,
     sku: product.sku,
+    // A product-level fact — material is its own product, not a variant
+    // option — so the filter panel reads it from here.
+    material: product.material,
     isFeatured: product.isFeatured,
     isLimitedEdition: product.isLimitedEdition,
     isNewArrival: isNewArrival(product.createdAt),
@@ -93,6 +105,17 @@ export async function getCategoryProducts(categorySlug: string, limit = 30) {
   return cached();
 }
 
+// The shop-everything listing. Cached under its own key and busted by the
+// same broad "products" tag that every admin product mutation already fires.
+export async function getAllJewelleryProducts(limit = 30) {
+  const cached = unstable_cache(
+    () => fetchCategoryProducts(null, limit),
+    ["all-jewellery-products", String(limit)],
+    { tags: ["products"], revalidate: 60 }
+  );
+  return cached();
+}
+
 export type FilterType = "CHECKBOX" | "DROPDOWN" | "RANGE" | "COLOR";
 
 async function fetchCategoryFilters(categorySlug: string) {
@@ -137,6 +160,39 @@ export async function getCategoryBySlug(categorySlug: string) {
     { tags: ["products", `category-${categorySlug}`], revalidate: 60 }
   );
   return cached();
+}
+
+async function fetchAllActiveFilters() {
+  const filters = await prisma.filter.findMany({
+    where: { isActive: true },
+    include: { options: { orderBy: { order: "asc" } } },
+    orderBy: { order: "asc" },
+  });
+
+  return filters.map((filter) => ({
+    ...filter,
+    type: filter.type as FilterType,
+  }));
+}
+
+// Across the whole catalogue every active filter is offered, because a
+// shopper browsing everything has not yet narrowed to a category that would
+// decide which facets are relevant.
+export async function getAllJewelleryFilters() {
+  const cached = unstable_cache(fetchAllActiveFilters, ["all-jewellery-filters"], {
+    tags: ["filters"],
+    revalidate: 60,
+  });
+  return cached();
+}
+
+export async function getAllJewelleryPageData(limit = 30) {
+  const [{ products, pagination }, filters] = await Promise.all([
+    getAllJewelleryProducts(limit),
+    getAllJewelleryFilters(),
+  ]);
+
+  return { products, pagination, filters };
 }
 
 export async function getCategoryPageData(categorySlug: string, limit = 30) {

@@ -137,3 +137,38 @@ model NewsletterSubscriber {
 
   @@map("newsletter_subscribers")
 }
+
+// ---------------------------------------------------------
+// Editorial and policy pages
+// ---------------------------------------------------------
+// The storefront's written pages — the story, the core values, the FAQ and
+// the four policies. They live in the database so that an admin can correct
+// a return window or a support hour without a deploy, which matters most for
+// exactly the pages that carry legal commitments.
+//
+// A row here is an override. Every page ships with a default draft in
+// src/content/, and the reader falls back to that draft whenever no row
+// exists, so the storefront renders correctly on a database that has never
+// been edited.
+model ContentPage {
+  slug  String  @id // matches the public URL, e.g. "privacy-policy"
+  title String
+  intro String? // one sentence under the title; hidden when empty
+
+  // Shown as "Last updated ..." — free text so the wording can match the
+  // page ("March 2026", "20 September 2026"). Policy pages carry one.
+  lastUpdated String?
+
+  // ContentSection[]: { heading, body?: string[], bullets?: string[] }.
+  // Held as JSON because a section is only ever read and written whole, as
+  // part of its page, and is never queried or joined across pages.
+  sections Json
+
+  isPublished Boolean @default(true)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+  createdAt   DateTime @default(now())
+
+  @@map("content_pages")
+}

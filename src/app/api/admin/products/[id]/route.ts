@@ -4,6 +4,11 @@ import { auth } from "@/lib/auth";
 import { removePublicAsset } from "@/lib/imagekit-admin";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { enforceVariantInvariants } from "@/modules/catalog";
+import {
+  VariantHasStockError,
+  assertVariantsHoldNoStock,
+} from "@/lib/product-variant-guards";
 
 const imageInputSchema = z.object({
   id: z.string().optional(),
@@ -11,12 +16,11 @@ const imageInputSchema = z.object({
   alt: z.string().nullable().optional(),
   isPrimary: z.boolean().default(false),
   position: z.number().int().min(0).default(0),
-  // A real variant id, or null for the product's general gallery.
-  variantId: z.string().nullable().optional(),
-  // Only set when this image belongs to a variant that doesn't have a
-  // database id yet (a brand-new variant in the same save) — resolved to
-  // that variant's real id once it's created, see PATCH below.
-  variantClientId: z.string().optional(),
+  // The option value the image is filed under — ("color", "Gold") — or
+  // both null for a general image shown with every variant. Photos belong
+  // to an option value, not a variant: see catalog/images/image-groups.ts.
+  optionDimension: z.enum(["color", "size", "material"]).nullable().optional(),
+  optionValue: z.string().min(1).nullable().optional(),
 });
 
 const variantInputSchema = z.object({
@@ -40,6 +44,7 @@ const productUpdateSchema = z.object({
   stock: z.number().int().min(0).optional(),
   categoryId: z.string().optional(),
   sku: z.string().optional().nullable(),
+  material: z.string().trim().max(120).optional().nullable(),
   isPublished: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
   isLimitedEdition: z.boolean().optional(),
@@ -111,14 +116,10 @@ export async function PATCH(
     const { removedImageUrls } = await prisma.$transaction(async (tx) => {
       await tx.product.update({ where: { id }, data: productFields });
 
-      // Variants are resolved before images so a brand-new variant's real
-      // id is known in time to attach its gallery photos to it below.
-      const clientIdToVariantId = new Map<string, string>();
-
       if (variants) {
         const existing = await tx.productVariant.findMany({
           where: { productId: id },
-          select: { id: true },
+          select: { id: true, name: true },
         });
         const keepIds = new Set(
           variants.filter((v) => v.id).map((v) => v.id),
@@ -126,6 +127,10 @@ export async function PATCH(
         const toDelete = existing.filter((v) => !keepIds.has(v.id));
 
         if (toDelete.length) {
+          // Inventory rows cascade with their variant. Refuse rather than
+          // lose stock that is physically on a shelf.
+          await assertVariantsHoldNoStock(toDelete);
+
           await tx.productVariant.deleteMany({
             where: { id: { in: toDelete.map((v) => v.id) } },
           });
@@ -143,15 +148,18 @@ export async function PATCH(
             };
             if (v.id) {
               await tx.productVariant.update({ where: { id: v.id }, data });
-              if (v.clientId) clientIdToVariantId.set(v.clientId, v.id);
             } else {
-              const row = await tx.productVariant.create({
-                data: { ...data, productId: id },
-              });
-              if (v.clientId) clientIdToVariantId.set(v.clientId, row.id);
+              await tx.productVariant.create({ data: { ...data, productId: id } });
             }
           }),
         );
+      }
+
+      // Runs whenever the variant set was touched: a product left with no
+      // variants gets its implicit Default back, and every new variant
+      // leaves with a SKU and barcode.
+      if (variants) {
+        await enforceVariantInvariants(tx, id);
       }
 
       let removedImageUrls: string[] = [];
@@ -174,17 +182,15 @@ export async function PATCH(
               })
             : Promise.resolve(),
           ...images.map((img) => {
-            const resolvedVariantId =
-              img.variantId ??
-              (img.variantClientId
-                ? clientIdToVariantId.get(img.variantClientId) ?? null
-                : null);
+            // A group needs both halves; anything less is a general image.
+            const grouped = img.optionDimension && img.optionValue;
             const data = {
               url: img.url,
               alt: img.alt ?? null,
               isPrimary: img.isPrimary,
               position: img.position,
-              variantId: resolvedVariantId,
+              optionDimension: grouped ? img.optionDimension : null,
+              optionValue: grouped ? img.optionValue : null,
             };
             return img.id
               ? tx.productImage.update({ where: { id: img.id }, data })
@@ -251,6 +257,9 @@ export async function PATCH(
         { error: "Validation failed", details: error.errors },
         { status: 400 },
       );
+    }
+    if (error instanceof VariantHasStockError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
     }
 
     console.error("Error updating product:", error);

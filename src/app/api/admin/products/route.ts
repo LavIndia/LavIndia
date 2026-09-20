@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { enforceVariantInvariants } from "@/modules/catalog";
 
 const PRODUCTS_PAGE_SIZE = 20;
 
@@ -13,13 +14,11 @@ const imageInputSchema = z.object({
   alt: z.string().nullable().optional(),
   isPrimary: z.boolean().default(false),
   position: z.number().int().min(0).default(0),
-  // A real variant id, or null for the product's general gallery.
-  variantId: z.string().nullable().optional(),
-  // Only set when this image belongs to a variant that doesn't have a
-  // database id yet — resolved to that variant's real id once it's
-  // created below, since variants and images are created in the same
-  // request.
-  variantClientId: z.string().optional(),
+  // The option value the image is filed under — ("color", "Gold") — or
+  // both null for a general image shown with every variant. Photos belong
+  // to an option value, not a variant: see catalog/images/image-groups.ts.
+  optionDimension: z.enum(["color", "size", "material"]).nullable().optional(),
+  optionValue: z.string().min(1).nullable().optional(),
 });
 
 const variantInputSchema = z.object({
@@ -43,6 +42,7 @@ const productSchema = z.object({
   stock: z.number().int().min(0),
   categoryId: z.string(),
   sku: z.string().optional().nullable(),
+  material: z.string().trim().max(120).optional().nullable(),
   isPublished: z.boolean().default(false),
   isFeatured: z.boolean().default(false),
   isLimitedEdition: z.boolean().default(false),
@@ -143,37 +143,36 @@ export async function POST(req: NextRequest) {
     const product = await prisma.$transaction(async (tx) => {
       const created = await tx.product.create({ data: validatedData });
 
-      // Variants are created before images so a brand-new variant's real
-      // id is known in time to attach its gallery photos to it below.
-      const clientIdToVariantId = new Map<string, string>();
       if (variants?.length) {
-        const rows = await Promise.all(
-          variants.map(async (v) => {
-            const { id: _id, clientId, ...rest } = v;
-            const row = await tx.productVariant.create({
-              data: { ...rest, productId: created.id },
-            });
-            return { row, clientId };
+        await Promise.all(
+          variants.map((v) => {
+            const { id: _id, clientId: _clientId, ...rest } = v;
+            return tx.productVariant.create({ data: { ...rest, productId: created.id } });
           }),
         );
-        for (const { row, clientId } of rows) {
-          if (clientId) clientIdToVariantId.set(clientId, row.id);
-        }
       }
 
       if (images?.length) {
         await Promise.all(
           images.map((img) => {
-            const { id: _id, variantId, variantClientId, ...rest } = img;
-            const resolvedVariantId =
-              variantId ??
-              (variantClientId ? clientIdToVariantId.get(variantClientId) ?? null : null);
+            const { id: _id, optionDimension, optionValue, ...rest } = img;
+            // A group needs both halves; anything less is a general image.
+            const grouped = optionDimension && optionValue;
             return tx.productImage.create({
-              data: { ...rest, productId: created.id, variantId: resolvedVariantId },
+              data: {
+                ...rest,
+                productId: created.id,
+                optionDimension: grouped ? optionDimension : null,
+                optionValue: grouped ? optionValue : null,
+              },
             });
           }),
         );
       }
+
+      // Last, so a product with no options gets its implicit Default
+      // variant and every variant leaves here with a SKU and barcode.
+      await enforceVariantInvariants(tx, created.id);
 
       return tx.product.findUniqueOrThrow({
         where: { id: created.id },

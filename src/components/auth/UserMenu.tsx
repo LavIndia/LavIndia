@@ -106,13 +106,13 @@ export function UserMenu() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/addresses">
+            <Link href="/profile?tab=addresses">
               <MapPin className={menuIconStyle} />
               <span>Addresses</span>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/wishlist">
+            <Link href="/profile?tab=wishlist">
               <Heart className={menuIconStyle} />
               <span>Wishlist</span>
             </Link>

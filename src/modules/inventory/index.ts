@@ -40,3 +40,4 @@ export {
   availabilityByVariant,
   type ProductAvailability,
 } from "./read/availability-read-model";
+export { onHandByVariant, type OnHand } from "./read/on-hand-read-model";

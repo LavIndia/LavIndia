@@ -46,6 +46,13 @@ model Product {
   // reasons only — nothing in the app reads it as a source of truth.
   stock            Int      @default(0)
   sku              String?  @unique
+  // What the piece is made of — Sterling Silver, Brass, 22k Gold.
+  //
+  // A product-level fact, deliberately NOT a variant option: material moves
+  // the price, and a listing card shows one price per product. The same
+  // design in two materials is two products; colour and size are the only
+  // things a shopper chooses on one page.
+  material         String?
   isActive         Boolean  @default(true)
   isFeatured       Boolean  @default(false)
   isLimitedEdition Boolean  @default(false)
@@ -83,6 +90,9 @@ model ProductVariant {
   barcode               String?                @unique
   color                 String?
   size                  String?
+  // DEPRECATED as a variant option. Material lives on the Product now — see
+  // Product.material. Kept so historical rows are not lost and so the catalog
+  // contract can still report a material for a variant; never written to.
   material              String?
   // DEPRECATED source of truth. Physical stock now lives in the Inventory
   // domain (InventoryLevel). Kept only so historical rows aren't lost and
@@ -134,12 +144,21 @@ model ProductImage {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  // When set, this image belongs to one specific variant's gallery (e.g. a
-  // Gold color variant's own photos) instead of the product's general
-  // gallery. Null means it's a general product image.
+  // Which option value this image is filed under, e.g. ("color", "Gold").
+  // Both null means a general image shown for every variant. Photos belong
+  // to an option value rather than to a variant, because the Gold photos
+  // serve every Gold variant whatever its size — see
+  // src/modules/catalog/images/image-groups.ts.
+  optionDimension String?
+  optionValue     String?
+
+  // DEPRECATED. Images were once tied to a single variant; the value has been
+  // folded into optionDimension/optionValue above. Kept so the migration
+  // stays auditable. Do not read or write.
   variantId String?
   variant   ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
 
+  @@index([productId, optionDimension, optionValue])
   @@map("product_images")
 }
 

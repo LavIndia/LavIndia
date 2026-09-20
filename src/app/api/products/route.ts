@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isNewArrival, isBestSeller } from "@/lib/product-tags";
 import { availabilityByProduct, availabilityByVariant } from "@/modules/inventory";
+import { isAllCategories } from "@/lib/catalog-scope";
 
 export async function GET(request: NextRequest) {
   try {
@@ -90,12 +91,15 @@ export async function GET(request: NextRequest) {
       isPublished: true,
     };
 
-    // Add category filter
-    if (category) {
+    // Add category filter. The all-categories sentinel is a listing that spans
+    // the whole catalogue, so it deliberately adds no category constraint —
+    // it still satisfies the check above, which only exists to stop an
+    // unscoped accidental request returning the entire table.
+    if (category && !isAllCategories(category)) {
       where.category = {
         slug: category,
       };
-    } else if (categoryId) {
+    } else if (!category && categoryId) {
       where.categoryId = categoryId;
     }
 
@@ -120,19 +124,31 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Add filter-option attribute matching (e.g. metal type, stone type)
-    // Matches selected values against any variant's color, material, or size
+    // Filter-option matching. Where a value is looked for follows the
+    // catalogue's model: colour and size are variant options, material is a
+    // product. An AND entry is used rather than assigning `where.variants`,
+    // so this cannot clobber the colour filter set above.
     if (attrValues.length > 0) {
-      where.variants = {
-        some: {
-          isActive: true,
-          OR: attrValues.flatMap((value) => [
-            { color: { equals: value, mode: "insensitive" as const } },
-            { material: { equals: value, mode: "insensitive" as const } },
-            { size: { equals: value, mode: "insensitive" as const } },
-          ]),
+      where.AND = [
+        {
+          OR: [
+            {
+              variants: {
+                some: {
+                  isActive: true,
+                  OR: attrValues.flatMap((value) => [
+                    { color: { equals: value, mode: "insensitive" as const } },
+                    { size: { equals: value, mode: "insensitive" as const } },
+                  ]),
+                },
+              },
+            },
+            ...attrValues.map((value) => ({
+              material: { equals: value, mode: "insensitive" as const },
+            })),
+          ],
         },
-      };
+      ];
     }
 
     // Build order by
@@ -192,6 +208,7 @@ export async function GET(request: NextRequest) {
         : null,
       stock: productAvailability.get(product.id)?.available ?? 0,
       sku: product.sku,
+      material: product.material,
       isFeatured: product.isFeatured,
       isLimitedEdition: product.isLimitedEdition,
       isNewArrival: isNewArrival(product.createdAt),

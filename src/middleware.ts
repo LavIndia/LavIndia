@@ -33,7 +33,9 @@ export default async function middleware(req: NextRequest) {
     if (!isLoggedIn) {
       // Redirect to login if not authenticated
       const loginUrl = new URL("/", nextUrl.origin);
-      loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
+      // Keep the query string: without it a sign-in prompted by
+      // /profile?tab=wishlist would send the customer back to the wrong tab.
+      loginUrl.searchParams.set("callbackUrl", `${nextUrl.pathname}${nextUrl.search}`);
       return NextResponse.redirect(loginUrl);
     }
 
@@ -48,7 +50,7 @@ export default async function middleware(req: NextRequest) {
   // Protect customer routes
   if (isProtectedRoute && !isLoggedIn) {
     const loginUrl = new URL("/", nextUrl.origin);
-    loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
+    loginUrl.searchParams.set("callbackUrl", `${nextUrl.pathname}${nextUrl.search}`);
     return NextResponse.redirect(loginUrl);
   }
 

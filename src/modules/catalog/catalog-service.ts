@@ -21,16 +21,22 @@ import type {
   CatalogSearchOptions,
   SellableVariant,
 } from "./contracts";
+import { productImageUrl, variantImageUrl } from "./images/image-groups";
 
 /**
- * One image per row, best first: an explicitly primary image, otherwise the
- * lowest position. Keeping this as a nested `take: 1` means a page of
- * variants is still a single query rather than an N+1 walk.
+ * A product's images with the fields the group rule needs. Loaded once per
+ * product row and resolved per variant in memory, so a page of variants is
+ * still one query rather than an N+1 walk.
  */
-const BEST_IMAGE = {
+const GROUPED_IMAGES = {
   orderBy: [{ isPrimary: "desc" }, { position: "asc" }],
-  take: 1,
-  select: { url: true },
+  select: {
+    url: true,
+    position: true,
+    isPrimary: true,
+    optionDimension: true,
+    optionValue: true,
+  },
 } satisfies Prisma.ProductImageFindManyArgs;
 
 const VARIANT_SELECT = {
@@ -46,7 +52,6 @@ const VARIANT_SELECT = {
   size: true,
   material: true,
   productId: true,
-  images: BEST_IMAGE,
   product: {
     select: {
       id: true,
@@ -56,7 +61,7 @@ const VARIANT_SELECT = {
       compareAtCents: true,
       isActive: true,
       isPublished: true,
-      images: { ...BEST_IMAGE, where: { variantId: null } },
+      images: GROUPED_IMAGES,
     },
   },
 } satisfies Prisma.ProductVariantSelect;
@@ -79,7 +84,9 @@ function toSellableVariant(row: VariantRow): SellableVariant {
     priceCents: row.priceCents ?? row.product.priceCents,
     compareAtCents: row.product.compareAtCents,
     isActive: row.isActive && row.product.isActive,
-    imageUrl: row.images[0]?.url ?? row.product.images[0]?.url ?? null,
+    // The variant's own group's image, else the product's general one —
+    // the rule lives in image-groups.ts so no consumer has to know it.
+    imageUrl: variantImageUrl(row.product.images, row),
     attributes: {
       color: row.color,
       size: row.size,
@@ -186,7 +193,7 @@ class CatalogService implements CatalogPort {
         name: true,
         slug: true,
         category: { select: { name: true } },
-        images: { ...BEST_IMAGE, where: { variantId: null } },
+        images: GROUPED_IMAGES,
         variants: { select: VARIANT_SELECT, orderBy: { position: "asc" } },
       },
     });
@@ -196,7 +203,7 @@ class CatalogService implements CatalogPort {
       productName: row.name,
       productSlug: row.slug,
       categoryName: row.category?.name ?? null,
-      imageUrl: row.images[0]?.url ?? null,
+      imageUrl: productImageUrl(row.images),
       variants: row.variants.map(toSellableVariant),
     }));
   }

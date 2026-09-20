@@ -1,10 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import Image from "next/image";
+import {
+  findVariant,
+  imagesForVariant,
+  initialSelection,
+  optionAxes,
+  selectValue,
+  type GroupedImage,
+  type OptionSelection,
+} from "@/modules/catalog/client";
+import { VariantOptionPicker } from "@/components/product/VariantOptionPicker";
 import { Heart, Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,8 +46,10 @@ interface Product {
   compareAtPrice: number | null;
   stock: number;
   sku: string | null;
+  /** A product-level fact: the same design in another material is another product. */
+  material: string | null;
   isFeatured: boolean;
-  images: Array<{ url: string; alt: string }>;
+  images: Array<GroupedImage & { alt: string }>;
   variants: Array<{
     id: string;
     name: string;
@@ -303,12 +315,43 @@ export function ProductPageClient() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
+  // What the shopper has chosen, one value per option dimension. The
+  // variant is derived from it, so the page can never be showing a
+  // combination that no variant has.
+  const [selection, setSelection] = useState<OptionSelection>({});
   const [qty, setQty] = useState(1);
   const [wishlisted, setWishlisted] = useState(false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [api, setApi] = useState<CarouselApi>();
   const [activeImage, setActiveImage] = useState(0);
+
+  const selectedVariant = useMemo(
+    () => (product ? findVariant(product.variants, selection) : null),
+    [product, selection],
+  );
+  const axes = useMemo(
+    () => (product ? optionAxes(product.variants, selection) : []),
+    [product, selection],
+  );
+  const chooseOption = (dimension: Parameters<typeof selectValue>[2], value: string) => {
+    if (!product) return;
+    setSelection((current) => selectValue(product.variants, current, dimension, value));
+  };
+
+  // The gallery follows the chosen variant: its option value's photographs
+  // first, then the general ones. With nothing chosen, everything shows.
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+    if (!selectedVariant) return product.images;
+    const scoped = imagesForVariant(product.images, selectedVariant);
+    return scoped.length > 0 ? scoped : product.images;
+  }, [product, selectedVariant]);
+
+  // A new set of photographs starts from its first one.
+  useEffect(() => {
+    api?.scrollTo(0, true);
+    setActiveImage(0);
+  }, [api, galleryImages]);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -354,7 +397,7 @@ export function ProductPageClient() {
         }
         const productData = await res.json();
         setProduct(productData);
-        setSelectedVariant(productData.variants[0] || null);
+        setSelection(initialSelection(productData.variants));
       } catch (err) {
         console.error("Error fetching product:", err);
         setError("Failed to load product");
@@ -550,8 +593,8 @@ export function ProductPageClient() {
             <div className={galleryColStyle}>
               <Carousel className={carouselStyle} setApi={setApi}>
                 <CarouselContent>
-                  {product.images.map((img, index) => (
-                    <CarouselItem key={index}>
+                  {galleryImages.map((img, index) => (
+                    <CarouselItem key={`${img.url}-${index}`}>
                       <div
                         className={imageBoxStyle}
                         onClick={() => setLightboxOpen(true)}
@@ -577,11 +620,11 @@ export function ProductPageClient() {
                 <CarouselPrevious />
                 <CarouselNext />
               </Carousel>
-              {product.images.length > 1 && (
+              {galleryImages.length > 1 && (
                 <div className={thumbRowStyle}>
-                  {product.images.map((img, index) => (
+                  {galleryImages.map((img, index) => (
                     <Image
-                      key={index}
+                      key={`${img.url}-${index}`}
                       src={img.url}
                       alt={img.alt}
                       width={80}
@@ -601,8 +644,8 @@ export function ProductPageClient() {
               <DialogContent className={lightboxContentStyle}>
                 <div className={lightboxImageWrapStyle}>
                   <Image
-                    src={product.images[activeImage]?.url}
-                    alt={product.images[activeImage]?.alt || product.name}
+                    src={galleryImages[activeImage]?.url ?? galleryImages[0]?.url}
+                    alt={galleryImages[activeImage]?.alt || product.name}
                     fill
                     sizes="90vw"
                     className={css({ objectFit: "contain" })}
@@ -656,23 +699,9 @@ export function ProductPageClient() {
                 )}
               </div>
 
-              {product.variants.length > 0 && (
-                <div>
-                  <h3 className={sectionLabelStyle}>Options</h3>
-                  <div className={variantRowStyle}>
-                    {product.variants.map((variant) => (
-                      <Button
-                        key={variant.id}
-                        variant={selectedVariant?.id === variant.id ? "default" : "outline"}
-                        onClick={() => setSelectedVariant(variant)}
-                        disabled={variant.stock === 0}
-                      >
-                        {variant.name} - ₹{variant.price.toLocaleString()}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Nothing to choose for a product sold as a single item, so
+                  the block is absent rather than showing one dead button. */}
+              <VariantOptionPicker axes={axes} onSelect={chooseOption} />
 
               <div>
                 <h3 className={sectionLabelStyle}>Quantity</h3>
@@ -702,7 +731,7 @@ export function ProductPageClient() {
                     id={product.id}
                     name={product.name}
                     price={selectedVariant?.price || product.price}
-                    image={product.images[0].url}
+                    image={galleryImages[0]?.url ?? product.images[0]?.url}
                     variantId={selectedVariant?.id}
                     variantLabel={selectedVariant?.name}
                     stock={currentStock}
@@ -732,8 +761,8 @@ export function ProductPageClient() {
                       {/* A field with no value is left out entirely rather
                           than printed as "Not specified" — an empty label
                           tells a customer nothing and reads as neglect. */}
-                      {selectedVariant.material && <li>Material: {selectedVariant.material}</li>}
-                      {selectedVariant.color && <li>Color: {selectedVariant.color}</li>}
+                      {product.material && <li>Material: {product.material}</li>}
+                      {selectedVariant.color && <li>Colour: {selectedVariant.color}</li>}
                       {selectedVariant.size && <li>Size: {selectedVariant.size}</li>}
                       <li>Stock: {selectedVariant.stock} available</li>
                     </>

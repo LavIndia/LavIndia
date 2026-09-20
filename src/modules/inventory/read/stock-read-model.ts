@@ -168,9 +168,18 @@ export async function queryStock(query: StockQuery): Promise<StockPage> {
       lvl."quantity"  AS "quantity",
       lvl."reservedQuantity" AS "reservedQuantity",
       (
+        -- The variant's own option-value group first (Colour: Gold for a
+        -- Gold variant), then the product's general images. Same rule as
+        -- src/modules/catalog/images/image-groups.ts, expressed in SQL.
         SELECT img."url" FROM "product_images" img
-         WHERE img."variantId" = v."id" OR (img."productId" = p."id" AND img."variantId" IS NULL)
-         ORDER BY (img."variantId" = v."id") DESC, img."isPrimary" DESC, img."position" ASC
+         WHERE img."productId" = p."id"
+           AND (
+             img."optionDimension" IS NULL
+             OR (img."optionDimension" = 'color'    AND lower(img."optionValue") = lower(v."color"))
+             OR (img."optionDimension" = 'size'     AND lower(img."optionValue") = lower(v."size"))
+             OR (img."optionDimension" = 'material' AND lower(img."optionValue") = lower(v."material"))
+           )
+         ORDER BY (img."optionDimension" IS NOT NULL) DESC, img."isPrimary" DESC, img."position" ASC
          LIMIT 1
       ) AS "imageUrl",
       COUNT(*) OVER() AS "totalCount"

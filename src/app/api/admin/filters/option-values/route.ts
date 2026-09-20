@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { groupOptionsByDimension } from "@/modules/catalog";
 
 // Curated value lists for the product Options & Variants picker, sourced
 // from the same admin-managed Filter/FilterOption records used for
 // shop-page filtering — so a Color chip picked here and a Color filter
 // customers see on the shop are always the same list, admin-editable in
 // one place (/admin/filters).
-const DIMENSION_SLUGS: Record<string, string> = {
-  color: "color",
-  size: "size",
-  material: "material",
-};
-
+//
+// Every active filter is read and the catalog module decides which variant
+// dimension each one feeds. Matching on a fixed slug used to be the rule,
+// which meant a filter an admin had sensibly called "Metal Colour" or
+// "Chain Length" matched nothing and the picker offered no values at all.
 export async function GET() {
   try {
     const session = await auth();
@@ -21,23 +21,19 @@ export async function GET() {
     }
 
     const filters = await prisma.filter.findMany({
-      where: { slug: { in: Object.values(DIMENSION_SLUGS) } },
-      include: { options: { orderBy: { order: "asc" } } },
+      where: { isActive: true },
+      select: {
+        name: true,
+        slug: true,
+        options: {
+          orderBy: { order: "asc" },
+          select: { label: true, value: true, color: true },
+        },
+      },
+      orderBy: { order: "asc" },
     });
 
-    const bySlug = new Map(filters.map((f) => [f.slug, f]));
-    const result: Record<string, { label: string; value: string; color: string | null }[]> = {};
-
-    for (const [dimension, slug] of Object.entries(DIMENSION_SLUGS)) {
-      const filter = bySlug.get(slug);
-      result[dimension] = (filter?.options ?? []).map((opt) => ({
-        label: opt.label,
-        value: opt.value,
-        color: opt.color,
-      }));
-    }
-
-    return NextResponse.json(result);
+    return NextResponse.json(groupOptionsByDimension(filters));
   } catch (error) {
     console.error("Error fetching option values:", error);
     return NextResponse.json(

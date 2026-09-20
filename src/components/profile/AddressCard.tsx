@@ -5,18 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2 } from "lucide-react";
 import { css } from "styled-system/css";
-
-interface Address {
-  id: string;
-  fullName: string;
-  mobile: string;
-  addressLine1: string;
-  addressLine2?: string;
-  city: string;
-  state: string;
-  pincode: string;
-  isDefault: boolean;
-}
+import type { Address } from "@/components/profile/profile-types";
 
 interface AddressCardProps {
   address: Address;
