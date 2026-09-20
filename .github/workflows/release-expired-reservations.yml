@@ -48,23 +48,46 @@ jobs:
           BASE_URL: ${{ vars.PRODUCTION_URL || 'https://lav-india.vercel.app' }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
-          set -euo pipefail
+          # Deliberately not `set -e`: curl's own exit status is uninteresting
+          # next to the HTTP status, and aborting on it would skip the branch
+          # below that says what actually went wrong.
+          set -uo pipefail
 
           if [ -z "${CRON_SECRET:-}" ]; then
-            echo "::error::CRON_SECRET is not set. Add it under Settings → Secrets and variables → Actions."
+            echo "::error::CRON_SECRET is not set in this repository. Add it under Settings -> Secrets and variables -> Actions."
             exit 1
           fi
 
-          # --fail-with-body so a non-2xx still prints the server's message,
-          # which is the useful part when this goes wrong.
-          status=$(curl --silent --show-error --fail-with-body \
+          body=$(mktemp)
+          status=$(curl --silent --show-error \
             --max-time 60 --retry 2 --retry-delay 5 \
-            --write-out '\n%{http_code}' \
+            --output "$body" --write-out '%{http_code}' \
             --header "Authorization: Bearer ${CRON_SECRET}" \
-            "${BASE_URL}/api/cron/release-expired-reservations" | tee /dev/stderr | tail -1)
+            "${BASE_URL}/api/cron/release-expired-reservations") || status="000"
 
-          if [ "$status" != "200" ]; then
-            echo "::error::Sweeper returned HTTP ${status}"
-            exit 1
-          fi
-          echo "Sweep completed."
+          echo "GET ${BASE_URL}/api/cron/release-expired-reservations -> HTTP ${status}"
+          cat "$body"; echo
+
+          # Each status the endpoint can return means one specific thing, so
+          # each gets the message that names the fix rather than a bare code.
+          case "$status" in
+            200)
+              echo "Sweep completed."
+              ;;
+            503)
+              echo "::error::The endpoint reports CRON_SECRET is not configured on the server. Set CRON_SECRET in Vercel -> Settings -> Environment Variables (Production), then redeploy."
+              exit 1
+              ;;
+            401)
+              echo "::error::The endpoint rejected the secret. The value in this repository's Actions secrets does not match the one in Vercel's environment variables."
+              exit 1
+              ;;
+            000)
+              echo "::error::Could not reach ${BASE_URL}. Check the PRODUCTION_URL variable and that the deployment is live."
+              exit 1
+              ;;
+            *)
+              echo "::error::Sweeper returned HTTP ${status}."
+              exit 1
+              ;;
+          esac
