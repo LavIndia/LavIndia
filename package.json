@@ -16,6 +16,14 @@
     "imagekit:migrate": "tsx scripts/migrate-public-assets.ts",
     "postinstall": "prisma generate && panda codegen"
   },
+  "allowScripts": {
+    "@prisma/client": true,
+    "@prisma/engines": true,
+    "prisma": true,
+    "esbuild": true,
+    "sharp": true,
+    "unrs-resolver": true
+  },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.0",
     "@hookform/resolvers": "^5.2.2",
