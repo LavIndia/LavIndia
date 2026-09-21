@@ -19,6 +19,7 @@ import {
   ListFilter,
   PlusCircle,
   Search,
+  Award,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ const DESTINATIONS: Command[] = [
   { id: "discounts", label: "Discounts", href: "/admin/discounts", icon: Tag },
   { id: "hero-banners", label: "Hero Banners", href: "/admin/hero-banners", icon: ImageIcon },
   { id: "promo-banners", label: "Promo Banners", href: "/admin/promo-banners", icon: Megaphone },
+  { id: "highlights", label: "Highlights", href: "/admin/highlights", icon: Award },
   { id: "homepage-layout", label: "Homepage Layout", href: "/admin/homepage-layout", icon: LayoutGrid },
   { id: "content-pages", label: "Page Content", href: "/admin/content-pages", icon: FileText },
   { id: "settings", label: "Settings", href: "/admin/settings", icon: Settings },

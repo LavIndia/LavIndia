@@ -28,6 +28,7 @@ import {
   SlidersHorizontal,
   History,
   ScanLine,
+  Award,
 } from "lucide-react";
 import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import {
@@ -93,6 +94,7 @@ const NAV_GROUPS: NavGroup[] = [
       { name: "Hero Banners", href: "/admin/hero-banners", icon: Image },
       { name: "Login Screen Images", href: "/admin/auth-images", icon: Images },
       { name: "Promo Banners", href: "/admin/promo-banners", icon: Megaphone },
+      { name: "Highlights", href: "/admin/highlights", icon: Award },
       { name: "Homepage Layout", href: "/admin/homepage-layout", icon: LayoutGrid },
       // The written pages - story, FAQ and the policies. Grouped here
       // because they are content an admin edits, not a system setting.

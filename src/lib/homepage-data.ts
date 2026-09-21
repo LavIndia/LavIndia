@@ -4,8 +4,10 @@ import { Prisma } from "@prisma/client";
 import { syncHeroBannersFromStorage } from "@/lib/hero-banners";
 import { availabilityByProduct } from "@/modules/inventory";
 import {
+  HOMEPAGE_SECTIONS,
   NEW_ARRIVAL_WINDOW_DAYS,
   defaultHomePageSectionRows,
+  getActiveHighlights,
 } from "@/modules/marketing";
 
 /**
@@ -201,7 +203,59 @@ export async function getActiveDiscounts() {
 
 export async function getHomePageSections() {
   const rows = await prisma.homePageSection.findMany({ orderBy: { order: "asc" } });
-  if (rows.length > 0) return rows;
+
+  if (rows.length > 0) {
+    // A band added to the catalogue after this store was set up has no row
+    // yet, so it would never appear on the homepage and never show up on the
+    // layout screen for an admin to switch on. Backfill only what is
+    // missing — the common case finds nothing and costs no extra query.
+    const stored = new Set(rows.map((row) => row.name));
+    const missing = HOMEPAGE_SECTIONS.filter((section) => !stored.has(section.name));
+    if (missing.length === 0) return rows;
+
+    const highestOrder = rows.reduce((max, row) => Math.max(max, row.order), -1);
+    await prisma.homePageSection.createMany({
+      data: missing.map((section, index) => ({
+        name: section.name,
+        order: highestOrder + 1 + index,
+        isVisible: true,
+      })),
+      skipDuplicates: true,
+    });
+
+    // Where the new band belongs depends on whether anyone has arranged this
+    // homepage. If the stored order still matches the catalogue's, nobody
+    // has, so the new band takes the position the catalogue gives it rather
+    // than being stranded at the bottom. If an admin has rearranged things,
+    // their order is left exactly as it is and the new band simply appends —
+    // rearranging someone's homepage underneath them would be worse than
+    // putting a new section in an odd place, which they can fix in one drag.
+    // "Untouched" means the bands already stored still run in the order the
+    // catalogue lists them. It is a subsequence test, not an index-by-index
+    // one, precisely because the catalogue now contains a band the table
+    // does not — comparing positions directly would call every homepage
+    // rearranged the moment a section was added.
+    const catalogueOrder: string[] = HOMEPAGE_SECTIONS.map((section) => section.name);
+    let cursor = 0;
+    const untouched = rows.every((row) => {
+      const found = catalogueOrder.indexOf(row.name, cursor);
+      if (found === -1) return false;
+      cursor = found + 1;
+      return true;
+    });
+    if (untouched) {
+      await Promise.all(
+        HOMEPAGE_SECTIONS.map((section, order) =>
+          prisma.homePageSection.update({
+            where: { name: section.name },
+            data: { order },
+          }),
+        ),
+      );
+    }
+
+    return prisma.homePageSection.findMany({ orderBy: { order: "asc" } });
+  }
 
   // No admin config yet — fall back to the default order/visibility so the
   // homepage still renders correctly, and seed it so the admin table isn't
@@ -237,6 +291,7 @@ async function fetchHomepageData() {
     budgetTiers,
     trustBadgeSettings,
     activeDiscounts,
+    highlights,
     sections,
   ] = await Promise.all([
     getPromoBanners("top_scroll"),
@@ -248,6 +303,7 @@ async function fetchHomepageData() {
     getBudgetTiers(),
     getTrustBadgeSettings(),
     getActiveDiscounts(),
+    getActiveHighlights(),
     getHomePageSections(),
   ]);
 
@@ -261,6 +317,7 @@ async function fetchHomepageData() {
     budgetTiers,
     trustBadgeSettings,
     activeDiscounts,
+    highlights,
     sections,
   };
 }

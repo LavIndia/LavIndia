@@ -178,3 +178,38 @@ model ContentPage {
 
   @@map("content_pages")
 }
+
+/// A moment worth showing off: an expo stand, a pop-up, an award, a press
+/// mention. Deliberately not tied to the catalogue — a highlight is about
+/// the house rather than about a piece — and deliberately media-typed from
+/// the start, so the same band can carry film once there is film to carry.
+model Highlight {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+
+  /// Where it happened, e.g. "IIJS Premiere, Mumbai". Shown only when set.
+  place String?
+  /// When it happened. Only the date is ever displayed.
+  happenedOn DateTime?
+  /// A short word for the card's tag, e.g. "Expo", "Pop-up", "Award".
+  kind String?
+
+  /// "IMAGE" or "VIDEO" — see the marketing module's HighlightMediaType.
+  mediaType String @default("IMAGE")
+  mediaUrl  String
+  /// The still shown before a film plays. Ignored for an image.
+  posterUrl String?
+
+  /// Where the card leads, if anywhere.
+  linkUrl String?
+
+  order    Int     @default(0)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, order])
+  @@map("highlights")
+}

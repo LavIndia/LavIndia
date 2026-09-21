@@ -17,3 +17,13 @@ export {
   homePageSectionDescriptor,
   defaultHomePageSectionRows,
 } from "@/modules/marketing/homepage/homepage-sections";
+export type {
+  HighlightView,
+  HighlightInput,
+  HighlightMediaType,
+} from "@/modules/marketing/highlights/highlight-types";
+export {
+  HIGHLIGHT_KINDS,
+  HIGHLIGHT_MEDIA_TYPES,
+  highlightInputSchema,
+} from "@/modules/marketing/highlights/highlight-types";

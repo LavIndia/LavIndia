@@ -9,13 +9,14 @@ import { toast } from "sonner";
 import { css, cx } from "styled-system/css";
 
 /**
- * One piece of hero artwork: choose it, see it, replace it, remove it.
+ * One piece of media: choose it, see it, replace it, remove it.
  *
- * Written once and used twice — for the landscape image every banner needs
- * and for the optional portrait image phones get — because the two differ
- * only in their frame, their guidance and whether they are required. Before
- * this existed the upload block was inlined in the form, so a second slot
- * would have meant a second copy of it.
+ * Every admin form that takes a picture wants the same thing — a framed
+ * preview, a replace button, a remove button and a line of guidance — and
+ * they differ only in where the file is posted, what shape the frame is and
+ * whether the field is required. So those are the props, and the block is
+ * written once: hero banners use it twice (desktop and phone artwork) and
+ * highlights use it for their image or film.
  */
 
 const columnStyle = css({ display: "flex", flexDirection: "column", gap: "3" });
@@ -61,7 +62,11 @@ const busyOverlayStyle = css({
   fontWeight: "medium",
 });
 
-export interface HeroBannerArtworkFieldProps {
+export interface MediaUploadFieldProps {
+  /** The endpoint the file is posted to, which decides where it is stored. */
+  uploadUrl: string;
+  /** The file types the picker offers, as an accept attribute. */
+  accept?: string;
   label: string;
   /** The stored path, or "" when nothing has been chosen. */
   value: string;
@@ -77,9 +82,17 @@ export interface HeroBannerArtworkFieldProps {
   maxWidth?: string;
   /** Which slot this fills; phone artwork is stored apart from desktop. */
   variant?: "desktop" | "mobile";
+  /**
+   * The whole upload response, for endpoints that report something the form
+   * would otherwise have to ask the admin — highlights use it to learn
+   * whether a film or a photograph was chosen.
+   */
+  onUploaded?: (result: Record<string, unknown>) => void;
 }
 
-export function HeroBannerArtworkField({
+export function MediaUploadField({
+  uploadUrl,
+  accept = "image/jpeg,image/png,image/webp",
   label,
   value,
   onChange,
@@ -89,8 +102,10 @@ export function HeroBannerArtworkField({
   title,
   maxWidth,
   variant = "desktop",
-}: HeroBannerArtworkFieldProps) {
+  onUploaded,
+}: MediaUploadFieldProps) {
   const inputId = useId();
+  const isVideoValue = /\.(mp4|webm)$/i.test(value);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -104,7 +119,7 @@ export function HeroBannerArtworkField({
       uploadData.append("file", file);
       uploadData.append("title", title);
       uploadData.append("variant", variant);
-      const response = await fetch("/api/admin/hero-banners/upload", {
+      const response = await fetch(uploadUrl, {
         method: "POST",
         body: uploadData,
       });
@@ -113,7 +128,8 @@ export function HeroBannerArtworkField({
       if (!response.ok) throw new Error(result.error || "Failed to upload image");
 
       onChange(result.url);
-      toast.success("Image uploaded");
+      onUploaded?.(result);
+      toast.success("Uploaded");
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : "Failed to upload image");
     } finally {
@@ -154,14 +170,20 @@ export function HeroBannerArtworkField({
         ref={fileInputRef}
         id={inputId}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={accept}
         onChange={handleUpload}
         className={css({ display: "none" })}
       />
 
       {value ? (
         <div className={cx("group", frameStyle)} style={{ aspectRatio, maxWidth }}>
-          <Image src={value} alt={label} fill className={css({ objectFit: "cover" })} sizes="(max-width: 1024px) 100vw, 640px" />
+          {/* A film is shown as its own first frame; only images go through
+              next/image, which cannot resize a video. */}
+          {isVideoValue ? (
+            <video src={value} className={css({ width: "full", height: "full", objectFit: "cover" })} muted playsInline />
+          ) : (
+            <Image src={value} alt={label} fill className={css({ objectFit: "cover" })} sizes="(max-width: 1024px) 100vw, 640px" />
+          )}
           {isUploading && <div className={busyOverlayStyle}>Uploading new image&hellip;</div>}
           <div className={overlayBarStyle}>
             <span className={css({ truncate: true, fontSize: "xs" })}>Ready to publish</span>
@@ -215,7 +237,7 @@ export function HeroBannerArtworkField({
           <span className={css({ fontWeight: "medium", color: "fg.default" })}>
             {isUploading ? "Uploading..." : `Choose ${label.toLowerCase()}`}
           </span>
-          <span className={css({ fontSize: "xs" })}>PNG, JPG or WebP · up to 10MB</span>
+          <span className={css({ fontSize: "xs" })}>{hint ? "" : "PNG, JPG or WebP"}</span>
         </button>
       )}
 

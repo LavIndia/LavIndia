@@ -24,6 +24,7 @@ export const HOMEPAGE_SECTION_NAMES = [
   "budget",
   "free_gifts",
   "new_arrivals",
+  "highlights",
   "trust_badges",
   "coupons",
 ] as const;
@@ -91,6 +92,14 @@ export const HOMEPAGE_SECTIONS: HomePageSectionDescriptor[] = [
     defaultTitle: "You Blink, You Miss",
     source: `Published products added in the last ${NEW_ARRIVAL_WINDOW_DAYS} days, newest first. Nothing to tick — publishing a product puts it here, and it leaves on its own.`,
     managedAt: "/admin/products",
+  },
+  {
+    name: "highlights",
+    label: "Highlights",
+    defaultTitle: "LavIndia Highlights",
+    source:
+      "The house's own moments — expos, pop-ups, awards and press — that are marked active, in their set order.",
+    managedAt: "/admin/highlights",
   },
   {
     name: "trust_badges",

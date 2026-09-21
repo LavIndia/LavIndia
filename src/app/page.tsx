@@ -7,6 +7,7 @@ import { BestsellersSection } from "@/components/home/BestsellersSection";
 import { ShopUnderBudgetSection } from "@/components/home/ShopUnderBudgetSection";
 import { FreeGiftsBanner } from "@/components/home/FreeGiftsBanner";
 import { NewArrivalsSection } from "@/components/home/NewArrivalsSection";
+import { HighlightsSection } from "@/components/home/HighlightsSection";
 import { TrustBadgesBanner } from "@/components/home/TrustBadgesBanner";
 import { CouponsSection } from "@/components/home/CouponsSection";
 import { getHomepageData } from "@/lib/homepage-data";
@@ -51,6 +52,13 @@ export default async function Home() {
         key="new_arrivals"
         products={data.newArrivals}
         title={data.sections.find((s) => s.name === "new_arrivals")?.title ?? undefined}
+      />
+    ),
+    highlights: () => (
+      <HighlightsSection
+        key="highlights"
+        highlights={data.highlights}
+        title={data.sections.find((s) => s.name === "highlights")?.title ?? undefined}
       />
     ),
     trust_badges: () => (

@@ -24,7 +24,7 @@ import { ArrowLeft, Link2, ListOrdered } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { css } from "styled-system/css";
-import { HeroBannerArtworkField } from "@/components/admin/hero-banners/HeroBannerArtworkField";
+import { MediaUploadField } from "@/components/admin/shared/MediaUploadField";
 import {
   RecurrenceScheduleFields,
   defaultRecurrenceValue,
@@ -235,7 +235,8 @@ export function HeroBannerForm({ banner }: { banner?: HeroBanner }) {
             </CardDescription>
           </CardHeader>
           <CardContent className={css({ display: "flex", flexDirection: "column", gap: "6", padding: "5", sm: { padding: "6" } })}>
-            <HeroBannerArtworkField
+            <MediaUploadField
+              uploadUrl="/api/admin/hero-banners/upload"
               label="Desktop image"
               required
               value={formData.imagePath}
@@ -244,7 +245,8 @@ export function HeroBannerForm({ banner }: { banner?: HeroBanner }) {
               aspectRatio="16 / 7"
               hint="Around 2400 × 800px (3:1). Shown at every width unless a phone image is added below, so keep any wordmark or text within the middle 70% — the outer edges are cropped by varying amounts."
             />
-            <HeroBannerArtworkField
+            <MediaUploadField
+              uploadUrl="/api/admin/hero-banners/upload"
               label="Phone image"
               value={formData.mobileImagePath}
               onChange={(url) => setFormData((current) => ({ ...current, mobileImagePath: url }))}
