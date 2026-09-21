@@ -1,10 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Ticket, Copy, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Ticket } from "lucide-react";
 import { toast } from "sonner";
+import { CouponCard } from "@/components/home/coupons/CouponCard";
 import { css } from "styled-system/css";
+
+/**
+ * The offers currently running.
+ *
+ * Rebuilt as tickets. The previous cards stacked a title, a description, a
+ * labelled code box, a copy button and a footer rule into roughly 230px
+ * each, which on a phone meant two offers filled the screen and none of them
+ * looked like something a house of this kind would hand you. A ticket says
+ * the same things in a third of the height, and the saving is legible from
+ * across the page.
+ *
+ * The heading matches the other bands — icon badge, left aligned — rather
+ * than being centred on its own.
+ */
 
 interface Discount {
   id: string;
@@ -22,77 +36,68 @@ const sectionStyle = css({
   md: { paddingY: "16" },
   background: "linear-gradient(135deg, {colors.ivory.100}, {colors.gold.50})",
 });
-
-const containerStyle = css({ marginX: "auto", paddingX: "4" });
-const innerStyle = css({ maxWidth: "4xl", marginX: "auto" });
-const headerStyle = css({ textAlign: "center", marginBottom: "8", md: { marginBottom: "10" } });
-const headerTopStyle = css({ display: "inline-flex", alignItems: "center", gap: "2", marginBottom: "4" });
-const headingStyle = css({ fontFamily: "display", fontSize: "2xl", md: { fontSize: "3xl" }, fontWeight: "semibold", color: "fg.default" });
-const subheadingStyle = css({ color: "fg.muted" });
-
+const containerStyle = css({ marginX: "auto", paddingX: "4", maxWidth: "6xl" });
+const headerStyle = css({
+  display: "flex",
+  alignItems: "center",
+  gap: "3",
+  marginBottom: "6",
+  md: { marginBottom: "8" },
+});
+const badgeStyle = css({
+  padding: "3",
+  borderRadius: "full",
+  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
+  color: "fg.onGold",
+  boxShadow: "gold",
+  display: "inline-flex",
+  flexShrink: 0,
+});
+const headingStyle = css({
+  fontFamily: "display",
+  fontSize: "2xl",
+  md: { fontSize: "3xl" },
+  fontWeight: "semibold",
+  color: "fg.default",
+});
+const subheadingStyle = css({ color: "fg.muted", marginTop: "1", fontSize: "sm" });
 const gridStyle = css({
   display: "grid",
   gridTemplateColumns: "1fr",
-  md: { gridTemplateColumns: "repeat(2, 1fr)" },
-  gap: "5",
+  gap: "3",
+  md: { gridTemplateColumns: "repeat(2, 1fr)", gap: "4" },
 });
 
-const cardStyle = css({
-  position: "relative",
-  background: "bg.surface",
-  borderRadius: "lg",
-  boxShadow: "card",
-  overflow: "hidden",
-  border: "1px dashed",
-  borderColor: "gold.200",
-  transition: "box-shadow 0.2s ease",
-  "&:hover": { boxShadow: "glass" },
-});
+/** Rupee amounts are stored in paise and read better grouped Indian-style. */
+function rupees(paise: number) {
+  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+}
 
-const cardBodyStyle = css({ padding: "6", position: "relative" });
-const cardTopRowStyle = css({ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "3", marginBottom: "4" });
-const couponTitleStyle = css({ fontWeight: "bold", fontSize: "lg", color: "fg.default", marginBottom: "1" });
-const couponDescStyle = css({ fontSize: "sm", color: "fg.muted" });
+function formatSaving(type: string, value: number) {
+  return type === "PERCENTAGE" ? `${value}%` : rupees(value);
+}
 
-const discountBadgeStyle = css({
-  background: "linear-gradient(135deg, {colors.gold.300}, {colors.gold.500})",
-  color: "fg.onGold",
-  fontWeight: "bold",
-  paddingX: "4",
-  paddingY: "2",
-  borderRadius: "md",
-  fontSize: "sm",
-  boxShadow: "gold",
-  flexShrink: "0",
-  whiteSpace: "nowrap",
-});
+/**
+ * The qualifying spend and the expiry, joined only where they exist — a
+ * coupon with neither shows no line at all rather than an empty one.
+ */
+function formatMeta(coupon: Discount) {
+  const parts: string[] = [];
+  if (coupon.minPurchase) parts.push(`On orders over ${rupees(coupon.minPurchase)}`);
 
-const codeRowStyle = css({ display: "flex", alignItems: "center", gap: "3" });
-const codeBoxStyle = css({
-  flex: "1",
-  background: "ivory.200",
-  borderRadius: "md",
-  paddingX: "4",
-  paddingY: "3",
-  border: "1px dashed",
-  borderColor: "border.subtle",
-});
-const codeLabelStyle = css({ fontSize: "xs", color: "fg.muted", marginBottom: "1" });
-const codeTextStyle = css({ fontFamily: "mono", fontWeight: "bold", fontSize: "lg", color: "fg.default" });
+  const endsOn = new Date(coupon.endDate);
+  if (!Number.isNaN(endsOn.getTime())) {
+    parts.push(
+      `Until ${endsOn.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })}`,
+    );
+  }
 
-const footerRowStyle = css({
-  marginTop: "4",
-  paddingTop: "4",
-  borderTop: "1px solid",
-  borderColor: "border.subtle",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  fontSize: "xs",
-  color: "fg.muted",
-  flexWrap: "wrap",
-  gap: "2",
-});
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
 
 export function CouponsSection({
   coupons,
@@ -103,84 +108,47 @@ export function CouponsSection({
 }) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    toast.success("Coupon code copied!");
-    setTimeout(() => setCopiedCode(null), 2000);
-  };
-
-  const formatDiscount = (type: string, value: number) => {
-    if (type === "PERCENTAGE") {
-      return `${value}% OFF`;
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      toast.success(`${code} copied`);
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch {
+      // Clipboard access can be refused; the code is on screen either way,
+      // so this says so rather than failing silently.
+      toast.error("Could not copy — the code is shown on the card");
     }
-    return `₹${value / 100} OFF`;
   };
 
-  if (coupons.length === 0) {
-    return null;
-  }
+  if (coupons.length === 0) return null;
 
   return (
     <section className={sectionStyle}>
       <div className={containerStyle}>
-        <div className={innerStyle}>
-          <div className={headerStyle}>
-            <div className={headerTopStyle}>
-              <Ticket className={css({ height: "8", width: "8", color: "accent.pressed" })} />
-              <h2 className={headingStyle}>{title}</h2>
-            </div>
-            <p className={subheadingStyle}>Save more with our exclusive discount codes</p>
+        <div className={headerStyle}>
+          <span className={badgeStyle}>
+            <Ticket className={css({ height: "6", width: "6" })} />
+          </span>
+          <div>
+            <h2 className={headingStyle}>{title}</h2>
+            <p className={subheadingStyle}>Applied at checkout</p>
           </div>
+        </div>
 
-          <div className={gridStyle}>
-            {coupons.map((coupon) => (
-              <div key={coupon.id} className={cardStyle}>
-                <div className={cardBodyStyle}>
-                  <div className={cardTopRowStyle}>
-                    <div>
-                      <h3 className={couponTitleStyle}>{coupon.title}</h3>
-                      {coupon.description && (
-                        <p className={couponDescStyle}>{coupon.description}</p>
-                      )}
-                    </div>
-                    <span className={discountBadgeStyle}>
-                      {formatDiscount(coupon.discountType, coupon.discountValue)}
-                    </span>
-                  </div>
-
-                  <div className={codeRowStyle}>
-                    <div className={codeBoxStyle}>
-                      <p className={codeLabelStyle}>Coupon Code</p>
-                      <p className={codeTextStyle}>{coupon.code}</p>
-                    </div>
-                    <Button onClick={() => copyCode(coupon.code)}>
-                      {copiedCode === coupon.code ? (
-                        <>
-                          <Check className={css({ height: "4", width: "4" })} />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy className={css({ height: "4", width: "4" })} />
-                          Copy
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className={footerRowStyle}>
-                    {coupon.minPurchase && (
-                      <span>Min. purchase: ₹{coupon.minPurchase / 100}</span>
-                    )}
-                    <span>
-                      Valid till: {new Date(coupon.endDate).toLocaleDateString("en-IN")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className={gridStyle}>
+          {coupons.map((coupon) => (
+            <CouponCard
+              key={coupon.id}
+              title={coupon.title}
+              description={coupon.description}
+              code={coupon.code}
+              saving={formatSaving(coupon.discountType, coupon.discountValue)}
+              meta={formatMeta(coupon)}
+              copied={copiedCode === coupon.code}
+              onCopy={() => copyCode(coupon.code)}
+            />
+          ))}
         </div>
       </div>
     </section>
