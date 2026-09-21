@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateStockViews } from "@/lib/catalog-cache";
 import { inventoryService } from "@/modules/inventory";
 
 /**
@@ -51,5 +52,7 @@ export async function GET(request: NextRequest) {
 
   // Reported rather than silent: a sweep that releases nothing and a sweep
   // that never ran look identical in a log otherwise.
+  // Released holds put stock back on sale, so the listings must be told.
+  if (released > 0) revalidateStockViews();
   return NextResponse.json({ released, limit, sweptAt: new Date().toISOString() });
 }

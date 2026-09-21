@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { revalidateStockViews } from "@/lib/catalog-cache";
 import { checkoutService } from "@/modules/ecommerce";
 import { OrderId } from "@/modules/_shared/ids";
 import { BESTSELLERS_TAG } from "@/lib/bestseller-ranking";
@@ -244,7 +245,11 @@ export async function POST(req: NextRequest) {
     // A new order changes the bestseller ranking, so its cache is dropped
     // here rather than waiting for the revalidate window to lapse.
     revalidateTag(BESTSELLERS_TAG);
-    revalidateTag("homepage");
+    // The order also took the stock with it, so the listings and the product
+    // pages must be dropped too — not just the homepage. Without this a
+    // single-piece design went on showing as available on its category page
+    // for up to a minute after it was sold.
+    revalidateStockViews();
 
     // Fetch complete order details
     const orderWithDetails = await prisma.order.findUnique({

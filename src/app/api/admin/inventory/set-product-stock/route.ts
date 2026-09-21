@@ -12,6 +12,7 @@
  * would notice until they counted the shelf.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateStockViews } from "@/lib/catalog-cache";
 import { z } from "zod";
 import { apiHandler } from "@/lib/api-handler";
 import { requireAdmin } from "@/lib/require-admin";
@@ -77,6 +78,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
     metadata: { productName: product.name, from: current, to: input.quantity, reason },
   });
 
+  revalidateStockViews();
   return NextResponse.json({
     success: true,
     quantity: movements[0]?.afterQuantity ?? input.quantity,

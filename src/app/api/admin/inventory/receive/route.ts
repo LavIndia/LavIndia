@@ -5,6 +5,7 @@
  * record the admin action. All stock rules and atomicity live in the module.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateStockViews } from "@/lib/catalog-cache";
 import { z } from "zod";
 import { apiHandler } from "@/lib/api-handler";
 import { requireAdmin } from "@/lib/require-admin";
@@ -60,5 +61,6 @@ export const POST = apiHandler(async (req: NextRequest) => {
     },
   });
 
+  revalidateStockViews();
   return NextResponse.json({ success: true, movements });
 });

@@ -11,6 +11,7 @@
  * type so write-offs can be totalled separately at year end.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateStockViews } from "@/lib/catalog-cache";
 import { z } from "zod";
 import { apiHandler } from "@/lib/api-handler";
 import { requireAdmin } from "@/lib/require-admin";
@@ -65,6 +66,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
     metadata: { from: current, to: input.countedQuantity, reason: reasonText },
   });
 
+  revalidateStockViews();
   return NextResponse.json({
     success: true,
     quantity: movements[0]?.afterQuantity ?? input.countedQuantity,

@@ -8,6 +8,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { apiHandler } from "@/lib/api-handler";
+import { revalidateStockViews } from "@/lib/catalog-cache";
+import { BESTSELLERS_TAG } from "@/lib/bestseller-ranking";
+import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/require-admin";
 import { createAuditLog } from "@/lib/audit";
 import { posService } from "@/modules/pos";
@@ -87,5 +90,9 @@ export const POST = apiHandler(async (req: NextRequest) => {
     },
   });
 
+  // A counter sale moves stock and counts towards the ranking exactly as an
+  // online order does, so it drops the same caches.
+  revalidateStockViews();
+  revalidateTag(BESTSELLERS_TAG);
   return NextResponse.json({ success: true, sale });
 });

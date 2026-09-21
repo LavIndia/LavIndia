@@ -5,6 +5,7 @@
  * changes in this system without a stated cause that survives in the ledger.
  */
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateStockViews } from "@/lib/catalog-cache";
 import { z } from "zod";
 import { apiHandler } from "@/lib/api-handler";
 import { requireAdmin } from "@/lib/require-admin";
@@ -61,5 +62,6 @@ export const POST = apiHandler(async (req: NextRequest) => {
     },
   });
 
+  revalidateStockViews();
   return NextResponse.json({ success: true, movements });
 });
