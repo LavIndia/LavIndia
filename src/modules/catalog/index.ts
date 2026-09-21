@@ -43,3 +43,15 @@ export {
   sameGroup,
   variantImageUrl,
 } from "./images/image-groups";
+
+export type {
+  RecommendationStrategy,
+  RecommendationRail,
+  RecommendationRequest,
+  RecommendedProduct,
+} from "@/modules/catalog/recommendations/recommendation-types";
+export {
+  RECOMMENDATION_COPY,
+  DEFAULT_PRODUCT_STRATEGIES,
+} from "@/modules/catalog/recommendations/recommendation-types";
+export { getRecommendations } from "@/modules/catalog/recommendations/recommendation-service";

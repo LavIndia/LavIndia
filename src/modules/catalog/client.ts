@@ -49,3 +49,13 @@ export {
   presentDimensions,
   selectValue,
 } from "./variants/option-selection";
+
+export type {
+  RecommendationStrategy,
+  RecommendationRail,
+  RecommendedProduct,
+} from "@/modules/catalog/recommendations/recommendation-types";
+export {
+  RECOMMENDATION_COPY,
+  DEFAULT_PRODUCT_STRATEGIES,
+} from "@/modules/catalog/recommendations/recommendation-types";

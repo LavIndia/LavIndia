@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
+import { ProductRecommendations } from "@/components/product/ProductRecommendations";
 import TopPromoBanner from "@/components/home/TopPromoBanner";
 import { BreadcrumbNavigation } from "@/components/layout/BreadcrumbNavigation";
 import AddToCartButton from "@/components/cart/AddToCartButton";
@@ -871,6 +872,9 @@ export function ProductPageClient() {
           </div>
         </div>
       </main>
+      {/* Suggestions sit between the piece and the footer: below everything
+          needed to buy this one, above the site-wide links. */}
+      <ProductRecommendations productId={product.id} />
       <FooterSection />
     </div>
   );
