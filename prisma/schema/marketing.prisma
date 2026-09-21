@@ -47,6 +47,12 @@ model HeroBanner {
   title     String
   subtitle  String?
   imagePath String
+  // Optional portrait artwork for phones. A 16:9 banner cover-cropped into a
+  // phone's near-square hero frame keeps barely half its width, which cuts
+  // the wordmark and the call to action off a composed banner. When this is
+  // set the storefront shows it below the `md` breakpoint; when it is not,
+  // the landscape image is used at every width exactly as before.
+  mobileImagePath String?
   linkUrl   String?
   order     Int     @default(0)
   active    Boolean @default(true)

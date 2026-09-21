@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import { HeroSlideImage } from "@/components/home/HeroSlideImage";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -17,6 +17,8 @@ type HeroBannerSlide = {
   title: string;
   subtitle: string | null;
   imagePath: string;
+  /** Optional portrait artwork shown on phones; see HeroSlideImage. */
+  mobileImagePath?: string | null;
   linkUrl: string | null;
   order: number;
   active: boolean;
@@ -182,17 +184,10 @@ export function HeroBanner({
               className={cx(css({ position: "relative" }), itemHeightStyle)}
             >
               <Link href={slide.linkUrl || "#"} className={slideLinkStyle}>
-                <Image
+                <HeroSlideImage
                   src={slide.imagePath}
+                  mobileSrc={slide.mobileImagePath}
                   alt={slide.title}
-                  fill
-                  // Banner artwork almost always carries its title/branding
-                  // near the top — biasing the crop there (instead of the
-                  // default center) keeps that text from being clipped when
-                  // a wide banner gets cover-cropped into this fixed-height
-                  // strip on narrower screens.
-                  className={css({ objectFit: "cover", objectPosition: "top", userSelect: "none" })}
-                  draggable={false}
                   priority={index === 0}
                 />
               </Link>

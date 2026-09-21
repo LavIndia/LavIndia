@@ -48,6 +48,7 @@ export async function PUT(
       title,
       subtitle,
       imagePath,
+      mobileImagePath,
       linkUrl,
       order,
       active,
@@ -67,6 +68,9 @@ export async function PUT(
         ...(title !== undefined && { title }),
         ...(subtitle !== undefined && { subtitle }),
         ...(imagePath !== undefined && { imagePath }),
+        // Cleared in the form as "", stored as absent rather than blank so
+        // the storefront's fallback to the desktop image is a null check.
+        ...(mobileImagePath !== undefined && { mobileImagePath: mobileImagePath || null }),
         ...(linkUrl !== undefined && { linkUrl }),
         ...(order !== undefined && { order }),
         ...(active !== undefined && { active }),
@@ -125,9 +129,12 @@ export async function DELETE(
       where: { id },
     });
 
-    if (banner.imagePath.startsWith("/assets/pictures/herobanner/")) {
+    // Both pieces of artwork go with the banner, or the phone crop is left
+    // orphaned in storage with nothing referring to it.
+    for (const assetPath of [banner.imagePath, banner.mobileImagePath]) {
+      if (!assetPath?.startsWith("/assets/pictures/herobanner/")) continue;
       try {
-        await removePublicAsset(banner.imagePath);
+        await removePublicAsset(assetPath);
       } catch (error: unknown) {
         console.error("Failed to remove hero banner image:", error);
       }

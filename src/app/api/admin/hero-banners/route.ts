@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       title,
       subtitle,
       imagePath,
+      mobileImagePath,
       linkUrl,
       order,
       active,
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
         title,
         subtitle,
         imagePath,
+        mobileImagePath: mobileImagePath || null,
         linkUrl,
         order: order ?? 0,
         active: active ?? true,
@@ -167,17 +169,20 @@ export async function DELETE(request: NextRequest) {
     });
 
     await Promise.all(
-      banners.map(async (banner) => {
-        if (!banner.imagePath.startsWith("/assets/pictures/herobanner/")) {
-          return;
-        }
-
-        try {
-          await removePublicAsset(banner.imagePath);
-        } catch (error: unknown) {
-          console.error("Failed to remove hero banner image:", error);
-        }
-      }),
+      // Desktop and phone artwork both go, same as a single delete.
+      banners.flatMap((banner) =>
+        [banner.imagePath, banner.mobileImagePath]
+          .filter((assetPath): assetPath is string =>
+            Boolean(assetPath?.startsWith("/assets/pictures/herobanner/")),
+          )
+          .map(async (assetPath) => {
+            try {
+              await removePublicAsset(assetPath);
+            } catch (error: unknown) {
+              console.error("Failed to remove hero banner image:", error);
+            }
+          }),
+      ),
     );
 
     await Promise.all(

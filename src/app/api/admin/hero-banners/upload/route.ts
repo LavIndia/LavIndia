@@ -4,6 +4,14 @@ import { auth } from "@/lib/auth";
 import { uploadPublicAsset } from "@/lib/imagekit-admin";
 
 const publicDirectory = "/assets/pictures/herobanner";
+/**
+ * Phone artwork goes in a subfolder, and deliberately so: the banner list is
+ * kept in step with the contents of `publicDirectory` by
+ * syncHeroBannersFromStorage, which turns every file it finds there into a
+ * banner of its own. A mobile crop dropped alongside its desktop image would
+ * therefore appear as a second, half-broken banner on the homepage.
+ */
+const mobileDirectory = `${publicDirectory}/mobile`;
 const allowedTypes = new Map([
   ["image/jpeg", ".jpg"],
   ["image/png", ".png"],
@@ -32,6 +40,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file");
     const requestedName = formData.get("title");
+    const variant = formData.get("variant");
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "No image uploaded" }, { status: 400 });
@@ -60,7 +69,8 @@ export async function POST(request: NextRequest) {
           : originalName,
       ) || "hero-banner";
     const filename = `${baseName}-${Date.now()}-${randomUUID().slice(0, 8)}${extension}`;
-    const publicPath = `${publicDirectory}/${filename}`;
+    const directory = variant === "mobile" ? mobileDirectory : publicDirectory;
+    const publicPath = `${directory}/${filename}`;
     await uploadPublicAsset(
       publicPath,
       Buffer.from(await file.arrayBuffer()),

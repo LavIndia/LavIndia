@@ -112,7 +112,11 @@ export async function listPublicAssets(prefix: string) {
   }
 
   const files = (await response.json()) as ImageKitFile[];
+  // Direct children only. A file one folder deeper also passes the prefix
+  // test, and would then be reported under a name that does not resolve at
+  // this path — which is how a hero banner's mobile crop could be mistaken
+  // for a banner in its own right.
   return files
-    .filter((file) => file.filePath.startsWith(`${storagePath}/`))
+    .filter((file) => file.filePath === `${storagePath}/${file.name}`)
     .map((file) => file.name);
 }
