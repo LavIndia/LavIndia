@@ -3,6 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { syncHeroBannersFromStorage } from "@/lib/hero-banners";
 import { availabilityByProduct } from "@/modules/inventory";
+import {
+  NEW_ARRIVAL_WINDOW_DAYS,
+  defaultHomePageSectionRows,
+} from "@/modules/marketing";
 
 /**
  * Stock comes from the Inventory domain, never from the deprecated
@@ -133,11 +137,14 @@ export async function getBestsellers() {
 }
 
 export async function getNewArrivals() {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  // The window is the marketing module's, not a number repeated here: the
+  // admin layout screen states it to the admin in the same breath, and the
+  // two must not drift.
+  const since = new Date();
+  since.setDate(since.getDate() - NEW_ARRIVAL_WINDOW_DAYS);
 
   const products = await prisma.product.findMany({
-    where: { isActive: true, isPublished: true, createdAt: { gte: thirtyDaysAgo } },
+    where: { isActive: true, isPublished: true, createdAt: { gte: since } },
     include: {
       images: { orderBy: { position: "asc" } },
     },
@@ -192,17 +199,6 @@ export async function getActiveDiscounts() {
   });
 }
 
-const DEFAULT_SECTIONS: Array<{ name: string; order: number; isVisible: boolean }> = [
-  { name: "hero", order: 0, isVisible: true },
-  { name: "explore", order: 1, isVisible: true },
-  { name: "bestsellers", order: 2, isVisible: true },
-  { name: "budget", order: 3, isVisible: true },
-  { name: "free_gifts", order: 4, isVisible: true },
-  { name: "new_arrivals", order: 5, isVisible: true },
-  { name: "trust_badges", order: 6, isVisible: true },
-  { name: "coupons", order: 7, isVisible: true },
-];
-
 export async function getHomePageSections() {
   const rows = await prisma.homePageSection.findMany({ orderBy: { order: "asc" } });
   if (rows.length > 0) return rows;
@@ -211,7 +207,7 @@ export async function getHomePageSections() {
   // homepage still renders correctly, and seed it so the admin table isn't
   // just empty on first visit.
   await prisma.homePageSection.createMany({
-    data: DEFAULT_SECTIONS,
+    data: defaultHomePageSectionRows(),
     skipDuplicates: true,
   });
   return prisma.homePageSection.findMany({ orderBy: { order: "asc" } });

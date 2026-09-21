@@ -26,3 +26,14 @@ export {
   listContentPages,
   saveContentPage,
 } from "@/modules/marketing/content/content-service";
+export type {
+  HomePageSectionName,
+  HomePageSectionDescriptor,
+} from "@/modules/marketing/homepage/homepage-sections";
+export {
+  HOMEPAGE_SECTIONS,
+  HOMEPAGE_SECTION_NAMES,
+  NEW_ARRIVAL_WINDOW_DAYS,
+  homePageSectionDescriptor,
+  defaultHomePageSectionRows,
+} from "@/modules/marketing/homepage/homepage-sections";
