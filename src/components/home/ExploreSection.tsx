@@ -71,10 +71,13 @@ const tileLinkStyle = css({
   scrollSnapAlign: "start",
 });
 
+// Sized so a phone shows one whole tile plus a peek of the next, rather
+// than two cramped ones. Below ~280px wide the caption wrapped to four or
+// five lines and covered the photograph it was captioning.
 const tileStyle = css({
   position: "relative",
-  width: "52",
-  height: "64",
+  width: "17.5rem",
+  height: "21rem",
   sm: { width: "60", height: "72" },
   md: { width: "64", height: "80" },
   borderRadius: "xl",
@@ -108,12 +111,14 @@ const captionStyle = css({
   position: "absolute",
   insetX: "0",
   bottom: "0",
-  padding: "5",
+  padding: "4",
+  md: { padding: "5" },
 });
 
 const tileTitleStyle = css({
   fontFamily: "display",
-  fontSize: "xl",
+  fontSize: "lg",
+  md: { fontSize: "xl" },
   fontWeight: "semibold",
   color: "ivory.50",
   marginBottom: "1",
@@ -121,9 +126,15 @@ const tileTitleStyle = css({
   ".group:hover &": { color: "gold.200" },
 });
 
+// Category descriptions are free text an admin writes and can run to a
+// paragraph. Two lines is the most the caption can hold before it starts
+// hiding the image, so it is clamped rather than trusted to be short.
 const tileDescStyle = css({
-  fontSize: "sm",
+  fontSize: "xs",
+  md: { fontSize: "sm" },
+  lineHeight: "snug",
   color: "rgba(255,253,248,0.85)",
+  lineClamp: "2",
 });
 
 export function ExploreSection({
@@ -165,6 +176,7 @@ export function ExploreSection({
                       src={category.image}
                       alt={category.name}
                       fill
+                      sizes="(max-width: 640px) 280px, (max-width: 768px) 240px, 256px"
                       className={tileImageStyle}
                     />
                   ) : (
@@ -173,8 +185,11 @@ export function ExploreSection({
                   <div className={overlayStyle} />
                   <div className={captionStyle}>
                     <h3 className={tileTitleStyle}>{category.name}</h3>
+                    {/* No trailing arrow: the text is clamped, so an arrow
+                        appended to it disappears whenever the description is
+                        long enough to need clamping — which is most of them. */}
                     <p className={tileDescStyle}>
-                      {category.description || "Explore Collection"} →
+                      {category.description || "Explore Collection"}
                     </p>
                   </div>
                 </div>

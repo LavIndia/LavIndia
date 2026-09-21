@@ -4,8 +4,7 @@ import { useState } from "react";
 import { css } from "styled-system/css";
 import { GripVertical, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Slider } from "@/components/ui/slider";
+import { NumericSlider } from "@/components/ui/numeric-slider";
 import { Switch } from "@/components/ui/switch";
 import { InfoHint } from "@/components/ui/info-hint";
 import type { LabelFormat } from "@/modules/catalog/barcodes/label-formats";
@@ -46,14 +45,6 @@ const itemMainStyle = css({ flex: "1", minWidth: "0", display: "flex", flexDirec
 const itemNameStyle = css({ fontSize: "sm" });
 const itemNoteStyle = css({ fontSize: "xs", color: "fg.muted" });
 const sliderRowStyle = css({ display: "flex", flexDirection: "column", gap: "1.5" });
-const sliderHeadStyle = css({
-  display: "flex",
-  alignItems: "baseline",
-  justifyContent: "space-between",
-  fontSize: "xs",
-  color: "fg.muted",
-  fontVariantNumeric: "tabular-nums",
-});
 const toggleRowStyle = css({
   display: "flex",
   alignItems: "center",
@@ -204,39 +195,31 @@ export function LabelLayoutDesigner({
         })}
       </ul>
 
-      <div className={sliderRowStyle}>
-        <span className={sliderHeadStyle}>
-          <Label htmlFor="label-text-scale">Text size</Label>
-          <span>{Math.round(overrides.textScale * 100)}%</span>
-        </span>
-        <Slider
-          id="label-text-scale"
-          minValue={75}
-          maxValue={140}
-          step={5}
-          value={[Math.round(overrides.textScale * 100)]}
-          onChange={(value) =>
-            onChange({ ...overrides, textScale: (value as number[])[0] / 100 })
-          }
-        />
-      </div>
+      <NumericSlider
+        label="Text size"
+        unit="%"
+        min={75}
+        max={140}
+        step={5}
+        value={Math.round(overrides.textScale * 100)}
+        onChange={(percent) => onChange({ ...overrides, textScale: percent / 100 })}
+      />
 
       <div className={sliderRowStyle}>
-        <span className={sliderHeadStyle}>
-          <Label htmlFor="label-bar-height">Barcode height</Label>
-          <span>
-            {(overrides.barcodeHeightMm ?? computedBarcodeHeightMm).toFixed(1)} mm
-            {overrides.barcodeHeightMm === null ? " · automatic" : ""}
-          </span>
-        </span>
-        <Slider
-          id="label-bar-height"
-          minValue={6}
-          maxValue={Math.max(8, Math.round(format.labelHeightMm - 6))}
+        {/* Typing a height, like dragging one, takes the label off automatic:
+            an explicit number is an explicit choice. "Back to automatic"
+            below puts it back under the format's own sizing. */}
+        <NumericSlider
+          label="Barcode height"
+          unit="mm"
+          precision={1}
+          note={overrides.barcodeHeightMm === null ? "automatic" : undefined}
+          min={6}
+          max={Math.max(8, Math.round(format.labelHeightMm - 6))}
           step={0.5}
-          value={[overrides.barcodeHeightMm ?? computedBarcodeHeightMm]}
-          onChange={(value) =>
-            onChange({ ...overrides, barcodeHeightMm: (value as number[])[0] })
+          value={overrides.barcodeHeightMm ?? computedBarcodeHeightMm}
+          onChange={(millimetres) =>
+            onChange({ ...overrides, barcodeHeightMm: millimetres })
           }
         />
         {overrides.barcodeHeightMm !== null && (

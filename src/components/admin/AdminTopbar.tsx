@@ -38,14 +38,25 @@ const headerStyle = css({
   paddingLeft: { base: "20", md: "6" },
 });
 
-const titleWrapStyle = css({ display: "flex", minWidth: "0", alignItems: "center", gap: "3" });
+// Hidden on a phone. Every admin screen already carries its own heading a
+// few pixels below this bar, so on 390px the duplicate only competed with
+// the actions for room and ended up truncated to a single letter.
+const titleWrapStyle = css({
+  display: { base: "none", sm: "flex" },
+  minWidth: "0",
+  flex: "1",
+  alignItems: "center",
+  gap: "3",
+});
+const titleColStyle = css({ minWidth: "0", overflow: "hidden" });
 const titleStyle = css({ fontFamily: "display", fontSize: "md", fontWeight: "semibold", color: "fg.default", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" });
 const subtitleStyle = css({ display: { base: "none", sm: "block" }, fontSize: "xs", color: "fg.muted" });
-const actionsStyle = css({ display: "flex", alignItems: "center", gap: { base: "1", sm: "2" } });
+const actionsStyle = css({ display: "flex", flexShrink: "0", marginLeft: "auto", alignItems: "center", gap: { base: "1", sm: "2" } });
 const searchHintStyle = css({ display: { base: "none", lg: "inline" }, fontSize: "xs", color: "fg.muted" });
 const avatarButtonStyle = css({ height: "10", paddingInline: "2", display: "flex", alignItems: "center", gap: "2" });
 const nameColStyle = css({ display: { base: "none", sm: "flex" }, flexDirection: "column", alignItems: "flex-start", textAlign: "left", fontSize: "sm" });
 const roleTextStyle = css({ fontSize: "xs", color: "fg.muted" });
+const customerViewLabelStyle = css({ display: { base: "none", md: "inline" } });
 
 export function AdminTopbar({ user }: AdminTopbarProps) {
   const router = useRouter();
@@ -65,7 +76,7 @@ export function AdminTopbar({ user }: AdminTopbarProps) {
   return (
     <header className={headerStyle}>
       <div className={titleWrapStyle}>
-        <div>
+        <div className={titleColStyle}>
           <p className={titleStyle}>{sectionTitle}</p>
           <p className={subtitleStyle}>Store administration</p>
         </div>
@@ -104,14 +115,20 @@ export function AdminTopbar({ user }: AdminTopbarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* The way back to the storefront. On a phone the label is dropped
+            but the button is not: hiding it entirely left an admin with no
+            visible exit from the admin area short of opening the navigation
+            drawer and scrolling to its footer. */}
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.push("/")}
-          className={css({ gap: "2", display: { base: "none", md: "inline-flex" } })}
+          className={css({ gap: "2" })}
+          aria-label="Customer View"
+          title="Customer View"
         >
           <ShoppingBag className={css({ height: "4", width: "4" })} />
-          Customer View
+          <span className={customerViewLabelStyle}>Customer View</span>
         </Button>
 
         <Button variant="ghost" size="icon" className={css({ position: "relative" })}>

@@ -2,7 +2,6 @@
 
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,13 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -31,14 +23,13 @@ import {
 } from "@/components/ui/dialog";
 import {
   Trash2,
-  Search,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  Layers,
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ProductsFilterBar } from "@/components/admin/products/ProductsFilterBar";
 import { css } from "styled-system/css";
 import {
   ProductTableRow,
@@ -270,84 +261,18 @@ export function ProductsTable({
 
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
-      {/* Filters */}
-      <div
-        className={css({
-          display: "flex",
-          flexDirection: "column",
-          gap: "3",
-          borderRadius: "xl",
-          border: "1px solid",
-          borderColor: "border.subtle",
-          background: "bg.surface",
-          padding: "3",
-          md: { flexDirection: "row", alignItems: "center" },
-        })}
-      >
-        <div className={css({ position: "relative", minWidth: 0, flex: "1" })}>
-          <Search
-            className={css({
-              position: "absolute",
-              left: "3",
-              top: "50%",
-              transform: "translateY(-50%)",
-              height: "4",
-              width: "4",
-              color: "fg.muted",
-              pointerEvents: "none",
-            })}
-          />
-          <Input
-            placeholder="Search products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className={css({ paddingLeft: "9" })}
-          />
-        </div>
-
-        <Select value={category} onValueChange={handleCategoryChange}>
-          <SelectTrigger className={css({ width: "full", md: { width: "52" } })}>
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>
-                {cat.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={sort} onValueChange={handleSortChange}>
-          <SelectTrigger className={css({ width: "full", md: { width: "44" } })}>
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="createdAt">Newest First</SelectItem>
-            <SelectItem value="name_asc">Name (A-Z)</SelectItem>
-            <SelectItem value="name_desc">Name (Z-A)</SelectItem>
-            <SelectItem value="price_asc">Price (Low-High)</SelectItem>
-            <SelectItem value="price_desc">Price (High-Low)</SelectItem>
-            <SelectItem value="stock_asc">Stock (Low-High)</SelectItem>
-            <SelectItem value="stock_desc">Stock (High-Low)</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Button onClick={handleSearch} className={css({ width: "full", md: { width: "auto" } })}>
-          Search
-        </Button>
-
-        <Button
-          variant={grouped ? "default" : "outline"}
-          onClick={toggleGrouped}
-          className={css({ width: "full", md: { width: "auto" } })}
-        >
-          <Layers className={css({ height: "4", width: "4" })} />
-          Group by category
-        </Button>
-      </div>
+      <ProductsFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        onSubmit={handleSearch}
+        category={category}
+        onCategoryChange={handleCategoryChange}
+        sort={sort}
+        onSortChange={handleSortChange}
+        grouped={grouped}
+        onToggleGrouped={toggleGrouped}
+        categories={categories}
+      />
 
       {/* Bulk action bar */}
       {selectedCount > 0 && (
