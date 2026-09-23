@@ -23,17 +23,29 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
-    const storageRewrite =
-      process.env.IMAGEKIT_ENABLED === "true" &&
-      process.env.IMAGEKIT_URL_ENDPOINT
-        ? {
-            source: "/assets/:path*",
-            destination: `${process.env.IMAGEKIT_URL_ENDPOINT.replace(/\/+$/, "")}/assets/:path*`,
-          }
+    const imagekit =
+      process.env.IMAGEKIT_ENABLED === "true" && process.env.IMAGEKIT_URL_ENDPOINT
+        ? process.env.IMAGEKIT_URL_ENDPOINT.replace(/\/+$/, "")
         : null;
 
+    // Product photography lives under /assets; the brand's own marks sit in
+    // their own /logos folder, because a logo is not a picture of a product
+    // and should not be mixed in with one.
+    const storageRewrites = imagekit
+      ? [
+          {
+            source: "/assets/:path*",
+            destination: `${imagekit}/assets/:path*`,
+          },
+          {
+            source: "/logos/:path*",
+            destination: `${imagekit}/logos/:path*`,
+          },
+        ]
+      : [];
+
     return [
-      ...(storageRewrite ? [storageRewrite] : []),
+      ...storageRewrites,
       // Shop pages - maintain original URLs
       // (/earrings, /necklaces, /rings are handled directly by the generic
       // src/app/[category]/page.tsx now, same as any other category — no

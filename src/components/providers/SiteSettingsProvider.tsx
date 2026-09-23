@@ -10,6 +10,8 @@ interface NavCategory {
 
 interface SiteSettingsValue {
   businessName: string;
+  /** The shop's own mark, or null to use the bundled default. */
+  logoUrl: string | null;
   copyrightText: string;
   // Featured categories fetched once server-side in the root layout, so
   // client components like the header nav can list them without each page
@@ -36,6 +38,7 @@ interface SiteSettingsValue {
 
 const SiteSettingsContext = createContext<SiteSettingsValue>({
   businessName: "lavindia",
+  logoUrl: null,
   copyrightText: "© 2025 lavindia. All rights reserved.",
   navCategories: [],
   contactNumber: null,

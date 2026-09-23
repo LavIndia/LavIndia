@@ -41,7 +41,19 @@ export interface SellableVariant {
   /** The catalog list price in paisa, already resolved variant-over-product. */
   priceCents: number;
   compareAtCents: number | null;
+  /** What the piece costs the shop, in paisa. Never shown to a customer. */
+  costCents: number | null;
   isActive: boolean;
+  /**
+   * Whether the product is published, which is a question about the web
+   * storefront and nothing else.
+   *
+   * A draft piece is simply one the shop has not put online yet. It still
+   * exists, it is still on the shelf, and the counter must be able to sell
+   * it — so this is surfaced rather than folded into `isActive`, and the
+   * channel decides what to do with it.
+   */
+  isPublished: boolean;
   /** Primary image for this variant, falling back to the product's. */
   imageUrl: string | null;
   attributes: {

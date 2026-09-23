@@ -59,6 +59,7 @@ const VARIANT_SELECT = {
       slug: true,
       priceCents: true,
       compareAtCents: true,
+      costCents: true,
       isActive: true,
       isPublished: true,
       images: GROUPED_IMAGES,
@@ -83,7 +84,9 @@ function toSellableVariant(row: VariantRow): SellableVariant {
     // Resolving it here means no consumer ever has to know that rule.
     priceCents: row.priceCents ?? row.product.priceCents,
     compareAtCents: row.product.compareAtCents,
+    costCents: row.product.costCents,
     isActive: row.isActive && row.product.isActive,
+    isPublished: row.product.isPublished,
     // The variant's own group's image, else the product's general one —
     // the rule lives in image-groups.ts so no consumer has to know it.
     imageUrl: variantImageUrl(row.product.images, row),

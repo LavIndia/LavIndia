@@ -42,6 +42,27 @@ class OrderService implements OrdersPort {
     const variants = await catalogService.findVariantsByIds(variantIds);
     const byId = new Map(variants.map((variant) => [variant.variantId as string, variant]));
 
+    // Draft is a statement about the website, not about the piece.
+    //
+    // An unpublished product is one the shop has not listed online yet;
+    // it is still made, still on the shelf and still sellable at the
+    // counter. So the publish gate is applied to ONLINE orders only. The
+    // storefront's own queries already hide drafts, and this is the
+    // matching guard on the write path, which is what stops a draft being
+    // bought online by anyone who has the variant id.
+    if (input.source === "ONLINE") {
+      const unlisted = variants.filter((variant) => !variant.isPublished);
+      if (unlisted.length > 0) {
+        throw new DomainError(
+          "VARIANT_NOT_FOUND",
+          unlisted.length === 1
+            ? `"${unlisted[0].productName}" is not available to buy online`
+            : `${unlisted.length} of these items are not available to buy online`,
+          { variantIds: unlisted.map((variant) => variant.variantId as string) },
+        );
+      }
+    }
+
     const lines = priceLines(input.lines, byId);
     const totals = totalsFor(lines, {
       shippingCents: input.shippingCents,
@@ -118,6 +139,7 @@ class OrderService implements OrdersPort {
         quantity: line.quantity,
         priceCents: line.priceCents,
         catalogPriceCents: line.catalogPriceCents,
+        unitCostCents: line.unitCostCents,
         name: line.name,
         variantName: line.variantName,
         sku: line.sku,

@@ -69,6 +69,9 @@ export function priceLines(
       quantity: line.quantity,
       catalogPriceCents,
       priceCents,
+      // Frozen here with the price, for the same reason: what the piece cost
+      // when it was sold is what its margin has to be measured against.
+      unitCostCents: variant.costCents,
       discountCents,
       taxCents,
       taxRateBps: GST_RATE_BPS,

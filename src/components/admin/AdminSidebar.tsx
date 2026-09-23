@@ -29,6 +29,8 @@ import {
   History,
   ScanLine,
   Award,
+  Calculator,
+  Truck,
 } from "lucide-react";
 import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import {
@@ -71,6 +73,7 @@ const NAV_GROUPS: NavGroup[] = [
       { name: "Adjustments", href: "/admin/inventory/adjustments", icon: SlidersHorizontal },
       { name: "Movements", href: "/admin/inventory/movements", icon: History },
       { name: "Barcodes", href: "/admin/inventory/barcodes", icon: ScanLine },
+      { name: "Suppliers", href: "/admin/suppliers", icon: Truck },
     ],
   },
   {
@@ -81,6 +84,9 @@ const NAV_GROUPS: NavGroup[] = [
       // separate "Online Orders" entry implied counter sales lived elsewhere.
       { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
       { name: "Sales Insights", href: "/admin/sales-insights", icon: BarChart3 },
+      // Accounting sits beside the trading figures rather than under System:
+      // it answers what the shop made, which is a question about sales.
+      { name: "Accounting", href: "/admin/accounting", icon: Calculator },
       { name: "Customers", href: "/admin/customers", icon: Users },
       // Segmentation sits beside the customer list rather than under
       // analytics: it is a list of people to act on, not a report to read.

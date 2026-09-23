@@ -43,19 +43,19 @@ model Discount {
 // Hero Banners for homepage
 // ---------------------------------------------------------
 model HeroBanner {
-  id        String  @id @default(cuid())
-  title     String
-  subtitle  String?
-  imagePath String
+  id              String  @id @default(cuid())
+  title           String
+  subtitle        String?
+  imagePath       String
   // Optional portrait artwork for phones. A 16:9 banner cover-cropped into a
   // phone's near-square hero frame keeps barely half its width, which cuts
   // the wordmark and the call to action off a composed banner. When this is
   // set the storefront shows it below the `md` breakpoint; when it is not,
   // the landscape image is used at every width exactly as before.
   mobileImagePath String?
-  linkUrl   String?
-  order     Int     @default(0)
-  active    Boolean @default(true)
+  linkUrl         String?
+  order           Int     @default(0)
+  active          Boolean @default(true)
 
   // Optional scheduling — same convention/logic as Discount and
   // PromoBanner (see src/lib/scheduling.ts). Null dates = no bound.
@@ -189,14 +189,14 @@ model Highlight {
   description String?
 
   /// Where it happened, e.g. "IIJS Premiere, Mumbai". Shown only when set.
-  place String?
+  place      String?
   /// When it happened. Only the date is ever displayed.
   happenedOn DateTime?
   /// A short word for the card's tag, e.g. "Expo", "Pop-up", "Award".
-  kind String?
+  kind       String?
 
   /// "IMAGE" or "VIDEO" — see the marketing module's HighlightMediaType.
-  mediaType String @default("IMAGE")
+  mediaType String  @default("IMAGE")
   mediaUrl  String
   /// The still shown before a film plays. Ignored for an image.
   posterUrl String?

@@ -1,17 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createBarcodeDetector } from "./barcode-detector";
 import type { ScanEvent } from "./useBarcodeScanner";
-
-/**
- * The barcode symbologies worth looking for.
- *
- * Code 128 is what LavIndia prints. The retail symbologies are included as
- * well so a supplier's carton or a bought-in piece can be read without
- * changing anything — narrowing the list also makes detection faster, so
- * there is no point listing formats that will never appear.
- */
-const FORMATS = ["code_128", "code_39", "ean_13", "ean_8", "upc_a", "upc_e", "itf"];
 
 /** How often to look at the camera feed. Faster than this just burns battery. */
 const SAMPLE_INTERVAL_MS = 180;
@@ -32,40 +23,6 @@ const REPEAT_SUPPRESSION_MS = 1500;
  * "Opening camera…" indefinitely, which looks like the feature is broken.
  */
 const START_TIMEOUT_MS = 12000;
-
-type DetectorLike = {
-  detect: (source: CanvasImageSource) => Promise<{ rawValue: string }[]>;
-};
-
-/**
- * Loads a barcode detector, preferring the browser's own.
- *
- * Chrome on Android implements `BarcodeDetector` natively, which is fast and
- * costs nothing to ship. Safari on iOS does not, and iPhones are half of what
- * a shop actually holds — so the ponyfill is fetched only on those devices,
- * keeping the download off the browsers that do not need it.
- */
-async function createDetector(): Promise<DetectorLike | null> {
-  const native = (globalThis as { BarcodeDetector?: new (o: object) => DetectorLike })
-    .BarcodeDetector;
-  if (native) {
-    try {
-      return new native({ formats: FORMATS });
-    } catch {
-      // A browser that has the constructor but rejects these formats is
-      // treated as unsupported; the ponyfill below handles it.
-    }
-  }
-
-  try {
-    const { BarcodeDetector } = await import("barcode-detector/ponyfill");
-    // The ponyfill's own format union is narrower than the string list above;
-    // every entry in FORMATS is one it supports, so the cast is safe.
-    return new BarcodeDetector({ formats: FORMATS as never });
-  } catch {
-    return null;
-  }
-}
 
 export type CameraScannerStatus = "idle" | "starting" | "scanning" | "denied" | "unsupported";
 
@@ -138,11 +95,21 @@ export function useCameraScanner({
 
       if (!navigator.mediaDevices?.getUserMedia) {
         setStatus("unsupported");
-        setError("This browser cannot open the camera.");
+        // A browser only exposes the camera on a secure origin, so over plain
+        // http on a LAN address the API is simply absent. Saying "this
+        // browser cannot open the camera" there sends the operator looking
+        // for a fault in their phone, when the page just needs https or
+        // localhost. The two cases are told apart and named.
+        setError(
+          typeof window !== "undefined" && !window.isSecureContext
+            ? "The camera needs a secure connection. Open this page over https, or on localhost, " +
+              "and it will work. You can still read a saved photo of the label."
+            : "This browser cannot open the camera. You can still read a saved photo of the label.",
+        );
         return;
       }
 
-      const detector = await createDetector();
+      const detector = await createBarcodeDetector();
       if (cancelled) return;
       if (!detector) {
         setStatus("unsupported");

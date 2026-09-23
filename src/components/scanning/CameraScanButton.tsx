@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Camera, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { Camera, ImageUp, X } from "lucide-react";
 import { css } from "styled-system/css";
+import { readBarcodeFromFile } from "./barcode-detector";
 import { useCameraScanner } from "./useCameraScanner";
 import type { ScanEvent } from "./useBarcodeScanner";
 
@@ -90,6 +91,30 @@ const footerStyle = css({
   color: "rgba(255,255,255,0.75)",
 });
 const errorStyle = css({ color: "gold.200", fontSize: "sm" });
+const uploadRowStyle = css({
+  display: "flex",
+  justifyContent: "center",
+  paddingX: "4",
+  paddingBottom: "2",
+});
+const uploadButtonStyle = css({
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "2",
+  minHeight: "11",
+  paddingX: "4",
+  borderRadius: "full",
+  border: "1px solid",
+  borderColor: "rgba(255,255,255,0.25)",
+  background: "rgba(255,255,255,0.10)",
+  color: "white",
+  fontSize: "sm",
+  cursor: "pointer",
+  _hover: { background: "rgba(255,255,255,0.18)" },
+  _disabled: { opacity: 0.6, cursor: "default" },
+  "&:focus-visible": { outline: "none", boxShadow: "0 0 0 3px rgba(255,255,255,0.4)" },
+});
+const hiddenInputStyle = css({ display: "none" });
 
 /**
  * Scanning with the device camera.
@@ -143,6 +168,41 @@ function CameraScanSheet({
   onClose: () => void;
 }) {
   const { videoRef, status, error } = useCameraScanner({ active: true, onScan });
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [reading, setReading] = useState(false);
+  const [fileNotice, setFileNotice] = useState<string | null>(null);
+
+  /**
+   * Reading a label from a picture rather than from the live feed.
+   *
+   * A camera cannot read a barcode off a monitor: on screen the bars come out
+   * barely a pixel wide, which is under what any decoder can resolve, so the
+   * label sheet looks broken when it is only being viewed rather than
+   * printed. Pointing at a saved photograph or a screenshot instead settles
+   * the question without anyone having to print a sheet first, and it doubles
+   * as a way to look up a piece from a picture a supplier sent.
+   */
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    setReading(true);
+    setFileNotice(null);
+
+    const outcome = await readBarcodeFromFile(file);
+    setReading(false);
+
+    if (outcome.status === "found") {
+      onScan({ code: outcome.code, source: "CAMERA" });
+      return;
+    }
+
+    setFileNotice(
+      outcome.status === "not-found"
+        ? "No barcode found in that image. A tighter crop around the bars usually reads."
+        : outcome.status === "unreadable"
+          ? "That file could not be opened as an image."
+          : "This browser cannot read barcodes.",
+    );
+  };
 
   return (
     <div className={overlayStyle} role="dialog" aria-modal="true" aria-label="Scan a barcode">
@@ -160,13 +220,38 @@ function CameraScanSheet({
         {status === "scanning" && <span className={reticleStyle} aria-hidden />}
       </div>
 
+      <div className={uploadRowStyle}>
+        <button
+          type="button"
+          className={uploadButtonStyle}
+          onClick={() => fileRef.current?.click()}
+          disabled={reading}
+        >
+          <ImageUp className={css({ height: "4", width: "4" })} />
+          {reading ? "Reading…" : "Read from a photo"}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className={hiddenInputStyle}
+          onChange={(event) => {
+            void handleFile(event.target.files?.[0]);
+            // Cleared so choosing the same file twice still fires a change.
+            event.target.value = "";
+          }}
+        />
+      </div>
+
       <p className={footerStyle}>
         {/* Only ever one message: the fault if there is one, the instruction
             otherwise. */}
-        {error ? (
+        {fileNotice ? (
+          <span className={errorStyle}>{fileNotice}</span>
+        ) : error ? (
           <span className={errorStyle}>{error}</span>
         ) : (
-          "Hold the label steady inside the frame. It will be read automatically."
+          "Hold the label steady inside the frame, or read a saved photo of one."
         )}
       </p>
     </div>

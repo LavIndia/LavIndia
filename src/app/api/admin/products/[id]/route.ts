@@ -5,10 +5,8 @@ import { removePublicAsset } from "@/lib/imagekit-admin";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { enforceVariantInvariants } from "@/modules/catalog";
-import {
-  VariantHasStockError,
-  assertVariantsHoldNoStock,
-} from "@/lib/product-variant-guards";
+import { VariantHasStockError } from "@/lib/product-variant-guards";
+import { applyImageEdits, applyVariantEdits } from "@/lib/product-edit";
 
 const imageInputSchema = z.object({
   id: z.string().optional(),
@@ -40,6 +38,7 @@ const productUpdateSchema = z.object({
   description: z.string().optional().nullable(),
   priceCents: z.number().int().positive().optional(),
   compareAtCents: z.number().int().positive().optional().nullable(),
+  costCents: z.number().int().min(0).optional().nullable(),
   discountPercent: z.number().int().min(0).max(100).optional().nullable(),
   stock: z.number().int().min(0).optional(),
   categoryId: z.string().optional(),
@@ -113,94 +112,27 @@ export async function PATCH(
     const { images, variants, ...productFields } =
       productUpdateSchema.parse(body);
 
-    const { removedImageUrls } = await prisma.$transaction(async (tx) => {
-      await tx.product.update({ where: { id }, data: productFields });
+    const { removedImageUrls } = await prisma.$transaction(
+      async (tx) => {
+        await tx.product.update({ where: { id }, data: productFields });
 
-      if (variants) {
-        const existing = await tx.productVariant.findMany({
-          where: { productId: id },
-          select: { id: true, name: true },
-        });
-        const keepIds = new Set(
-          variants.filter((v) => v.id).map((v) => v.id),
-        );
-        const toDelete = existing.filter((v) => !keepIds.has(v.id));
-
-        if (toDelete.length) {
-          // Inventory rows cascade with their variant. Refuse rather than
-          // lose stock that is physically on a shelf.
-          await assertVariantsHoldNoStock(toDelete);
-
-          await tx.productVariant.deleteMany({
-            where: { id: { in: toDelete.map((v) => v.id) } },
-          });
+        if (variants) {
+          await applyVariantEdits(tx, id, variants);
+          // Runs whenever the variant set was touched: a product left with no
+          // variants gets its implicit Default back, and every new variant
+          // leaves with a SKU and barcode.
+          await enforceVariantInvariants(tx, id);
         }
 
-        await Promise.all(
-          variants.map(async (v) => {
-            const data = {
-              name: v.name,
-              color: v.color ?? null,
-              size: v.size ?? null,
-              material: v.material ?? null,
-              priceCents: v.priceCents ?? null,
-              stock: v.stock,
-            };
-            if (v.id) {
-              await tx.productVariant.update({ where: { id: v.id }, data });
-            } else {
-              await tx.productVariant.create({ data: { ...data, productId: id } });
-            }
-          }),
-        );
-      }
+        const removedImageUrls = images ? await applyImageEdits(tx, id, images) : [];
 
-      // Runs whenever the variant set was touched: a product left with no
-      // variants gets its implicit Default back, and every new variant
-      // leaves with a SKU and barcode.
-      if (variants) {
-        await enforceVariantInvariants(tx, id);
-      }
-
-      let removedImageUrls: string[] = [];
-
-      if (images) {
-        const existing = await tx.productImage.findMany({
-          where: { productId: id },
-          select: { id: true, url: true },
-        });
-        const keepIds = new Set(
-          images.filter((img) => img.id).map((img) => img.id),
-        );
-        const toDelete = existing.filter((img) => !keepIds.has(img.id));
-        removedImageUrls = toDelete.map((img) => img.url);
-
-        await Promise.all([
-          toDelete.length
-            ? tx.productImage.deleteMany({
-                where: { id: { in: toDelete.map((img) => img.id) } },
-              })
-            : Promise.resolve(),
-          ...images.map((img) => {
-            // A group needs both halves; anything less is a general image.
-            const grouped = img.optionDimension && img.optionValue;
-            const data = {
-              url: img.url,
-              alt: img.alt ?? null,
-              isPrimary: img.isPrimary,
-              position: img.position,
-              optionDimension: grouped ? img.optionDimension : null,
-              optionValue: grouped ? img.optionValue : null,
-            };
-            return img.id
-              ? tx.productImage.update({ where: { id: img.id }, data })
-              : tx.productImage.create({ data: { ...data, productId: id } });
-          }),
-        ]);
-      }
-
-      return { removedImageUrls };
-    });
+        return { removedImageUrls };
+      },
+      // See the note on the create route: the default five-second deadline is
+      // not survivable from a serverless region to an out-of-region database
+      // once a product carries a realistic number of images and variants.
+      { timeout: 20_000, maxWait: 10_000 },
+    );
 
     // Clean up ImageKit assets for images that were removed, outside the
     // DB transaction since this is an external network call.

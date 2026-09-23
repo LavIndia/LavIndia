@@ -41,6 +41,16 @@ model Product {
   priceCents       Int // stored in paisa/cents to avoid floats
   compareAtCents   Int?
   discountPercent  Int?
+  /// What the piece costs the shop, in paisa — the buying price, not a
+  /// crossed-out selling price.
+  ///
+  /// Distinct from `compareAtCents`, which is a marketing device shown to the
+  /// customer. This is never shown to a customer at all: it is the number
+  /// margin is worked out from, and the default carried onto a purchase when
+  /// a delivery does not state its own. What was actually paid on a given
+  /// delivery lives on the inventory movement, because it changes batch to
+  /// batch.
+  costCents        Int?
   // DEPRECATED. Physical stock is owned by the Inventory domain and tracked
   // per sellable variant (InventoryLevel). Kept for historical/auditing
   // reasons only — nothing in the app reads it as a source of truth.

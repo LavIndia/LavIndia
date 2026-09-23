@@ -28,7 +28,6 @@ model Payment {
   /**
    * The instrument in the customer's words — "HDFC Bank •••• 4242",
    * "ananya@okicici", "Net banking · ICICI".
-   *
    * `method` says the KIND of payment; this says which one. A gateway order
    * that only ever reads "Card / UPI online" is useless when reconciling a
    * statement or answering "how did they pay?", and the gateway already knows

@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -19,10 +18,15 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { InfoHint } from "@/components/ui/info-hint";
 import { DeliveryChargesSection } from "./DeliveryChargesSection";
+import { LogoSection } from "./LogoSection";
+import { SocialLinksSection } from "./SocialLinksSection";
+import { MarketplaceLinksSection } from "./MarketplaceLinksSection";
+import { TrustBadgesSection } from "./TrustBadgesSection";
 
 interface SiteSettings {
   id: string;
   businessName: string;
+  logoUrl: string | null;
   address: string | null;
   contactNumber: string | null;
   email: string | null;
@@ -63,7 +67,6 @@ const fieldRow = css({
   gap: "4",
   sm: { gridTemplateColumns: "repeat(2, 1fr)" },
 });
-const switchRow = css({ display: "flex", alignItems: "center", gap: "2" });
 const footerRow = css({ display: "flex", justifyContent: "flex-end" });
 const spinnerStyle = css({ height: "4", width: "4", animation: "spin" });
 
@@ -103,6 +106,10 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className={formStyle}>
+      {/* The mark comes before the name: it is the first thing anyone sees
+          of the shop, and it saves itself rather than waiting for the form. */}
+      <LogoSection initialLogoUrl={settings.logoUrl} />
+
       {/* Business Information */}
       <Card>
         <CardHeader>
@@ -241,197 +248,37 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         onChange={(codFeeCents) => handleChange("codFeeCents", codFeeCents)}
       />
 
-      {/* Social Media */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Social Media Links</CardTitle>
-          <CardDescription>Your social media presence</CardDescription>
-        </CardHeader>
-        <CardContent className={cardBody}>
-          <div className={fieldRow}>
-            <div className={fieldStyle}>
-              <Label htmlFor="facebook">Facebook</Label>
-              <Input
-                id="facebook"
-                value={settings.facebook || ""}
-                onChange={(e) => handleChange("facebook", e.target.value)}
-                placeholder="https://facebook.com/lavishindia"
-              />
-            </div>
+      <SocialLinksSection
+        values={{
+          facebook: settings.facebook,
+          instagram: settings.instagram,
+          twitter: settings.twitter,
+          linkedin: settings.linkedin,
+        }}
+        onChange={handleChange}
+      />
 
-            <div className={fieldStyle}>
-              <Label htmlFor="instagram">Instagram</Label>
-              <Input
-                id="instagram"
-                value={settings.instagram || ""}
-                onChange={(e) => handleChange("instagram", e.target.value)}
-                placeholder="https://instagram.com/lavishindia"
-              />
-            </div>
+      <MarketplaceLinksSection
+        values={{
+          amazonLink: settings.amazonLink,
+          flipkartLink: settings.flipkartLink,
+          myntraLink: settings.myntraLink,
+          blinkitLink: settings.blinkitLink,
+          zeptoLink: settings.zeptoLink,
+        }}
+        onChange={handleChange}
+      />
 
-            <div className={fieldStyle}>
-              <Label htmlFor="twitter">Twitter</Label>
-              <Input
-                id="twitter"
-                value={settings.twitter || ""}
-                onChange={(e) => handleChange("twitter", e.target.value)}
-                placeholder="https://twitter.com/lavishindia"
-              />
-            </div>
-
-            <div className={fieldStyle}>
-              <Label htmlFor="linkedin">LinkedIn</Label>
-              <Input
-                id="linkedin"
-                value={settings.linkedin || ""}
-                onChange={(e) => handleChange("linkedin", e.target.value)}
-                placeholder="https://linkedin.com/company/lavishindia"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Marketplace Links */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Marketplace Links</CardTitle>
-          <CardDescription>
-            Links to your products on other platforms
-          </CardDescription>
-        </CardHeader>
-        <CardContent className={cardBody}>
-          <div className={fieldStyle}>
-            <Label htmlFor="amazonLink">Amazon Store</Label>
-            <Input
-              id="amazonLink"
-              value={settings.amazonLink || ""}
-              onChange={(e) => handleChange("amazonLink", e.target.value)}
-              placeholder="https://amazon.in/..."
-            />
-          </div>
-
-          <div className={fieldStyle}>
-            <Label htmlFor="flipkartLink">Flipkart Store</Label>
-            <Input
-              id="flipkartLink"
-              value={settings.flipkartLink || ""}
-              onChange={(e) => handleChange("flipkartLink", e.target.value)}
-              placeholder="https://flipkart.com/..."
-            />
-          </div>
-
-          <div className={fieldStyle}>
-            <Label htmlFor="myntraLink">Myntra Store</Label>
-            <Input
-              id="myntraLink"
-              value={settings.myntraLink || ""}
-              onChange={(e) => handleChange("myntraLink", e.target.value)}
-              placeholder="https://myntra.com/..."
-            />
-          </div>
-
-          <div className={fieldStyle}>
-            <Label htmlFor="blinkitLink">Blinkit Store</Label>
-            <Input
-              id="blinkitLink"
-              value={settings.blinkitLink || ""}
-              onChange={(e) => handleChange("blinkitLink", e.target.value)}
-              placeholder="https://blinkit.com/..."
-            />
-          </div>
-
-          <div className={fieldStyle}>
-            <Label htmlFor="zeptoLink">Zepto Store</Label>
-            <Input
-              id="zeptoLink"
-              value={settings.zeptoLink || ""}
-              onChange={(e) => handleChange("zeptoLink", e.target.value)}
-              placeholder="https://zepto.com/..."
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Trust Badges */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Trust Badges</CardTitle>
-          <CardDescription>
-            Configure trust indicators displayed on the website
-          </CardDescription>
-        </CardHeader>
-        <CardContent className={cardBody}>
-          <div className={switchRow}>
-            <Switch
-              id="codAvailable"
-              checked={settings.codAvailable}
-              onCheckedChange={(checked) =>
-                setSettings((prev) => ({ ...prev, codAvailable: checked }))
-              }
-            />
-            <Label htmlFor="codAvailable">Cash on Delivery Available</Label>
-          </div>
-
-          <div className={fieldStyle}>
-            <Label htmlFor="customerCount">Total Customers</Label>
-            <Input
-              id="customerCount"
-              type="text"
-              value={settings.customerCount}
-              onChange={(e) =>
-                setSettings((prev) => ({
-                  ...prev,
-                  customerCount: e.target.value,
-                }))
-              }
-              placeholder="9L+"
-            />
-          </div>
-
-          <div className={fieldStyle}>
-            <Label htmlFor="rating">Customer Rating (out of 5)</Label>
-            <Input
-              id="rating"
-              type="text"
-              value={settings.rating}
-              onChange={(e) =>
-                setSettings((prev) => ({
-                  ...prev,
-                  rating: e.target.value,
-                }))
-              }
-              placeholder="4.8"
-            />
-          </div>
-
-          <div className={fieldRow}>
-            <div className={fieldStyle}>
-              <Label htmlFor="supportHoursStart">Support Start Time</Label>
-              <Input
-                id="supportHoursStart"
-                type="time"
-                value={settings.supportHoursStart || ""}
-                onChange={(e) =>
-                  handleChange("supportHoursStart", e.target.value)
-                }
-              />
-            </div>
-
-            <div className={fieldStyle}>
-              <Label htmlFor="supportHoursEnd">Support End Time</Label>
-              <Input
-                id="supportHoursEnd"
-                type="time"
-                value={settings.supportHoursEnd || ""}
-                onChange={(e) =>
-                  handleChange("supportHoursEnd", e.target.value)
-                }
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <TrustBadgesSection
+        values={{
+          codAvailable: settings.codAvailable,
+          customerCount: settings.customerCount,
+          rating: settings.rating,
+          supportHoursStart: settings.supportHoursStart,
+          supportHoursEnd: settings.supportHoursEnd,
+        }}
+        onChange={(field, value) => setSettings((prev) => ({ ...prev, [field]: value }))}
+      />
 
       {/* SEO Settings */}
       <Card>

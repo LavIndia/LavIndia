@@ -27,6 +27,9 @@ export function buildProductPayload(
     compareAtCents: formData.compareAtPrice
       ? Math.round(parseFloat(formData.compareAtPrice) * 100)
       : null,
+    // Blank means "not recorded", which is null rather than zero — a piece
+    // whose cost nobody entered has not been bought for nothing.
+    costCents: formData.costPrice ? Math.round(parseFloat(formData.costPrice) * 100) : null,
     stock: parseInt(formData.stock),
     categoryId: formData.categoryId,
     sku: formData.sku || null,

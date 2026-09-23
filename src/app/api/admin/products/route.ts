@@ -38,6 +38,9 @@ const productSchema = z.object({
   description: z.string().optional().nullable(),
   priceCents: z.number().int().positive(),
   compareAtCents: z.number().int().positive().optional().nullable(),
+  // The buying price. Never shown to a customer; it is what margin is
+  // worked out from.
+  costCents: z.number().int().min(0).optional().nullable(),
   discountPercent: z.number().int().min(0).max(100).optional().nullable(),
   stock: z.number().int().min(0),
   categoryId: z.string(),
@@ -140,45 +143,55 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { images, variants, ...validatedData } = productSchema.parse(body);
 
-    const product = await prisma.$transaction(async (tx) => {
-      const created = await tx.product.create({ data: validatedData });
+    const product = await prisma.$transaction(
+      async (tx) => {
+        const created = await tx.product.create({ data: validatedData });
 
-      if (variants?.length) {
-        await Promise.all(
-          variants.map((v) => {
-            const { id: _id, clientId: _clientId, ...rest } = v;
-            return tx.productVariant.create({ data: { ...rest, productId: created.id } });
-          }),
-        );
-      }
+        // One INSERT for the whole set rather than one per row. A product
+        // with a dozen variants used to cost a dozen round trips, which is
+        // what pushed this transaction past its deadline against a database
+        // in another region.
+        if (variants?.length) {
+          await tx.productVariant.createMany({
+            data: variants.map((v) => {
+              const { id: _id, clientId: _clientId, ...rest } = v;
+              return { ...rest, productId: created.id };
+            }),
+          });
+        }
 
-      if (images?.length) {
-        await Promise.all(
-          images.map((img) => {
-            const { id: _id, optionDimension, optionValue, ...rest } = img;
-            // A group needs both halves; anything less is a general image.
-            const grouped = optionDimension && optionValue;
-            return tx.productImage.create({
-              data: {
+        if (images?.length) {
+          await tx.productImage.createMany({
+            data: images.map((img) => {
+              const { id: _id, optionDimension, optionValue, ...rest } = img;
+              // A group needs both halves; anything less is a general image.
+              const grouped = optionDimension && optionValue;
+              return {
                 ...rest,
                 productId: created.id,
                 optionDimension: grouped ? optionDimension : null,
                 optionValue: grouped ? optionValue : null,
-              },
-            });
-          }),
-        );
-      }
+              };
+            }),
+          });
+        }
 
-      // Last, so a product with no options gets its implicit Default
-      // variant and every variant leaves here with a SKU and barcode.
-      await enforceVariantInvariants(tx, created.id);
+        // Last, so a product with no options gets its implicit Default
+        // variant and every variant leaves here with a SKU and barcode.
+        await enforceVariantInvariants(tx, created.id);
 
-      return tx.product.findUniqueOrThrow({
-        where: { id: created.id },
-        include: { category: true, images: true, variants: true },
-      });
-    });
+        return tx.product.findUniqueOrThrow({
+          where: { id: created.id },
+          include: { category: true, images: true, variants: true },
+        });
+      },
+      // Prisma's default interactive-transaction deadline is five seconds,
+      // which is ample locally and not ample at all from a serverless region
+      // to a database on another continent. Saving a product with images and
+      // variants is the heaviest write the admin performs, so it is given the
+      // same headroom as the other multi-step writes in this codebase.
+      { timeout: 20_000, maxWait: 10_000 },
+    );
 
     // Create audit log
     await prisma.auditLog.create({

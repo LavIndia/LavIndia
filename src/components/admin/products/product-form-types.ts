@@ -71,6 +71,7 @@ export interface Product {
   description: string | null;
   priceCents: number;
   compareAtCents: number | null;
+  costCents: number | null;
   discountPercent: number | null;
   stock: number;
   categoryId: string;
@@ -129,6 +130,8 @@ export interface ProductFormData {
   description: string;
   price: string;
   compareAtPrice: string;
+  /** The buying price, in rupees as typed. Never shown to a customer. */
+  costPrice: string;
   stock: string;
   categoryId: string;
   sku: string;

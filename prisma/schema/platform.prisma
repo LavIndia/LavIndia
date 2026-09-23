@@ -78,6 +78,12 @@ datasource db {
 model SiteSettings {
   id            String  @id @default(cuid())
   businessName  String  @default("lavindia")
+  /// The shop's own logo, as a public asset path.
+  ///
+  /// Held in settings rather than shipped in the repo so the owner can
+  /// change the mark without a deploy. Null falls back to the bundled
+  /// default, which means the header is never left with a gap.
+  logoUrl       String?
   address       String?
   contactNumber String?
   email         String?

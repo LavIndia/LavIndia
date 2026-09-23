@@ -72,6 +72,7 @@ export default async function RootLayout({
         <SiteSettingsProvider
           value={{
             businessName: settings.businessName,
+            logoUrl: settings.logoUrl,
             copyrightText: settings.copyrightText,
             navCategories: featuredCategories.map((c) => ({
               id: c.id,

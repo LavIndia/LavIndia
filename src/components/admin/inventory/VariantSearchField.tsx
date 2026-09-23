@@ -77,6 +77,9 @@ const stockStyle = (available: number) =>
 
 const emptyStyle = css({ padding: "3", fontSize: "sm", color: "fg.muted" });
 
+/** No SKU or barcode this shop issues contains a space; a product name usually does. */
+const CONTAINS_SPACE = /\s/;
+
 /**
  * Find an item by scanning or typing.
  *
@@ -137,7 +140,12 @@ export function VariantSearchField({
     // A scan resolves as an exact code once the burst stops — covering
     // scanners that send no Enter suffix — and never runs the name search,
     // which would be a wasted request for a code that will match exactly.
-    if (scanLikeRef.current) {
+    //
+    // Text with a space in it is exempt: no barcode or SKU we issue contains
+    // one, so a value like "Twisted Scarf Necklace" is a name however fast it
+    // arrived. Pasting a name used to look exactly like a scanner burst and
+    // latched this field into code-only lookup for the whole phrase.
+    if (scanLikeRef.current && !CONTAINS_SPACE.test(trimmed)) {
       const timer = setTimeout(async () => {
         const found = await lookupByCode(trimmed);
         if (found.length === 1) {
@@ -146,12 +154,18 @@ export function VariantSearchField({
           reset();
           setOpen(false);
         } else {
+          // Nothing carries that code. It may never have been a scan, so the
+          // name search runs rather than the field dead-ending on "barcode
+          // not found" for something the operator simply typed.
+          if (found.length === 0) await search(trimmed);
           setOpen(true);
         }
         scanLikeRef.current = false;
       }, 120);
       return () => clearTimeout(timer);
     }
+
+    scanLikeRef.current = false;
 
     // Typed input is debounced so a product name does not fire a request per
     // keystroke.
@@ -209,8 +223,14 @@ export function VariantSearchField({
     if (!code) return;
 
     const found = await lookupByCode(code);
-    if (found.length === 1) choose(found[0]);
-    else setOpen(true);
+    if (found.length === 1) {
+      choose(found[0]);
+      return;
+    }
+    // Enter on something that is not a code — a name typed and confirmed —
+    // searches rather than reporting a barcode that was never scanned.
+    if (found.length === 0) await search(code);
+    setOpen(true);
   };
 
   return (

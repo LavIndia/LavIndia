@@ -40,6 +40,24 @@ function savings(price: string, compareAt: string): string | null {
   return `Customers save ₹${(c - p).toLocaleString("en-IN")} (${off}% off)`;
 }
 
+/**
+ * Gross margin on the piece, shown the moment both numbers are known.
+ *
+ * Put next to the field rather than on a report because this is where the
+ * decision is made: the person typing the selling price is the one who needs
+ * to see what it leaves.
+ */
+function marginNote(price: string, cost: string): string | null {
+  const p = parseFloat(price);
+  const c = parseFloat(cost);
+  if (!Number.isFinite(p) || !Number.isFinite(c) || p <= 0 || c <= 0) return null;
+  const profit = p - c;
+  const pct = Math.round((profit / p) * 100);
+  return profit >= 0
+    ? `Margin ₹${profit.toLocaleString("en-IN")} (${pct}%)`
+    : `Sold below cost by ₹${Math.abs(profit).toLocaleString("en-IN")}`;
+}
+
 export interface ProductPricingCardProps {
   formData: ProductFormData;
   onChange: (field: string, value: string | boolean) => void;
@@ -47,6 +65,7 @@ export interface ProductPricingCardProps {
 
 export function ProductPricingCard({ formData, onChange }: ProductPricingCardProps) {
   const saving = savings(formData.price, formData.compareAtPrice);
+  const margin = marginNote(formData.price, formData.costPrice);
 
   return (
     <Card>
@@ -86,6 +105,23 @@ export function ProductPricingCard({ formData, onChange }: ProductPricingCardPro
             />
             {/* Only when there is something to say: a "0% off" line would be noise. */}
             {saving ? <p className={savingsStyle}>{saving}</p> : null}
+          </div>
+
+          <div className={fieldStyle}>
+            <Label htmlFor="costPrice">Cost price (₹)</Label>
+            <Input
+              id="costPrice"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.costPrice}
+              onChange={(e) => onChange("costPrice", e.target.value)}
+            />
+            <p className={noteStyle}>
+              What the piece costs you. Never shown to a customer; it is what margin is
+              worked out from.
+            </p>
+            {margin ? <p className={savingsStyle}>{margin}</p> : null}
           </div>
 
           <div className={fieldStyle}>

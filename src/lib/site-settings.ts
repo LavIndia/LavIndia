@@ -23,6 +23,7 @@ export const getSiteSettings = cache(async () => {
 
   return {
     businessName: "lavindia",
+    logoUrl: null as string | null,
     copyrightText: "© 2025 lavindia. All rights reserved.",
     metaTitle: null as string | null,
     metaDescription: null as string | null,

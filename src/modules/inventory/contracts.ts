@@ -58,6 +58,24 @@ export interface StockLine {
    * change. See src/modules/inventory/SERIALISATION.md.
    */
   serialNumbers?: readonly string[];
+  /**
+   * What one unit of this line cost, in paisa.
+   *
+   * Carried per line rather than per delivery because one delivery routinely
+   * contains pieces bought at different prices, and a single figure spread
+   * over the whole note would misstate the margin on every one of them.
+   * Meaningful on a receipt; ignored elsewhere.
+   */
+  unitCostCents?: number;
+  /**
+   * What the vendor first asked per unit, in paisa.
+   *
+   * Recorded so the shop can see what bargaining is worth. Optional: plenty
+   * of deliveries arrive at a price nobody argued about.
+   */
+  listUnitCostCents?: number;
+  /** The price per unit agreed after bargaining, in paisa. */
+  agreedUnitCostCents?: number;
 }
 
 /**
@@ -71,6 +89,14 @@ export interface MovementContext {
   referenceId?: string;
   reason?: string;
   actorId?: string;
+  /** Who the stock was bought from. Meaningful on a receipt only. */
+  supplierId?: string;
+  /** The vendor's own bill number, as printed on it. */
+  invoiceNumber?: string;
+  /** The date on the invoice, which is often not the day it was booked in. */
+  invoiceDate?: Date;
+  /** The delivery these lines belong to. Set by `receive`, not by callers. */
+  receiptId?: string;
   /**
    * Makes the operation safe to retry. A dropped response on a flaky counter
    * connection is routine; retrying with the same key replays the original

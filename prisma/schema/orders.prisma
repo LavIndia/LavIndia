@@ -97,6 +97,14 @@ model OrderItem {
   barcode           String?
   hsnCode           String?
   catalogPriceCents Int? // list price before any override/discount
+  /// What this unit cost the shop, snapshotted at the moment of sale.
+  ///
+  /// Snapshotted for the same reason the list price is: margin has to be
+  /// measured against what the piece cost when it was sold. Reading the
+  /// product's current cost instead would silently rewrite last quarter's
+  /// profit every time a supplier changes their price. Null on orders taken
+  /// before costs were recorded, and on pieces with no cost entered.
+  unitCostCents     Int?
   discountCents     Int     @default(0)
   taxCents          Int     @default(0)
   taxRateBps        Int? // basis points, e.g. 300 = 3% GST

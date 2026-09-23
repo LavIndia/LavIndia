@@ -91,6 +91,8 @@ export interface OrderLineSnapshot {
   catalogPriceCents: number;
   /** What was actually charged per unit. */
   priceCents: number;
+  /** What one unit cost the shop, frozen at the moment of sale. */
+  unitCostCents: number | null;
   discountCents: number;
   taxCents: number;
   taxRateBps: number;

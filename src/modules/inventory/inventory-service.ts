@@ -31,6 +31,7 @@ import { DefaultLocationResolver, listLocations } from "./locations/location-rep
 import { mutateLevel, peekAvailable } from "./stock/level-mutations";
 import { MUTATION_RULES, failsOnMissingReservation, type MutationRule } from "./stock/mutation-rules";
 import { assertValidLines, coalesceLines } from "./stock/stock-lines";
+import { openReceipt } from "./stock/receipts";
 import {
   markReservationsConsumed,
   markReservationsReleased,
@@ -90,8 +91,27 @@ class InventoryService implements InventoryPort {
     return result;
   }
 
+  /**
+   * Goods arriving.
+   *
+   * The delivery gets a record of its own before any line is written, so the
+   * vendor, the bill number and the date belong to the delivery rather than
+   * being copied onto every piece in it. Header and lines are written in one
+   * transaction: a receipt with no stock behind it, or stock with no receipt
+   * explaining it, are both worse than neither.
+   */
   receive(lines: readonly StockLine[], context: MovementContext, tx?: Tx) {
-    return this.apply("RECEIVE", lines, this.withReference(context, "RECEIPT"), tx);
+    const run = async (client: Tx) => {
+      const receiptId = await openReceipt(client, lines, context);
+      return this.apply(
+        "RECEIVE",
+        lines,
+        this.withReference({ ...context, receiptId, referenceId: receiptId }, "RECEIPT"),
+        client,
+      );
+    };
+
+    return tx ? run(tx) : prisma.$transaction(run, { timeout: 20_000 });
   }
 
   adjust(
@@ -238,6 +258,15 @@ class InventoryService implements InventoryPort {
           referenceId: context.referenceId ?? null,
           reason: context.reason ?? null,
           createdBy: context.actorId ?? null,
+          // What the stock cost and who it came from are properties of a
+          // purchase, so they are only recorded on one. A sale or an
+          // adjustment carrying a cost would be a claim nobody made.
+          unitCostCents: ledgerType === "RECEIVE" ? (line.unitCostCents ?? null) : null,
+          listUnitCostCents: ledgerType === "RECEIVE" ? (line.listUnitCostCents ?? null) : null,
+          agreedUnitCostCents:
+            ledgerType === "RECEIVE" ? (line.agreedUnitCostCents ?? null) : null,
+          supplierId: ledgerType === "RECEIVE" ? (context.supplierId ?? null) : null,
+          receiptId: ledgerType === "RECEIVE" ? (context.receiptId ?? null) : null,
           idempotencyKey: lineKey,
         },
       });

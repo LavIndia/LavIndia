@@ -7,6 +7,7 @@ import { isValidVpa } from "@/modules/payments/upi/upi-link";
 
 const settingsSchema = z.object({
   businessName: z.string().min(1),
+  logoUrl: z.string().trim().max(500).optional().nullable(),
   address: z.string().optional().nullable(),
   contactNumber: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
@@ -35,6 +36,26 @@ const settingsSchema = z.object({
   myntraLink: z.string().url().optional().nullable().or(z.literal("")),
   blinkitLink: z.string().url().optional().nullable().or(z.literal("")),
   zeptoLink: z.string().url().optional().nullable().or(z.literal("")),
+
+  // The trust badges shown to a shopper. These were edited by the settings
+  // screen but were absent here, and an object schema drops what it does not
+  // declare — so every one of them was silently discarded on save and the
+  // screen appeared to do nothing.
+  codAvailable: z.boolean().optional(),
+  customerCount: z.string().trim().max(40).optional(),
+  rating: z.string().trim().max(10).optional(),
+  // Not nullable: both carry a default in the database, so null would be
+  // rejected on write where an omitted value is simply left alone.
+  supportHoursStart: z.string().trim().max(10).optional(),
+  supportHoursEnd: z.string().trim().max(10).optional(),
+
+  // Search engine listing.
+  metaTitle: z.string().trim().max(200).optional().nullable(),
+  metaDescription: z.string().trim().max(500).optional().nullable(),
+  metaKeywords: z.string().trim().max(500).optional().nullable(),
+
+  // Footer.
+  copyrightText: z.string().trim().max(300).optional(),
 });
 
 export async function PATCH(req: NextRequest) {

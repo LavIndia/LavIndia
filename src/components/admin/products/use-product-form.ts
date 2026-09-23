@@ -11,7 +11,10 @@ import {
   describeDimensionSet,
   dimensionSetOf,
   existingDimensionSets,
+  expandVariantsToDimensions,
   generateVariantRows,
+  isDimensionUpgrade,
+  optionValuesOf,
 } from "@/components/admin/products/product-form-variants";
 import type {
   CuratedValues,
@@ -43,6 +46,10 @@ export function useProductForm(product?: Product) {
     compareAtPrice: product?.compareAtCents
       ? (product.compareAtCents / 100).toString()
       : "",
+    costPrice:
+      product?.costCents === null || product?.costCents === undefined
+        ? ""
+        : (product.costCents / 100).toString(),
     // Deprecated column, carried through unchanged so the save payload stays
     // valid. Real stock lives in Inventory and is never edited here.
     stock: product?.stock.toString() || "0",
@@ -65,10 +72,9 @@ export function useProductForm(product?: Product) {
 
   const { images, imagesInGroup, setImagesInGroup, moveImage } = useProductImages(product?.images);
   const [variants, setVariants] = useState<ProductVariant[]>(initialVariants);
-  const [optionValues, setOptionValues] = useState<Record<OptionDimension, string[]>>({
-    color: [],
-    size: [],
-  });
+  const [optionValues, setOptionValues] = useState<Record<OptionDimension, string[]>>(() =>
+    optionValuesOf(initialVariants),
+  );
   // Keyed by attribute rather than by variant dimension, because the curated
   // material list feeds the product's own Material field.
   const [curatedOptions, setCuratedOptions] = useState<CuratedValues>({
@@ -172,6 +178,23 @@ export function useProductForm(product?: Product) {
     const incoming = dimensionSetOf(newRows[0]);
     const clashing = existing.filter((set) => set !== incoming);
     if (clashing.length > 0) {
+      // Adding a dimension to variants that already exist is not a clash, it
+      // is an expansion: a product that came in Gold and Silver now also
+      // comes in two lengths. The existing variants are carried into the
+      // fuller matrix keeping their SKU, barcode and received stock, rather
+      // than the operator being told to delete and re-key them.
+      if (clashing.every((set) => isDimensionUpgrade(set, incoming))) {
+        const expanded = expandVariantsToDimensions(optionValues, variants);
+        const added = expanded.length - variants.length;
+        setVariants(expanded);
+        toast.success(
+          added > 0
+            ? `Expanded to ${expanded.length} variants across ${describeDimensionSet(incoming)}`
+            : `Variants now described by ${describeDimensionSet(incoming)}`,
+        );
+        return;
+      }
+
       setError({
         title: "These options do not match the existing variants",
         message:

@@ -91,7 +91,7 @@ const navSlotStyle = css({ display: { base: "none", md: "flex" } });
 const actionsStyle = css({ display: "flex", alignItems: "center", gap: { base: "1", md: "3" } });
 
 export function HeaderSection() {
-  const { businessName, contactNumber, contactEmail, address } = useSiteSettings();
+  const { businessName, logoUrl, contactNumber, contactEmail, address } = useSiteSettings();
   const pathname = usePathname();
   const isHome = pathname === "/";
   const [contactOpen, setContactOpen] = useState(false);
@@ -99,12 +99,15 @@ export function HeaderSection() {
   const logoContent = (
     <>
       <Image
-        src="/logo-mark.svg"
+        /* The shop's own mark when one has been set, otherwise the bundled
+           default — so the header is never left with a gap. */
+        src={logoUrl || "/logo-mark.svg"}
         alt=""
         width={36}
         height={36}
         className={logoMarkStyle}
         priority
+        unoptimized={Boolean(logoUrl)}
       />
       <span className={logoWordmarkStyle}>{businessName}</span>
     </>

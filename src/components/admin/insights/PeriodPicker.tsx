@@ -16,7 +16,15 @@ const activeStyle = css({ borderColor: "accent.default" });
  * the page is answering, and switching between them is the main thing anyone
  * does here — a dropdown would put two taps in front of every comparison.
  */
-export function PeriodPicker({ active }: { active: string }) {
+export function PeriodPicker({
+  active,
+  basePath = "/admin/sales-insights",
+}: {
+  active: string;
+  /** Which screen the chips navigate within. The period is a query param, so
+      the same control serves any screen measured over a period. */
+  basePath?: string;
+}) {
   const router = useRouter();
 
   return (
@@ -27,7 +35,7 @@ export function PeriodPicker({ active }: { active: string }) {
           variant={period.value === active ? "secondary" : "outline"}
           size="sm"
           className={cx(chipStyle, period.value === active && activeStyle)}
-          onClick={() => router.push(`/admin/sales-insights?period=${period.value}`)}
+          onClick={() => router.push(`${basePath}?period=${period.value}`)}
         >
           {period.label}
         </Button>
