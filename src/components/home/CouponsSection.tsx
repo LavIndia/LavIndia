@@ -20,16 +20,7 @@ import { css } from "styled-system/css";
  * than being centred on its own.
  */
 
-interface Discount {
-  id: string;
-  code: string;
-  title: string;
-  description: string | null;
-  discountType: string;
-  discountValue: number;
-  minPurchase: number | null;
-  endDate: string | Date;
-}
+import type { StorefrontOffer } from "@/lib/storefront-offers";
 
 const sectionStyle = css({
   paddingY: "12",
@@ -68,42 +59,11 @@ const gridStyle = css({
   md: { gridTemplateColumns: "repeat(2, 1fr)", gap: "4" },
 });
 
-/** Rupee amounts are stored in paise and read better grouped Indian-style. */
-function rupees(paise: number) {
-  return `₹${(paise / 100).toLocaleString("en-IN")}`;
-}
-
-function formatSaving(type: string, value: number) {
-  return type === "PERCENTAGE" ? `${value}%` : rupees(value);
-}
-
-/**
- * The qualifying spend and the expiry, joined only where they exist — a
- * coupon with neither shows no line at all rather than an empty one.
- */
-function formatMeta(coupon: Discount) {
-  const parts: string[] = [];
-  if (coupon.minPurchase) parts.push(`On orders over ${rupees(coupon.minPurchase)}`);
-
-  const endsOn = new Date(coupon.endDate);
-  if (!Number.isNaN(endsOn.getTime())) {
-    parts.push(
-      `Until ${endsOn.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      })}`,
-    );
-  }
-
-  return parts.length > 0 ? parts.join(" · ") : null;
-}
-
 export function CouponsSection({
   coupons,
-  title = "Coupons for You",
+  title = "Offers for You",
 }: {
-  coupons: Discount[];
+  coupons: StorefrontOffer[];
   title?: string;
 }) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -132,7 +92,7 @@ export function CouponsSection({
           </span>
           <div>
             <h2 className={headingStyle}>{title}</h2>
-            <p className={subheadingStyle}>Applied at checkout</p>
+            <p className={subheadingStyle}>Applied at checkout, online and in store</p>
           </div>
         </div>
 
@@ -143,10 +103,10 @@ export function CouponsSection({
               title={coupon.title}
               description={coupon.description}
               code={coupon.code}
-              saving={formatSaving(coupon.discountType, coupon.discountValue)}
-              meta={formatMeta(coupon)}
+              stub={coupon.stub}
+              meta={coupon.meta}
               copied={copiedCode === coupon.code}
-              onCopy={() => copyCode(coupon.code)}
+              onCopy={() => coupon.code && copyCode(coupon.code)}
             />
           ))}
         </div>

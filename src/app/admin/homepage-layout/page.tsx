@@ -27,7 +27,7 @@ async function getSectionCounts(): Promise<SectionCounts> {
     budget: { value: data.budgetTiers.length, noun: "tier", nounPlural: "tiers" },
     free_gifts: { value: data.freeGiftsBanner ? 1 : 0, noun: "banner", nounPlural: "banners" },
     new_arrivals: { value: data.newArrivals.length, noun: "product", nounPlural: "products" },
-    coupons: { value: data.activeDiscounts.length, noun: "coupon", nounPlural: "coupons" },
+    coupons: { value: data.activeDiscounts.length, noun: "offer", nounPlural: "offers" },
   };
 }
 

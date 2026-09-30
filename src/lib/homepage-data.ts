@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { getStorefrontOffers } from "@/lib/storefront-offers";
 import { Prisma } from "@prisma/client";
 import { syncHeroBannersFromStorage } from "@/lib/hero-banners";
 import { availabilityByProduct } from "@/modules/inventory";
@@ -188,17 +189,13 @@ export async function getTrustBadgeSettings() {
   );
 }
 
+/**
+ * The offers band: live offers marked "Show in the storefront's offers",
+ * from the same source checkout prices against.
+ */
 export async function getActiveDiscounts() {
-  const now = new Date();
-
-  return prisma.discount.findMany({
-    where: {
-      isActive: true,
-      startDate: { lte: now },
-      endDate: { gte: now },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const { offers } = await getStorefrontOffers();
+  return offers;
 }
 
 export async function getHomePageSections() {

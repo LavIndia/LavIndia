@@ -59,7 +59,9 @@ import {
   tagLimitedStyle,
   tagBestSellerStyle,
   tagNewArrivalStyle,
+  offerBadgeStyle,
 } from "./product-card.styles";
+import { useOfferBadge } from "@/components/offers/useOfferBadge";
 
 export function ProductCard({
   id,
@@ -75,6 +77,9 @@ export function ProductCard({
   isWishlisted = false,
   stock = 0,
 }: ProductCardProps) {
+  // The live offer this piece is part of, if any — the same offers the cart
+  // applies, so the promise on the card is one checkout keeps.
+  const offerBadge = useOfferBadge(id);
   const tag = isLimitedEdition
     ? { label: "Limited Edition", style: tagLimitedStyle }
     : isBestSeller
@@ -221,6 +226,7 @@ export function ProductCard({
             shine
           />
         </div>
+        {offerBadge && <div className={offerBadgeStyle}>{offerBadge}</div>}
         {stock > 0 && stock <= 10 && (
           <div className={lowStockStyle}>Only {stock} left in stock!</div>
         )}

@@ -105,3 +105,4 @@ export {
   removeUnusedBatchCodes,
   type CodeBatchSummary,
 } from "./codes";
+export { isLive } from "./engine/eligibility";

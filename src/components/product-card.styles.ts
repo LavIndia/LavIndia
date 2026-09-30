@@ -188,3 +188,20 @@ export const tagNewArrivalStyle = css({
   border: "1px solid",
   borderColor: "border.glass",
 });
+
+/** The live offer a piece belongs to, under its price — "3 for ₹999". */
+export const offerBadgeStyle = css({
+  alignSelf: "flex-start",
+  fontSize: "xs",
+  fontWeight: "semibold",
+  letterSpacing: "0.02em",
+  color: "gold.700",
+  background: "gold.50",
+  border: "1px solid",
+  borderColor: "gold.200",
+  borderRadius: "full",
+  paddingInline: "2.5",
+  paddingBlock: "0.5",
+  fontVariantNumeric: "lining-nums",
+  _dark: { color: "gold.200", background: "transparent", borderColor: "gold.700" },
+});

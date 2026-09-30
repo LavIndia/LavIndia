@@ -113,9 +113,10 @@ const iconStyle = css({ width: "4", height: "4" });
 export interface CouponCardProps {
   title: string;
   description: string | null;
-  code: string;
-  /** The saving, already formatted — "20%" or "₹500". */
-  saving: string;
+  /** Null for an offer that applies by itself, with nothing to type. */
+  code: string | null;
+  /** The stub's two lines — "20%" / "Off", "3 for" / "₹999". */
+  stub: [string, string];
   /** Qualifiers and expiry, already worded; empty when there are none. */
   meta: string | null;
   copied: boolean;
@@ -126,21 +127,20 @@ export function CouponCard({
   title,
   description,
   code,
-  saving,
+  stub,
   meta,
   copied,
   onCopy,
 }: CouponCardProps) {
+  const Wrapper = code ? "button" : "div";
   return (
-    <button
-      type="button"
+    <Wrapper
+      {...(code ? { type: "button" as const, onClick: onCopy, "aria-label": `Copy offer code ${code}` } : {})}
       className={cardStyle}
-      onClick={onCopy}
-      aria-label={`Copy coupon code ${code}`}
     >
       <span className={stubStyle}>
-        <span className={stubValueStyle}>{saving}</span>
-        <span className={stubLabelStyle}>Off</span>
+        <span className={stubValueStyle}>{stub[0]}</span>
+        <span className={stubLabelStyle}>{stub[1]}</span>
       </span>
       <span className={perforationStyle} />
 
@@ -149,17 +149,23 @@ export function CouponCard({
           <span className={titleStyle}>{title}</span>
           {/* Each line is dropped rather than shown empty. */}
           {description && <span className={descriptionStyle}>{description}</span>}
-          <span className={codeRowStyle}>
-            <span className={codeStyle}>{code}</span>
-            <span className={copyHintStyle}>{copied ? "Copied" : "Tap to copy"}</span>
-          </span>
+          {code ? (
+            <span className={codeRowStyle}>
+              <span className={codeStyle}>{code}</span>
+              <span className={copyHintStyle}>{copied ? "Copied" : "Tap to copy"}</span>
+            </span>
+          ) : (
+            <span className={copyHintStyle}>Applied automatically — no code needed</span>
+          )}
           {meta && <span className={metaStyle}>{meta}</span>}
         </span>
 
-        <span className={cx(iconWrapStyle, copied && iconCopiedStyle)} aria-hidden="true">
-          {copied ? <Check className={iconStyle} /> : <Copy className={iconStyle} />}
-        </span>
+        {code && (
+          <span className={cx(iconWrapStyle, copied && iconCopiedStyle)} aria-hidden="true">
+            {copied ? <Check className={iconStyle} /> : <Copy className={iconStyle} />}
+          </span>
+        )}
       </span>
-    </button>
+    </Wrapper>
   );
 }
