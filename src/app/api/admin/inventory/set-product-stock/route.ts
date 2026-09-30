@@ -19,6 +19,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { createAuditLog } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { inventoryService } from "@/modules/inventory";
+import { withdrawSoldOutRetiredProducts } from "@/modules/catalog";
 import { VariantId } from "@/modules/_shared/ids";
 import { DomainError } from "@/modules/_shared/errors";
 
@@ -78,6 +79,10 @@ export const POST = apiHandler(async (req: NextRequest) => {
     metadata: { productName: product.name, from: current, to: input.quantity, reason },
   });
 
+  // A retired piece counted or written down to nothing leaves the storefront.
+  await withdrawSoldOutRetiredProducts(prisma, {
+    variantIds: movements.map((m) => m.variantId),
+  });
   revalidateStockViews();
   return NextResponse.json({
     success: true,

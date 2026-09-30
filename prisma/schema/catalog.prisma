@@ -67,6 +67,16 @@ model Product {
   isFeatured       Boolean  @default(false)
   isLimitedEdition Boolean  @default(false)
   isPublished      Boolean  @default(false)
+  /// When the shop decided never to stock this piece again. Null while it is
+  /// part of the range.
+  ///
+  /// Retiring is not hiding. What is already on the shelf keeps selling, on
+  /// the counter and online, until it runs out; what changes is that no new
+  /// stock may be received, the piece no longer raises a Low-stock alert, and
+  /// the moment its last unit sells it is taken off the storefront by itself.
+  /// A timestamp rather than a flag, because "retired in March" is a question
+  /// the shop asks when reviewing the range.
+  retiredAt        DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -191,7 +201,7 @@ model Collection {
 model ProductCollection {
   productId    String
   collectionId String
-  product      Product    @relation(fields: [productId], references: [id])
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
   collection   Collection @relation(fields: [collectionId], references: [id])
 
   @@id([productId, collectionId])

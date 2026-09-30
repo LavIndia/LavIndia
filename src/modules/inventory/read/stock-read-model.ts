@@ -41,6 +41,8 @@ export interface StockRow {
   barcode: string | null;
   /** The level at or below which this line is flagged Low stock. */
   reorderPoint: number;
+  /** Never to be restocked, so it is never flagged Low stock. */
+  isRetired: boolean;
   imageUrl: string | null;
   priceCents: number;
   locationId: string;
@@ -70,9 +72,11 @@ export interface StockPage {
 
 export const STOCK_PAGE_SIZE = 25;
 
-function statusFor(available: number, reorderPoint: number): StockStatus {
+// A retired piece is never Low stock: it will not be reordered, so running
+// down is exactly what is meant to happen to it.
+function statusFor(available: number, reorderPoint: number, isRetired: boolean): StockStatus {
   if (available <= 0) return "OUT_OF_STOCK";
-  if (available <= reorderPoint) return "LOW_STOCK";
+  if (available <= reorderPoint && !isRetired) return "LOW_STOCK";
   return "IN_STOCK";
 }
 
@@ -86,9 +90,9 @@ function statusCondition(status: StockStatus): Prisma.Sql {
     case "OUT_OF_STOCK":
       return Prisma.sql`(lvl."quantity" - lvl."reservedQuantity") <= 0`;
     case "LOW_STOCK":
-      return Prisma.sql`(lvl."quantity" - lvl."reservedQuantity") > 0 AND (lvl."quantity" - lvl."reservedQuantity") <= v."reorderPoint"`;
+      return Prisma.sql`(lvl."quantity" - lvl."reservedQuantity") > 0 AND (lvl."quantity" - lvl."reservedQuantity") <= v."reorderPoint" AND p."retiredAt" IS NULL`;
     case "IN_STOCK":
-      return Prisma.sql`(lvl."quantity" - lvl."reservedQuantity") > v."reorderPoint"`;
+      return Prisma.sql`((lvl."quantity" - lvl."reservedQuantity") > v."reorderPoint" OR (p."retiredAt" IS NOT NULL AND (lvl."quantity" - lvl."reservedQuantity") > 0))`;
   }
 }
 
@@ -103,6 +107,7 @@ type RawStockRow = {
   barcode: string | null;
   /** The level at or below which this line is flagged Low stock. */
   reorderPoint: number;
+  isRetired: boolean;
   imageUrl: string | null;
   priceCents: number;
   locationId: string;
@@ -162,6 +167,7 @@ export async function queryStock(query: StockQuery): Promise<StockPage> {
       v."sku"         AS "sku",
       v."barcode"     AS "barcode",
       v."reorderPoint" AS "reorderPoint",
+      (p."retiredAt" IS NOT NULL) AS "isRetired",
       COALESCE(v."priceCents", p."priceCents") AS "priceCents",
       loc."id"        AS "locationId",
       loc."name"      AS "locationName",
@@ -207,6 +213,7 @@ export async function queryStock(query: StockQuery): Promise<StockPage> {
         sku: row.sku ? Sku(row.sku) : null,
         barcode: row.barcode ? Barcode(row.barcode) : null,
         reorderPoint: row.reorderPoint,
+        isRetired: row.isRetired,
         imageUrl: row.imageUrl,
         priceCents: row.priceCents,
         locationId: LocationId(row.locationId),
@@ -214,7 +221,7 @@ export async function queryStock(query: StockQuery): Promise<StockPage> {
         quantity: row.quantity,
         reservedQuantity: row.reservedQuantity,
         available,
-        status: statusFor(available, row.reorderPoint),
+        status: statusFor(available, row.reorderPoint, row.isRetired),
       };
     }),
     page,
@@ -239,13 +246,16 @@ export async function queryStockSummary(
     { inStock: bigint; lowStock: bigint; outOfStock: bigint; totalUnits: bigint | null }[]
   >(Prisma.sql`
     SELECT
-      COUNT(*) FILTER (WHERE (lvl."quantity" - lvl."reservedQuantity") > v."reorderPoint") AS "inStock",
+      COUNT(*) FILTER (WHERE (lvl."quantity" - lvl."reservedQuantity") > v."reorderPoint"
+                          OR (p."retiredAt" IS NOT NULL AND (lvl."quantity" - lvl."reservedQuantity") > 0)) AS "inStock",
       COUNT(*) FILTER (WHERE (lvl."quantity" - lvl."reservedQuantity") > 0
-                         AND (lvl."quantity" - lvl."reservedQuantity") <= v."reorderPoint") AS "lowStock",
+                         AND (lvl."quantity" - lvl."reservedQuantity") <= v."reorderPoint"
+                         AND p."retiredAt" IS NULL) AS "lowStock",
       COUNT(*) FILTER (WHERE (lvl."quantity" - lvl."reservedQuantity") <= 0) AS "outOfStock",
       SUM(lvl."quantity") AS "totalUnits"
     FROM "inventory_levels" lvl
     JOIN "product_variants" v ON v."id" = lvl."variantId"
+    JOIN "products" p ON p."id" = v."productId"
     ${where}
   `);
 

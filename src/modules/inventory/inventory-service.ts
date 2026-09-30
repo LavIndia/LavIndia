@@ -227,7 +227,7 @@ class InventoryService implements InventoryPort {
         if (alreadyApplied) {
           records.push({
             ...alreadyApplied,
-            variantId: VariantId(alreadyApplied.variantId),
+            variantId: line.variantId,
             locationId: LocationId(alreadyApplied.locationId),
           });
           continue;
@@ -273,7 +273,7 @@ class InventoryService implements InventoryPort {
 
       records.push({
         ...movement,
-        variantId: VariantId(movement.variantId),
+        variantId: line.variantId,
         locationId: LocationId(movement.locationId),
       });
     }

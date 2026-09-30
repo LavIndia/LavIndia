@@ -94,6 +94,9 @@ export function ProductForm({ product, categories, stockByVariant = {} }: Produc
         readyToPublish={form.readyToPublish}
         formData={form.formData}
         onChange={form.handleChange}
+        retirement={
+          product ? { productId: product.id, retiredAt: product.retiredAt ?? null } : undefined
+        }
       />
 
       <FormErrorDialog error={form.error} onClose={form.clearError} />

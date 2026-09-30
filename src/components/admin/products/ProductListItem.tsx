@@ -6,11 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { ImageLightbox } from "@/components/ui/image-lightbox";
 import { Pencil, Trash2, Plus, Minus } from "lucide-react";
 import { css } from "styled-system/css";
+import { ProductStatusControl } from "./ProductStatusControl";
 
 export interface ProductListItemProduct {
   id: string;
@@ -20,6 +20,10 @@ export interface ProductListItemProduct {
   compareAtCents: number | null;
   stock: number;
   isPublished: boolean;
+  /** Set when the shop has decided never to stock the piece again. */
+  retiredAt?: Date | null;
+  /** Order lines that mention the product — decides what Delete offers. */
+  orderLineCount?: number;
   createdAt: Date;
   category: {
     id: string;
@@ -169,17 +173,11 @@ export function ProductTableRow({
         </div>
       </TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
-        <div className={css({ display: "flex", alignItems: "center", gap: "2" })}>
-          <Switch
-            checked={product.isPublished}
-            onCheckedChange={() => onTogglePublished(product)}
-            disabled={togglingPublishedId === product.id}
-            aria-label={product.isPublished ? `Move ${product.name} to draft` : `Publish ${product.name}`}
-          />
-          <span className={css({ fontSize: "sm", color: product.isPublished ? "fg.default" : "fg.muted" })}>
-            {product.isPublished ? "Published" : "Draft"}
-          </span>
-        </div>
+        <ProductStatusControl
+          product={product}
+          onTogglePublished={() => onTogglePublished(product)}
+          togglingPublishedId={togglingPublishedId}
+        />
       </TableCell>
       <TableCell className={css({ textAlign: "right" })} onClick={(e) => e.stopPropagation()}>
         <div className={css({ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "2" })}>
@@ -354,20 +352,11 @@ export function ProductMobileCard({
             {product.stock > 10 ? "In Stock" : product.stock > 0 ? "Low" : "Out"}
           </Badge>
         </div>
-        <div
-          className={css({ display: "flex", alignItems: "center", gap: "2" })}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Switch
-            checked={product.isPublished}
-            onCheckedChange={() => onTogglePublished(product)}
-            disabled={togglingPublishedId === product.id}
-            aria-label={product.isPublished ? `Move ${product.name} to draft` : `Publish ${product.name}`}
-          />
-          <span className={css({ fontSize: "sm", color: product.isPublished ? "fg.default" : "fg.muted" })}>
-            {product.isPublished ? "Published" : "Draft"}
-          </span>
-        </div>
+        <ProductStatusControl
+          product={product}
+          onTogglePublished={() => onTogglePublished(product)}
+          togglingPublishedId={togglingPublishedId}
+        />
       </div>
     </div>
   );

@@ -161,15 +161,18 @@ async function exportAnalytics() {
 
   orders.forEach((order) => {
     order.items.forEach((item) => {
-      if (!productSales[item.productId]) {
-        productSales[item.productId] = {
+      // Lines of a deleted product have no id any more; group them by the
+      // name they were sold under instead.
+      const key = item.productId ?? `deleted:${item.name}`;
+      if (!productSales[key]) {
+        productSales[key] = {
           name: item.name,
           quantity: 0,
           revenue: 0,
         };
       }
-      productSales[item.productId].quantity += item.quantity;
-      productSales[item.productId].revenue += item.priceCents * item.quantity;
+      productSales[key].quantity += item.quantity;
+      productSales[key].revenue += item.priceCents * item.quantity;
     });
   });
 

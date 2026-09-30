@@ -91,7 +91,9 @@ async function getAnalytics() {
       }),
     ]);
 
-  const productIds = topProducts.map((item) => item.productId);
+  // A line whose product has since been deleted has no product id; it still
+  // ranks by its snapshot name, it just has no image to show.
+  const productIds = topProducts.flatMap((item) => (item.productId ? [item.productId] : []));
   const images = productIds.length
     ? await prisma.productImage.findMany({
         where: { productId: { in: productIds }, variantId: null },
@@ -113,7 +115,7 @@ async function getAnalytics() {
       name: item.name,
       quantitySold: item._sum.quantity || 0,
       revenue: item._sum.priceCents || 0,
-      image: imageByProductId.get(item.productId) ?? null,
+      image: item.productId ? (imageByProductId.get(item.productId) ?? null) : null,
     })),
   };
 }

@@ -75,7 +75,7 @@ async function coPurchasedIds(productId: string, limit: number): Promise<string[
     take: limit * 2,
   });
 
-  return grouped.map((row) => row.productId);
+  return grouped.flatMap((row) => (row.productId ? [row.productId] : []));
 }
 
 /**

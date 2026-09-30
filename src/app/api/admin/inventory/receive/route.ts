@@ -11,6 +11,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { requireAdmin } from "@/lib/require-admin";
 import { createAuditLog } from "@/lib/audit";
 import { inventoryService } from "@/modules/inventory";
+import { assertNoneRetired } from "@/modules/catalog";
 import { LocationId, VariantId } from "@/modules/_shared/ids";
 
 const receiveSchema = z.object({
@@ -43,6 +44,8 @@ const receiveSchema = z.object({
 export const POST = apiHandler(async (req: NextRequest) => {
   const actor = await requireAdmin("inventory:write");
   const input = receiveSchema.parse(await req.json());
+  // A retired piece is one the shop has decided never to buy again.
+  await assertNoneRetired(input.lines.map((line) => line.variantId));
 
   const movements = await inventoryService.receive(
     input.lines.map((line) => ({

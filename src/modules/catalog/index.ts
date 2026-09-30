@@ -12,6 +12,13 @@ export type {
   SellableVariant,
 } from "./contracts";
 export { catalogService } from "./catalog-service";
+export type { ProductDeletion } from "./products/product-lifecycle";
+export {
+  assertNoneRetired,
+  deleteProduct,
+  setProductRetired,
+  withdrawSoldOutRetiredProducts,
+} from "./products/product-lifecycle";
 export { formatSku, formatBarcode, allocateIdentifiers } from "./variants/identifiers";
 export type {
   CatalogAttribute,

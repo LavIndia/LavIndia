@@ -16,6 +16,7 @@ import {
   sidebarColumnStyle,
 } from "@/components/admin/products/product-form.styles";
 import { css, cx } from "styled-system/css";
+import { ProductRetirementCard } from "./ProductRetirementCard";
 
 /**
  * The publish checklist and the product's visibility switches.
@@ -47,6 +48,8 @@ export interface ProductStatusSidebarProps {
   readyToPublish: boolean;
   formData: ProductFormData;
   onChange: (field: string, value: string | boolean) => void;
+  /** Present only for a saved product — a draft cannot be retired. */
+  retirement?: { productId: string; retiredAt: Date | string | null };
 }
 
 export function ProductStatusSidebar({
@@ -54,6 +57,7 @@ export function ProductStatusSidebar({
   readyToPublish,
   formData,
   onChange,
+  retirement,
 }: ProductStatusSidebarProps) {
   return (
     <div className={sidebarColumnStyle}>
@@ -129,6 +133,14 @@ export function ProductStatusSidebar({
           </div>
         </CardContent>
       </Card>
+
+      {retirement && (
+        <ProductRetirementCard
+          productId={retirement.productId}
+          retiredAt={retirement.retiredAt}
+          onPublishedChange={(isPublished) => onChange("isPublished", isPublished)}
+        />
+      )}
     </div>
   );
 }

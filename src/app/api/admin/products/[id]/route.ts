@@ -4,7 +4,8 @@ import { auth } from "@/lib/auth";
 import { removePublicAsset } from "@/lib/imagekit-admin";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { enforceVariantInvariants } from "@/modules/catalog";
+import { deleteProduct, enforceVariantInvariants, setProductRetired } from "@/modules/catalog";
+import { isDomainError, toErrorResponse } from "@/modules/_shared/errors";
 import { VariantHasStockError } from "@/lib/product-variant-guards";
 import { applyImageEdits, applyVariantEdits } from "@/lib/product-edit";
 
@@ -48,6 +49,9 @@ const productUpdateSchema = z.object({
   isFeatured: z.boolean().optional(),
   isLimitedEdition: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  // Retire (true) or reinstate (false). Stored as a timestamp, so it is
+  // applied through the catalog rather than written as a column value.
+  retired: z.boolean().optional(),
   // When present, the whole images/variants set is diffed against what's
   // in the DB and applied in one transaction — see PATCH below. This is
   // what lets the admin form save a full product edit as a single request
@@ -109,7 +113,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { images, variants, ...productFields } =
+    const { images, variants, retired, ...productFields } =
       productUpdateSchema.parse(body);
 
     const { removedImageUrls } = await prisma.$transaction(
@@ -133,6 +137,10 @@ export async function PATCH(
       // once a product carries a realistic number of images and variants.
       { timeout: 20_000, maxWait: 10_000 },
     );
+
+    // After the edit commits, so a retirement that finds the piece sold out
+    // unpublishes it rather than being overwritten by the form's isPublished.
+    if (retired !== undefined) await setProductRetired(id, retired);
 
     // Clean up ImageKit assets for images that were removed, outside the
     // DB transaction since this is an external network call.
@@ -174,7 +182,10 @@ export async function PATCH(
         entityId: product.id,
         metadata: {
           productName: product.name,
-          changes: Object.keys(productFields),
+          changes: [
+            ...Object.keys(productFields),
+            ...(retired !== undefined ? [retired ? "retired" : "reinstated"] : []),
+          ],
         },
       },
     });
@@ -203,6 +214,12 @@ export async function PATCH(
 }
 
 // DELETE /api/admin/products/[id] - Delete product
+//
+// A product that has been sold is only deleted with `?force=1`. Without it
+// the request is refused with PRODUCT_HAS_ORDERS and the number of order
+// lines, so the admin screen can offer Retire as the gentler alternative.
+// Either way every order, invoice and stock movement that mentions the
+// product is kept — see catalog/products/product-lifecycle.ts.
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -215,44 +232,14 @@ export async function DELETE(
     }
 
     const { id } = await params;
+    const force = req.nextUrl.searchParams.get("force") === "1";
 
-    const product = await prisma.product.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        images: { select: { url: true } },
-        _count: { select: { orderItems: true } },
-      },
-    });
-
-    if (!product) {
-      return NextResponse.json({ error: "Product not found" }, { status: 404 });
-    }
-
-    if (product._count.orderItems > 0) {
-      await prisma.product.update({
-        where: { id },
-        data: { isActive: false, isPublished: false },
-      });
-
-      revalidateTag("products");
-      revalidateTag("homepage");
-
-      return NextResponse.json({
-        archived: true,
-        message: "Product archived because it has existing orders",
-      });
-    }
-
-    await prisma.product.delete({
-      where: { id },
-    });
+    const deletion = await deleteProduct(id, { force });
 
     const assetCleanup = await Promise.allSettled(
-      product.images
-        .filter((image) => image.url.startsWith("/assets/"))
-        .map((image) => removePublicAsset(image.url)),
+      deletion.imageUrls
+        .filter((url) => url.startsWith("/assets/"))
+        .map((url) => removePublicAsset(url)),
     );
     assetCleanup
       .filter(
@@ -273,8 +260,12 @@ export async function DELETE(
           adminName: session.user.name || undefined,
           action: "DELETE",
           entity: "Product",
-          entityId: product.id,
-          metadata: { productName: product.name },
+          entityId: deletion.productId,
+          metadata: {
+            productName: deletion.productName,
+            forced: force,
+            orderLinesKept: deletion.orderLineCount,
+          },
         },
       });
     } catch (auditError) {
@@ -287,8 +278,15 @@ export async function DELETE(
     revalidateTag("products");
     revalidateTag("homepage");
 
-    return NextResponse.json({ message: "Product deleted successfully" });
+    return NextResponse.json({
+      message: "Product deleted successfully",
+      orderLinesKept: deletion.orderLineCount,
+    });
   } catch (error) {
+    if (isDomainError(error)) {
+      const { body, status } = toErrorResponse(error);
+      return NextResponse.json(body, { status });
+    }
     console.error("Error deleting product:", error);
     return NextResponse.json(
       { error: "Failed to delete product" },

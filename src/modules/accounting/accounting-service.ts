@@ -157,7 +157,10 @@ class AccountingService {
     const costedRevenue = new Map<string, number>();
 
     for (const line of lines) {
-      const entry = byProduct.get(line.productId) ?? {
+      // A deleted product's lines carry no id; they are grouped under the
+      // name they were sold as, so their margin still counts.
+      const key = line.productId ?? `deleted:${line.name}`;
+      const entry = byProduct.get(key) ?? {
         productId: line.productId,
         name: line.name,
         unitsSold: 0,
@@ -176,17 +179,14 @@ class AccountingService {
         entry.costCents += line.unitCostCents * line.quantity;
         // Tracked alongside the cost so margin is stated against the revenue
         // it was actually earned on, not against lines with no cost.
-        costedRevenue.set(
-          line.productId,
-          (costedRevenue.get(line.productId) ?? 0) + line.priceCents * line.quantity,
-        );
+        costedRevenue.set(key, (costedRevenue.get(key) ?? 0) + line.priceCents * line.quantity);
       }
 
-      byProduct.set(line.productId, entry);
+      byProduct.set(key, entry);
     }
 
-    for (const entry of byProduct.values()) {
-      const earned = costedRevenue.get(entry.productId) ?? 0;
+    for (const [key, entry] of byProduct) {
+      const earned = costedRevenue.get(key) ?? 0;
       if (earned === 0) {
         entry.profitCents = null;
         entry.marginPercent = null;

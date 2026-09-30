@@ -21,7 +21,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 
 interface Product {
-  productId: string;
+  /** Null when the product has since been deleted from the catalog. */
+  productId: string | null;
   name: string;
   quantitySold: number;
   revenue: number;
@@ -94,9 +95,11 @@ export function TopProducts({ products }: { products: Product[] }) {
               ) : (
                 products.map((product, index) => (
                   <TableRow
-                    key={product.productId}
-                    onClick={() => router.push(`/admin/products/${product.productId}/edit`)}
-                    className={css({ cursor: "pointer" })}
+                    key={product.productId ?? `deleted:${product.name}`}
+                    onClick={() =>
+                      product.productId && router.push(`/admin/products/${product.productId}/edit`)
+                    }
+                    className={css({ cursor: product.productId ? "pointer" : "default" })}
                   >
                     <TableCell>
                       <Badge variant={index === 0 ? "default" : "outline"}>

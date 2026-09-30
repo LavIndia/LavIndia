@@ -27,7 +27,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ChevronLeft, ChevronRight, Loader2, Search, ExternalLink, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Search, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { css } from "styled-system/css";
 import {
@@ -38,6 +38,7 @@ import {
 import { useProductStockEditor } from "@/components/admin/products/useProductStockEditor";
 import { useProductPublishToggle } from "@/components/admin/products/useProductPublishToggle";
 import Link from "next/link";
+import { ProductDeleteDialog } from "@/components/admin/products/ProductDeleteDialogs";
 
 interface CategoryProductsDialogProps {
   category: { id: string; name: string } | null;
@@ -55,7 +56,6 @@ export function CategoryProductsDialog({ category, onOpenChange }: CategoryProdu
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ totalCount: 0, totalPages: 1, pageSize: 20 });
   const [deleteTarget, setDeleteTarget] = useState<ProductListItemProduct | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const {
     editingStock,
     handleStockChange,
@@ -109,29 +109,6 @@ export function CategoryProductsDialog({ category, onOpenChange }: CategoryProdu
   const handleSearchSubmit = () => {
     setPage(1);
     fetchProducts();
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/admin/products/${deleteTarget.id}`, { method: "DELETE" });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to delete");
-
-      toast.success(
-        result.archived
-          ? "Product archived because it has existing orders"
-          : "Product deleted successfully",
-      );
-      setDeleteTarget(null);
-      await fetchProducts();
-      router.refresh();
-    } catch {
-      toast.error("Failed to delete product");
-    } finally {
-      setDeleting(false);
-    }
   };
 
   return (
@@ -329,28 +306,15 @@ export function CategoryProductsDialog({ category, onOpenChange }: CategoryProdu
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete product?</DialogTitle>
-            <DialogDescription>
-              {deleteTarget
-                ? `"${deleteTarget.name}" will be permanently deleted, unless it has existing orders in which case it will be archived instead. This cannot be undone.`
-                : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
-              {deleting && <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />}
-              <Trash2 className={css({ height: "4", width: "4" })} />
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProductDeleteDialog
+        product={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDone={async () => {
+          setDeleteTarget(null);
+          await fetchProducts();
+          router.refresh();
+        }}
+      />
     </>
   );
 }

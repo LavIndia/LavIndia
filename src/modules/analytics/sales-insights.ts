@@ -192,6 +192,8 @@ export async function getSalesInsights(periodValue: string): Promise<SalesInsigh
         JOIN "product_variants" v ON v."id" = l."variantId"
         JOIN "products" p         ON p."id" = v."productId"
         WHERE (l."quantity" - l."reservedQuantity") <= v."reorderPoint"
+          -- A retired piece will never be reordered, so running out is expected.
+          AND p."retiredAt" IS NULL
         ORDER BY (l."quantity" - l."reservedQuantity") ASC, p."name" ASC
         LIMIT 12`,
 

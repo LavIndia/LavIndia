@@ -81,7 +81,13 @@ model Order {
 model OrderItem {
   id         String  @id @default(cuid())
   orderId    String
-  productId  String
+  /// Null once the product has been deleted from the catalog.
+  ///
+  /// The line itself is never removed with it: an order is a record of what
+  /// was sold, and the name, SKU, price and cost below are snapshots taken at
+  /// the moment of sale precisely so the line still reads correctly — on the
+  /// invoice, in the accounts — after the product is gone.
+  productId  String?
   variantId  String?
   quantity   Int
   // The price actually charged per unit (after any POS override/discount).
@@ -111,8 +117,8 @@ model OrderItem {
   overrideReason    String?
   overriddenBy      String?
 
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   @@map("order_items")

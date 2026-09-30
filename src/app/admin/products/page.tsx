@@ -63,6 +63,9 @@ async function getProducts(searchParams: {
           where: { isPrimary: true },
           take: 1,
         },
+        // Counted in the same query, so the Delete dialog can say up front
+        // whether the piece has been sold.
+        _count: { select: { orderItems: true } },
       },
       ...(grouped ? {} : { skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     }),
@@ -72,8 +75,9 @@ async function getProducts(searchParams: {
   // Stock comes from the Inventory domain. The deprecated Product.stock
   // column is no longer maintained, so reading it showed every row as Out.
   const availability = await availabilityByProduct(products.map((p) => p.id));
-  const withStock = products.map((product) => ({
+  const withStock = products.map(({ _count, ...product }) => ({
     ...product,
+    orderLineCount: _count.orderItems,
     stock: availability.get(product.id)?.available ?? 0,
   }));
   if (sortByStock) {

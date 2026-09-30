@@ -19,6 +19,7 @@ async function getCustomers() {
             select: {
               priceCents: true,
               quantity: true,
+              catalogPriceCents: true,
               product: {
                 select: {
                   priceCents: true,
@@ -64,8 +65,10 @@ async function getCustomers() {
 
     const totalDiscount = completedOrders.reduce((sum, order) => {
       const orderDiscount = order.items.reduce((itemSum, item) => {
-        const comparePrice =
-          item.product.compareAtCents || item.product.priceCents;
+        // A deleted product leaves only the list price snapshotted on the line.
+        const comparePrice = item.product
+          ? item.product.compareAtCents || item.product.priceCents
+          : (item.catalogPriceCents ?? item.priceCents);
         const discount = (comparePrice - item.priceCents) * item.quantity;
         return itemSum + (discount > 0 ? discount : 0);
       }, 0);

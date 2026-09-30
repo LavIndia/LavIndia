@@ -80,6 +80,8 @@ export interface Product {
   isPublished: boolean;
   isFeatured: boolean;
   isLimitedEdition: boolean;
+  /** Set when the shop has decided never to stock the piece again. */
+  retiredAt?: Date | string | null;
   images: StoredProductImage[];
   variants: Omit<ProductVariant, "clientId">[];
 }

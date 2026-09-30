@@ -14,14 +14,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -29,6 +21,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { BulkDeleteDialog, ProductDeleteDialog } from "./ProductDeleteDialogs";
 import { ProductsFilterBar } from "@/components/admin/products/ProductsFilterBar";
 import { css } from "styled-system/css";
 import {
@@ -84,7 +77,6 @@ export function ProductsTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [bulkWorking, setBulkWorking] = useState(false);
 
   const applyFilters = (
@@ -153,36 +145,6 @@ export function ProductsTable({
     applyFilters(search, undefined, undefined);
   };
 
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    try {
-      const res = await fetch(`/api/admin/products/${deleteTarget.id}`, {
-        method: "DELETE",
-      });
-
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to delete");
-
-      toast.success(
-        result.archived
-          ? "Product archived because it has existing orders"
-          : "Product deleted successfully",
-      );
-      setSelected((prev) => {
-        const next = new Set(prev);
-        next.delete(deleteTarget.id);
-        return next;
-      });
-      setDeleteTarget(null);
-      router.refresh();
-    } catch {
-      toast.error("Failed to delete product");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const toggleSelected = (id: string, isSelected: boolean) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -199,36 +161,6 @@ export function ProductsTable({
   const selectedCount = selected.size;
   const allSelected = products.length > 0 && selectedCount === products.length;
   const someSelected = selectedCount > 0 && !allSelected;
-
-  const confirmBulkDelete = async () => {
-    setBulkWorking(true);
-    try {
-      const ids = Array.from(selected);
-      const results = await Promise.allSettled(
-        ids.map((id) =>
-          fetch(`/api/admin/products/${id}`, { method: "DELETE" }).then(
-            (res) => {
-              if (!res.ok) throw new Error(`Failed to delete ${id}`);
-              return res;
-            },
-          ),
-        ),
-      );
-      const failed = results.filter((r) => r.status === "rejected").length;
-      if (failed > 0) {
-        toast.error(`${failed} of ${ids.length} products failed to delete`);
-      } else {
-        toast.success(`${ids.length} products deleted`);
-      }
-      setSelected(new Set());
-      setBulkDeleteOpen(false);
-      router.refresh();
-    } catch {
-      toast.error("Failed to delete selected products");
-    } finally {
-      setBulkWorking(false);
-    }
-  };
 
   const bulkSetPublished = async (isPublished: boolean) => {
     setBulkWorking(true);
@@ -528,50 +460,32 @@ export function ProductsTable({
         </div>
       )}
 
-      {/* Delete confirm dialog (single product) */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete product?</DialogTitle>
-            <DialogDescription>
-              {deleteTarget
-                ? `"${deleteTarget.name}" will be permanently deleted, unless it has existing orders in which case it will be archived instead. This cannot be undone.`
-                : ""}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
-              {deleting && <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />}
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProductDeleteDialog
+        product={deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onDone={(deletedId) => {
+          if (deletedId) {
+            setSelected((prev) => {
+              const next = new Set(prev);
+              next.delete(deletedId);
+              return next;
+            });
+          }
+          setDeleteTarget(null);
+          router.refresh();
+        }}
+      />
 
-      {/* Bulk delete confirm dialog */}
-      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete {selectedCount} products?</DialogTitle>
-            <DialogDescription>
-              Products with existing orders will be archived instead of deleted. This cannot be
-              undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkDeleteOpen(false)} disabled={bulkWorking}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={confirmBulkDelete} disabled={bulkWorking}>
-              {bulkWorking && <Loader2 className={css({ height: "4", width: "4", animation: "spin" })} />}
-              Delete {selectedCount}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BulkDeleteDialog
+        open={bulkDeleteOpen}
+        products={products.filter((p) => selected.has(p.id))}
+        onClose={() => setBulkDeleteOpen(false)}
+        onDone={() => {
+          setSelected(new Set());
+          setBulkDeleteOpen(false);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

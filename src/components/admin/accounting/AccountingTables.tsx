@@ -93,11 +93,15 @@ export function ProductMarginTable({ rows }: { rows: ProductMargin[] }) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.productId}>
+            <tr key={row.productId ?? `deleted:${row.name}`}>
               <td className={tdStyle}>
-                <Link href={`/admin/products/${row.productId}/edit`} className={nameStyle}>
-                  {row.name}
-                </Link>
+                {row.productId ? (
+                  <Link href={`/admin/products/${row.productId}/edit`} className={nameStyle}>
+                    {row.name}
+                  </Link>
+                ) : (
+                  <span className={nameStyle}>{row.name}</span>
+                )}
                 {/* Said plainly rather than shown as an asterisk: a profit
                     figure missing some of its costs is worth knowing about. */}
                 {row.partial && (

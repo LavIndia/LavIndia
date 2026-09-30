@@ -55,7 +55,8 @@ export interface AccountingSummary {
 
 /** One product's contribution, for the ranked tables. */
 export interface ProductMargin {
-  productId: string;
+  /** Null when the product has since been deleted from the catalog. */
+  productId: string | null;
   name: string;
   unitsSold: number;
   /** Everything this product took, across every line. */

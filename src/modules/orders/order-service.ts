@@ -12,7 +12,7 @@
 import { prisma, type Tx } from "../_shared/db";
 import { DomainError } from "../_shared/errors";
 import { OrderId, VariantId } from "../_shared/ids";
-import { catalogService } from "../catalog";
+import { catalogService, withdrawSoldOutRetiredProducts } from "../catalog";
 import { inventoryService } from "../inventory";
 import type { CreateOrderInput, CreatedOrder, OrdersPort } from "./contracts";
 import { priceLines, totalsFor } from "./pricing";
@@ -186,6 +186,10 @@ class OrderService implements OrdersPort {
       { referenceType: "ORDER", referenceId: order.id, actorId: input.actorId ?? "system" },
       client,
     );
+    // A retired piece that just sold its last unit leaves the storefront now.
+    await withdrawSoldOutRetiredProducts(client, {
+      variantIds: lines.map((line) => line.variantId),
+    });
 
     return {
       orderId: OrderId(order.id),

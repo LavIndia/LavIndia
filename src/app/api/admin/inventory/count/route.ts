@@ -17,6 +17,8 @@ import { apiHandler } from "@/lib/api-handler";
 import { requireAdmin } from "@/lib/require-admin";
 import { createAuditLog } from "@/lib/audit";
 import { inventoryService } from "@/modules/inventory";
+import { withdrawSoldOutRetiredProducts } from "@/modules/catalog";
+import { prisma } from "@/lib/prisma";
 import { LocationId, VariantId } from "@/modules/_shared/ids";
 import { COUNT_REASONS, reasonToMovementType, type CountReasonCode } from "@/modules/inventory/count-reasons";
 
@@ -66,6 +68,10 @@ export const POST = apiHandler(async (req: NextRequest) => {
     metadata: { from: current, to: input.countedQuantity, reason: reasonText },
   });
 
+  // A retired piece counted or written down to nothing leaves the storefront.
+  await withdrawSoldOutRetiredProducts(prisma, {
+    variantIds: movements.map((m) => m.variantId),
+  });
   revalidateStockViews();
   return NextResponse.json({
     success: true,

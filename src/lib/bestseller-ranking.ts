@@ -33,14 +33,15 @@ async function computeRanking(): Promise<BestsellerEntry[]> {
   // sale, and counting it would let an abandoned checkout promote a product.
   const rows = await prisma.orderItem.groupBy({
     by: ["productId"],
-    where: { order: { status: { not: "CANCELLED" } } },
+    // A deleted product cannot be recommended, so its lines are not ranked.
+    where: { productId: { not: null }, order: { status: { not: "CANCELLED" } } },
     _sum: { quantity: true },
     _count: { _all: true },
   });
 
   return rows
     .map((row) => ({
-      productId: row.productId,
+      productId: row.productId!,
       unitsSold: row._sum.quantity ?? 0,
       orderCount: row._count._all,
     }))

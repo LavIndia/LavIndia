@@ -21,7 +21,7 @@
 import { prisma, type Tx } from "../_shared/db";
 import { DomainError, InsufficientStockError } from "../_shared/errors";
 import { VariantId, type OrderId } from "../_shared/ids";
-import { catalogService } from "../catalog";
+import { catalogService, withdrawSoldOutRetiredProducts } from "../catalog";
 import { inventoryService } from "../inventory";
 
 export interface CheckoutLineInput {
@@ -141,6 +141,10 @@ class CheckoutService {
       },
       tx,
     );
+    // A retired piece that just sold its last unit leaves the storefront now.
+    await withdrawSoldOutRetiredProducts(tx ?? prisma, {
+      variantIds: lines.map((line) => line.variantId),
+    });
   }
 
   /**

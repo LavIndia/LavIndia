@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { checkoutService } from "@/modules/ecommerce";
+import { revalidateStockViews } from "@/lib/catalog-cache";
 import { billingService } from "@/modules/billing";
 import { OrderId } from "@/modules/_shared/ids";
 import { prisma as db } from "@/lib/prisma";
@@ -134,6 +135,10 @@ export async function POST(req: NextRequest) {
 
       await billingService.issueInvoiceForOrder(OrderId(orderId), undefined, tx);
     }, { timeout: 20_000 });
+
+    // Stock left the shelf with this payment; listings showing it as
+    // available — or a retired piece that has now sold out — must refresh.
+    revalidateStockViews();
 
     return NextResponse.json({
       success: true,

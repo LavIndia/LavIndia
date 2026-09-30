@@ -152,6 +152,7 @@ export function StockTable({
                         {!row.isDefaultVariant && (
                           <span className={metaStyle}>{row.variantName}</span>
                         )}
+                        {row.isRetired && <span className={metaStyle}>Retired · not restocked</span>}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -196,6 +197,7 @@ export function StockTable({
                       <span className={metaStyle}>{row.variantName}</span>
                     )}
                     {row.sku && <span className={metaStyle}>{row.sku}</span>}
+                    {row.isRetired && <span className={metaStyle}>Retired · not restocked</span>}
                   </div>
                   <StockStatusBadge status={row.status} />
                 </div>

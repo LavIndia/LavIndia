@@ -81,6 +81,7 @@ export async function queryMovements(query: MovementQuery): Promise<MovementPage
       v."barcode" = ${search}
       OR v."sku" = ${search}
       OR p."name" ILIKE ${like}
+      OR m."itemLabel" ILIKE ${like}
       OR o."orderNumber" ILIKE ${like}
     )`);
   }
@@ -97,8 +98,10 @@ export async function queryMovements(query: MovementQuery): Promise<MovementPage
       m."quantity"        AS "quantity",
       m."beforeQuantity"  AS "beforeQuantity",
       m."afterQuantity"   AS "afterQuantity",
-      p."name"            AS "productName",
-      v."name"            AS "variantName",
+      -- A movement whose product has been deleted has no variant to join;
+      -- the label written at deletion stands in for both names.
+      COALESCE(p."name", m."itemLabel", 'Deleted product') AS "productName",
+      COALESCE(v."name", '')                                AS "variantName",
       v."sku"             AS "sku",
       v."barcode"         AS "barcode",
       loc."name"          AS "locationName",
@@ -110,8 +113,8 @@ export async function queryMovements(query: MovementQuery): Promise<MovementPage
       u."name"            AS "createdByName",
       COUNT(*) OVER()     AS "totalCount"
     FROM "inventory_movements" m
-    JOIN "product_variants" v ON v."id" = m."variantId"
-    JOIN "products" p ON p."id" = v."productId"
+    LEFT JOIN "product_variants" v ON v."id" = m."variantId"
+    LEFT JOIN "products" p ON p."id" = v."productId"
     JOIN "inventory_locations" loc ON loc."id" = m."locationId"
     LEFT JOIN "orders" o ON m."referenceType" = 'ORDER' AND o."id" = m."referenceId"
     LEFT JOIN "users" u ON u."id" = m."createdBy"
