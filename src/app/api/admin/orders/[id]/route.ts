@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { BESTSELLERS_TAG } from "@/lib/bestseller-ranking";
+import { revalidatePromotions } from "@/lib/promotions-cache";
+import { countOrderRedemption, releaseOrderRedemption } from "@/modules/promotions";
 
 const orderUpdateSchema = z.object({
   status: z.enum([
@@ -33,14 +35,26 @@ export async function PATCH(
     const body = await req.json();
     const { status } = orderUpdateSchema.parse(body);
 
-    const order = await prisma.order.update({
-      where: { id },
-      data: { status },
-      include: {
-        user: true,
-        items: true,
-      },
+    // A cancelled or refunded order gives its offer uses back; one brought
+    // back from cancellation takes them again. Both are once-only.
+    const order = await prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id },
+        data: { status },
+        include: { user: true, items: true },
+      });
+      if (status === "CANCELLED" || status === "REFUNDED") {
+        await releaseOrderRedemption(tx, id);
+      } else if (
+        updated.paymentStatus === "COMPLETED" ||
+        updated.paymentMethod === "cod" ||
+        updated.source === "STORE"
+      ) {
+        await countOrderRedemption(tx, id);
+      }
+      return updated;
     });
+    revalidatePromotions();
 
     // Create order tracking entry
     await prisma.orderTracking.create({

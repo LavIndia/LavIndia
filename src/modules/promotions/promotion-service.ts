@@ -14,6 +14,7 @@ import { findActivePromotionRows, PROMOTION_INCLUDE, toEnginePromotions } from "
 import { loadCatalogFacts } from "./read/catalog-facts";
 import { promotionInputSchema, type PromotionInput } from "./schema";
 import { validatePromotion, type ValidationResult } from "./validate";
+import { buildSetLibrary, loadSetLibrarySource, resolvePromotion } from "./piece-sets";
 
 export type LifecycleAction = "activate" | "pause" | "resume" | "end" | "archive" | "restore";
 
@@ -52,8 +53,14 @@ async function findRow(id: string): Promise<PromotionRow> {
 }
 
 export async function checkPromotion(input: PromotionInput, selfId?: string): Promise<ValidationResult> {
-  const [facts, rows] = await Promise.all([loadCatalogFacts(), findActivePromotionRows()]);
-  return validatePromotion(input, facts.pieces, toEnginePromotions(rows), selfId);
+  const [facts, rows, setSource] = await Promise.all([
+    loadCatalogFacts(),
+    findActivePromotionRows(),
+    loadSetLibrarySource(),
+  ]);
+  const library = buildSetLibrary(setSource);
+  const live = toEnginePromotions(rows).map((p) => resolvePromotion(p, library));
+  return validatePromotion(input, facts.pieces, live, selfId, library);
 }
 
 export async function createPromotion(raw: unknown, actorId: string): Promise<PromotionRow> {

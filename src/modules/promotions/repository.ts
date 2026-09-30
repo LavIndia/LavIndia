@@ -104,19 +104,24 @@ export interface RedemptionLine {
 }
 
 /**
- * Records what an order received, and counts it against each offer's limits,
- * inside the order's own transaction.
+ * Records what an order received, inside the order's own transaction, and
+ * - when `countNow` - counts it against each offer's limits.
  *
- * The counters are guarded in SQL, so two clients racing for the last use
- * of a limited offer cannot both have it: the second update matches no row
- * and the second order fails with a clear message rather than overspending
- * the offer.
+ * Counting is guarded in SQL, so two clients racing for the last use of a
+ * limited offer cannot both have it: the second update matches no row and
+ * that order fails with a clear message rather than overspending the offer.
+ *
+ * An online payment is counted later, when the payment succeeds, so a
+ * checkout abandoned at the gateway never uses up a limited offer. Its
+ * limits are still checked here, so a client is not sent to pay for an offer
+ * that has already run out.
  */
 export async function recordRedemption(
   tx: Tx,
   orderId: string,
   lines: readonly RedemptionLine[],
   applied: ReadonlyArray<{ promotionId: string; code: string | null; savingCents: number }>,
+  options: { countNow: boolean } = { countNow: true },
 ): Promise<void> {
   const allocations = lines.flatMap((line) =>
     line.allocations
@@ -132,30 +137,113 @@ export async function recordRedemption(
       })),
   );
   if (allocations.length) await tx.promotionAllocation.createMany({ data: allocations });
+  if (applied.length === 0) return;
 
-  for (const offer of applied) {
-    const updated = await tx.$executeRaw`
+  if (!options.countNow) {
+    await assertStillAvailable(tx, applied);
+    return;
+  }
+  for (const offer of applied) await countUse(tx, offer, { guarded: true });
+  await tx.order.update({ where: { id: orderId }, data: { promotionUsesCounted: true } });
+}
+
+async function assertStillAvailable(
+  tx: Tx,
+  applied: ReadonlyArray<{ promotionId: string; code: string | null }>,
+) {
+  const rows = await tx.promotion.findMany({
+    where: { id: { in: applied.map((a) => a.promotionId) } },
+    select: { id: true, usageLimit: true, usedCount: true, budgetCents: true, discountGivenCents: true },
+  });
+  const exhausted = rows.find(
+    (r) =>
+      (r.usageLimit !== null && r.usedCount >= r.usageLimit) ||
+      (r.budgetCents !== null && r.discountGivenCents >= r.budgetCents),
+  );
+  if (exhausted) {
+    throw new DomainError("CONFLICT", "An offer in this order has just run out. Please review your cart.", {
+      promotionId: exhausted.id,
+    });
+  }
+}
+
+async function countUse(
+  tx: Tx,
+  offer: { promotionId: string; code: string | null; savingCents: number },
+  { guarded }: { guarded: boolean },
+) {
+  const updated = guarded
+    ? await tx.$executeRaw`
+        UPDATE "promotions"
+           SET "usedCount" = "usedCount" + 1,
+               "discountGivenCents" = "discountGivenCents" + ${offer.savingCents},
+               "updatedAt" = now()
+         WHERE "id" = ${offer.promotionId}
+           AND ("usageLimit" IS NULL OR "usedCount" < "usageLimit")
+           AND ("budgetCents" IS NULL OR "discountGivenCents" < "budgetCents")`
+    : await tx.$executeRaw`
+        UPDATE "promotions"
+           SET "usedCount" = "usedCount" + 1,
+               "discountGivenCents" = "discountGivenCents" + ${offer.savingCents},
+               "updatedAt" = now()
+         WHERE "id" = ${offer.promotionId}`;
+  if (guarded && updated === 0) {
+    throw new DomainError("CONFLICT", "An offer in this order has just run out. Please review your cart.", {
+      promotionId: offer.promotionId,
+    });
+  }
+  if (!offer.code) return;
+  const codeUpdated = guarded
+    ? await tx.$executeRaw`
+        UPDATE "promotion_codes" SET "usedCount" = "usedCount" + 1
+         WHERE "code" = ${offer.code} AND ("usageLimit" IS NULL OR "usedCount" < "usageLimit")`
+    : await tx.$executeRaw`UPDATE "promotion_codes" SET "usedCount" = "usedCount" + 1 WHERE "code" = ${offer.code}`;
+  if (guarded && codeUpdated === 0) {
+    throw new DomainError("CONFLICT", `The code ${offer.code} has reached its limit.`);
+  }
+}
+
+/** What an order received, per offer, rebuilt from its allocations. */
+async function appliedOf(tx: Tx, orderId: string) {
+  const rows = await tx.promotionAllocation.groupBy({
+    by: ["promotionId", "code"],
+    where: { orderId, promotionId: { not: null } },
+    _sum: { amountCents: true },
+  });
+  return rows.map((r) => ({ promotionId: r.promotionId!, code: r.code, savingCents: r._sum.amountCents ?? 0 }));
+}
+
+/**
+ * Counts an order's offers once its payment has succeeded. Never refuses:
+ * the client has already paid, so an offer that ran out in the meantime is
+ * honoured rather than failing a paid order. Safe to call twice.
+ */
+export async function countOrderRedemption(tx: Tx, orderId: string): Promise<void> {
+  const claimed = await tx.order.updateMany({
+    where: { id: orderId, promotionUsesCounted: false },
+    data: { promotionUsesCounted: true },
+  });
+  if (claimed.count === 0) return;
+  for (const offer of await appliedOf(tx, orderId)) await countUse(tx, offer, { guarded: false });
+}
+
+/** Gives an order's uses back when it is cancelled or refunded. Safe to call twice. */
+export async function releaseOrderRedemption(tx: Tx, orderId: string): Promise<void> {
+  const released = await tx.order.updateMany({
+    where: { id: orderId, promotionUsesCounted: true },
+    data: { promotionUsesCounted: false },
+  });
+  if (released.count === 0) return;
+  for (const offer of await appliedOf(tx, orderId)) {
+    await tx.$executeRaw`
       UPDATE "promotions"
-         SET "usedCount" = "usedCount" + 1,
-             "discountGivenCents" = "discountGivenCents" + ${offer.savingCents},
+         SET "usedCount" = GREATEST(0, "usedCount" - 1),
+             "discountGivenCents" = GREATEST(0, "discountGivenCents" - ${offer.savingCents}),
              "updatedAt" = now()
-       WHERE "id" = ${offer.promotionId}
-         AND ("usageLimit" IS NULL OR "usedCount" < "usageLimit")
-         AND ("budgetCents" IS NULL OR "discountGivenCents" < "budgetCents")`;
-    if (updated === 0) {
-      throw new DomainError("CONFLICT", "An offer in this order has just run out. Please review your cart.", {
-        promotionId: offer.promotionId,
-      });
-    }
+       WHERE "id" = ${offer.promotionId}`;
     if (offer.code) {
-      const codeUpdated = await tx.$executeRaw`
-        UPDATE "promotion_codes"
-           SET "usedCount" = "usedCount" + 1
-         WHERE "code" = ${offer.code}
-           AND ("usageLimit" IS NULL OR "usedCount" < "usageLimit")`;
-      if (codeUpdated === 0) {
-        throw new DomainError("CONFLICT", `The code ${offer.code} has reached its limit.`);
-      }
+      await tx.$executeRaw`
+        UPDATE "promotion_codes" SET "usedCount" = GREATEST(0, "usedCount" - 1) WHERE "code" = ${offer.code}`;
     }
   }
 }

@@ -65,6 +65,13 @@ model Order {
   /// Recorded per order because the setting can change, and an invoice has
   /// to state what was true when the sale was made.
   taxIncluded       Boolean       @default(false)
+  /// Whether this order's offers have been counted against their limits.
+  ///
+  /// Counted when the order is real — at once for the counter and cash on
+  /// delivery, on payment for an online payment — and given back if the
+  /// order is cancelled or refunded. The flag makes both steps happen once,
+  /// however many times a gateway callback or a status change repeats.
+  promotionUsesCounted Boolean @default(false)
   notes             String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt

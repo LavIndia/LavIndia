@@ -34,7 +34,28 @@ export const pieceFilterSchema = z.object({
   exclude: z.array(selectorSchema).default([]),
   /** Further groups of pieces, each narrowed on its own. */
   or: z.array(z.array(selectorSchema)).max(10).optional(),
+  /** Piece Sets by id (stored), resolved to full sets before evaluation. */
+  setIds: z.array(z.string().min(1)).max(20).optional(),
 });
+
+export const pieceRuleSchema = z.object({
+  field: z.enum(["category", "collection", "product", "tag", "price", "colour", "material", "size"]),
+  op: z.enum(["is", "isNot", "between", "under", "over"]),
+  values: z.array(z.string().trim().min(1)).max(50).optional(),
+  minCents: z.number().int().min(0).nullable().optional(),
+  maxCents: z.number().int().min(0).nullable().optional(),
+});
+
+export const pieceSetInputSchema = z.object({
+  name: z.string().trim().min(1, "Give the set a name").max(80),
+  description: z.string().trim().max(300).nullable().optional().transform((v) => v || null),
+  match: z.enum(["ALL", "ANY"]).default("ALL"),
+  rules: z.array(pieceRuleSchema).max(20).default([]),
+  includeProductIds: z.array(z.string().min(1)).max(500).default([]),
+  excludeProductIds: z.array(z.string().min(1)).max(500).default([]),
+});
+
+export type PieceSetInput = z.infer<typeof pieceSetInputSchema>;
 
 export const conditionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("minOrderSubtotal"), cents: positiveCents }),

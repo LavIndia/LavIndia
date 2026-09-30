@@ -10,7 +10,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cartItemSchema, resolveCartLines } from "@/lib/cart-lines";
 import { priceCart } from "@/lib/cart-quote";
-import { onlinePaymentInstrument, shippingCentsFor } from "@/lib/online-charges";
+import { DELIVERY_RATES_SELECT, onlinePaymentInstrument, shippingCentsFor } from "@/lib/online-charges";
 import { z } from "zod";
 
 // The client sends WHAT it wants, never what it costs. Every price, offer,
@@ -25,6 +25,8 @@ const orderSchema = z.object({
   shippingMethod: z.enum(["standard", "express"]),
   items: z.array(cartItemSchema).min(1),
   discountCode: z.string().trim().max(40).optional(),
+  /** The total the checkout showed. The order never charges more than this. */
+  expectedPayableCents: z.number().int().min(0).optional(),
   notes: z.string().optional(),
 });
 
@@ -54,7 +56,7 @@ export async function POST(req: NextRequest) {
       prisma.address.findFirst({ where: { id: validated.addressId, userId: session.user.id } }),
       // The cash-on-delivery fee is read from settings, never taken from the
       // request — the same rule every price and charge follows.
-      prisma.siteSettings.findFirst({ select: { codFeeCents: true } }),
+      prisma.siteSettings.findFirst({ select: DELIVERY_RATES_SELECT }),
       resolveCartLines(validated.items),
     ]);
 
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
       paymentMethod: onlinePaymentInstrument(
         validated.paymentChoice ?? (validated.paymentMethod === "cod" ? "cod" : undefined),
       ),
-      shippingCents: shippingCentsFor(validated.shippingMethod),
+      shippingCents: shippingCentsFor(validated.shippingMethod, settings),
     });
     const { quote } = priced;
 
@@ -110,6 +112,25 @@ export async function POST(req: NextRequest) {
     }
 
     const grandTotalCents = quote.totals.grandTotalCents + codFeeCents;
+
+    // An offer can end or run out between the checkout showing a total and
+    // the client pressing Place order. They are never charged more than they
+    // were shown: the order stops and the checkout re-prices. A lower total
+    // (a new offer started) simply goes through in their favour.
+    if (
+      validated.expectedPayableCents !== undefined &&
+      grandTotalCents > validated.expectedPayableCents
+    ) {
+      return NextResponse.json(
+        {
+          error: "Your total has changed since you opened checkout. Please review it and place the order again.",
+          code: "PRICE_CHANGED",
+          payableCents: grandTotalCents,
+        },
+        { status: 409 },
+      );
+    }
+
     const images = new Map(lines.map((line) => [line.variantId, line.image]));
 
     const order = await prisma.$transaction(
@@ -142,6 +163,9 @@ export async function POST(req: NextRequest) {
         await persistOrderLines(tx, newOrder.id, quote, {
           promotions: priced.pricing.promotions,
           images,
+          // Cash on delivery is a real order now; a gateway payment only
+          // counts once it is paid (api/payment/verify).
+          countUsesNow: validated.paymentMethod === "cod",
         });
 
         await tx.payment.create({

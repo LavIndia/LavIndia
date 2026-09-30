@@ -14,13 +14,13 @@ export const grid3 = css({
   gap: "4",
   sm: { gridTemplateColumns: "repeat(3, 1fr)" },
 });
-export const hint = css({ fontSize: "xs", color: "fg.muted" });
+export const hint = css({ fontSize: "sm", color: "fg.muted", lineHeight: "relaxed" });
 export const sentence = css({
   display: "flex",
   flexWrap: "wrap",
   alignItems: "center",
   gap: "2",
-  fontSize: "sm",
+  fontSize: "md",
   color: "fg.default",
   lineHeight: "2",
 });

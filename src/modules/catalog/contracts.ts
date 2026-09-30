@@ -60,6 +60,8 @@ export interface SellableVariant {
   /** What the piece is made of, from the product (the variant's own
    *  `attributes.material` is deprecated). */
   productMaterial: string | null;
+  /** The product's tags, normalised — what Piece Sets group pieces by. */
+  tags: string[];
   /** Primary image for this variant, falling back to the product's. */
   imageUrl: string | null;
   attributes: {

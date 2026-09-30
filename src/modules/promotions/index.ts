@@ -55,9 +55,11 @@ export {
 } from "./mapping";
 export {
   PROMOTION_INCLUDE,
+  countOrderRedemption,
   customerFacts,
   findActivePromotionRows,
   recordRedemption,
+  releaseOrderRedemption,
   toEnginePromotions,
   withinCustomerLimits,
   type CustomerFacts,
@@ -76,3 +78,23 @@ export {
 } from "./promotion-service";
 export type { ValidationResult } from "./validate";
 export { loadCatalogFacts, pieceAsLine, type CatalogFacts, type PieceFact } from "./read/catalog-facts";
+export {
+  ALL_PIECES_ID,
+  buildSetLibrary,
+  categorySetId,
+  collectionSetId,
+  createPieceSet,
+  deletePieceSet,
+  isBuiltInSet,
+  loadSetLibrarySource,
+  resolvePieces,
+  resolvePromotion,
+  setIdsOf,
+  setUsage,
+  updatePieceSet,
+  type SetLibrary,
+  type SetLibrarySource,
+} from "./piece-sets";
+export { inPieceSet } from "./engine/units";
+export { pieceRuleSchema, pieceSetInputSchema, type PieceSetInput } from "./schema";
+export type { PieceField, PieceRule, ResolvedPieceSet } from "./contracts";

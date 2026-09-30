@@ -119,6 +119,11 @@ model SiteSettings {
   /// channel because that is how the shop trades today — the website's
   /// prices are what the client pays, the counter adds GST to the bill.
   onlinePricesIncludeGst Boolean @default(true)
+  /// What each delivery speed costs the customer, in paise. Settings rather
+  /// than code, so a courier's new rate never waits for a deploy. A
+  /// free-delivery offer (Admin → Offers) waives it.
+  standardShippingCents Int @default(9900)
+  expressShippingCents  Int @default(19900)
   storePricesIncludeGst  Boolean @default(false)
 
   // Trust Badges

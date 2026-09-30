@@ -12,7 +12,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { cartItemSchema, resolveCartLines } from "@/lib/cart-lines";
 import { priceCart, quoteView } from "@/lib/cart-quote";
-import { shippingCentsFor, onlinePaymentInstrument } from "@/lib/online-charges";
+import { DELIVERY_RATES_SELECT, onlinePaymentInstrument, shippingCentsFor } from "@/lib/online-charges";
 
 const schema = z.object({
   items: z.array(cartItemSchema).max(100),
@@ -30,7 +30,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
   const [session, lines, settings] = await Promise.all([
     auth(),
     resolveCartLines(input.items),
-    prisma.siteSettings.findFirst({ select: { codFeeCents: true } }),
+    prisma.siteSettings.findFirst({ select: DELIVERY_RATES_SELECT }),
   ]);
 
   const priced = await priceCart({
@@ -39,7 +39,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
     codes: input.code ? [input.code] : [],
     customerId: session?.user?.id ?? null,
     paymentMethod: onlinePaymentInstrument(input.paymentMethod),
-    shippingCents: shippingCentsFor(input.shippingMethod),
+    shippingCents: shippingCentsFor(input.shippingMethod, settings),
   });
 
   const view = quoteView(priced);

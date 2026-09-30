@@ -23,6 +23,8 @@ export interface PieceFact {
   material: string | null;
   color: string | null;
   size: string | null;
+  tags: string[];
+  imageUrl: string | null;
   priceCents: number;
   costCents: number | null;
   onlineSellable: boolean;
@@ -38,6 +40,7 @@ export interface CatalogFacts {
   materials: string[];
   colors: string[];
   sizes: string[];
+  tags: string[];
 }
 
 function distinct(values: Array<string | null>): string[] {
@@ -70,6 +73,9 @@ export async function loadCatalogFacts(): Promise<CatalogFacts> {
             priceCents: true,
             costCents: true,
             isPublished: true,
+            retiredAt: true,
+            tags: true,
+            images: { select: { url: true }, orderBy: [{ isPrimary: "desc" }, { position: "asc" }], take: 1 },
             collections: { select: { collectionId: true } },
           },
         },
@@ -91,9 +97,11 @@ export async function loadCatalogFacts(): Promise<CatalogFacts> {
     material: v.product.material,
     color: v.color,
     size: v.size,
+    tags: v.product.tags,
+    imageUrl: v.product.images[0]?.url ?? null,
     priceCents: v.priceCents ?? v.product.priceCents,
     costCents: v.product.costCents,
-    onlineSellable: v.product.isPublished,
+    onlineSellable: v.product.isPublished && !v.product.retiredAt,
     storeSellable: true,
   }));
 
@@ -122,6 +130,7 @@ export async function loadCatalogFacts(): Promise<CatalogFacts> {
     materials: distinct(pieces.map((p) => p.material)),
     colors: distinct(pieces.map((p) => p.color)),
     sizes: distinct(pieces.map((p) => p.size)),
+    tags: distinct(pieces.flatMap((p) => p.tags)),
   };
 }
 
@@ -136,6 +145,7 @@ export function pieceAsLine(piece: PieceFact, quantity = 1, lineId = piece.varia
     material: piece.material,
     color: piece.color,
     size: piece.size,
+    tags: piece.tags,
     unitPriceCents: piece.priceCents,
     quantity,
   };

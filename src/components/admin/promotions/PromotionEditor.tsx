@@ -15,7 +15,9 @@ import type { PromotionStatus } from "@/modules/promotions/mapping";
 import { BenefitEditor } from "./BenefitEditor";
 import { cardBody, cardNumber } from "./editor.styles";
 import { LimitsFields, MessageFields } from "./LimitsAndMessage";
-import { PieceFilterEditor, type CatalogOptions } from "./PieceFilterEditor";
+import { PiecesChooser, SetsProvider } from "./PiecesChooser";
+import type { CatalogOptions } from "./ProductPicker";
+import type { SetOption } from "./SetPicker";
 import { PromotionSummary, useDraftCheck } from "./PromotionSummary";
 import { type Draft, type DraftPatch, toPayload } from "./promotion-draft";
 import { BasicsFields, CombiningFields, ScheduleFields } from "./SettingsCards";
@@ -28,6 +30,7 @@ interface Props {
   options: CatalogOptions;
   names: NameLookup;
   pieces: TestPiece[];
+  sets: SetOption[];
 }
 
 const layout = css({ display: "grid", gridTemplateColumns: { base: "1fr", lg: "minmax(0,1fr) 22rem" }, gap: "6", alignItems: "start" });
@@ -65,7 +68,7 @@ const STATUS_WORD: Record<PromotionStatus, string> = {
   DRAFT: "Draft", SCHEDULED: "Scheduled", LIVE: "Live", PAUSED: "Paused", ENDED: "Ended", ARCHIVED: "Archived",
 };
 
-export function PromotionEditor({ initial, promotionId, status, options, names, pieces }: Props) {
+export function PromotionEditor({ initial, promotionId, status, options, names, pieces, sets }: Props) {
   const router = useRouter();
   const [draft, setDraft] = useState<Draft>(initial);
   const [saving, setSaving] = useState<"save" | "activate" | null>(null);
@@ -115,6 +118,7 @@ export function PromotionEditor({ initial, promotionId, status, options, names, 
 
   const blocked = Boolean(check?.errors.length);
   return (
+    <SetsProvider initialSets={sets} options={options}>
     <div className={css({ display: "flex", flexDirection: "column", gap: "5" })}>
       <div className={bar}>
         <div className={css({ display: "flex", alignItems: "center", gap: "3", minWidth: 0 })}>
@@ -154,18 +158,20 @@ export function PromotionEditor({ initial, promotionId, status, options, names, 
           <Section n={1} title="Offer"><BasicsFields draft={draft} set={set} /></Section>
           {cls !== "DELIVERY" && draft.benefit.type !== "bundle" && (
             <Section n={2} title={cls === "ORDER" ? "Which pieces count towards it" : "Which pieces"}>
-              <PieceFilterEditor idPrefix="pieces" value={draft.pieces} options={options} onChange={(pieces) => set({ pieces })} />
+              <PiecesChooser id="pieces" value={draft.pieces} onChange={(pieces) => set({ pieces })} />
+              {check && (
+                <p className={css({ fontSize: "sm", fontWeight: "medium", color: check.matchCount === 0 ? "danger" : "fg.default" })}>
+                  {check.matchCount} piece{check.matchCount === 1 ? "" : "s"} included
+                </p>
+              )}
             </Section>
           )}
           <Section n={3} title="What the client gets">
             <BenefitEditor
               benefit={draft.benefit}
               onChange={(benefit) => set({ benefit })}
-              options={options}
               maxApplications={draft.maxApplicationsPerOrder}
               onMaxApplications={(n) => set({ maxApplicationsPerOrder: n })}
-              priceIncludesTax={draft.priceIncludesTax}
-              onPriceIncludesTax={(v) => set({ priceIncludesTax: v })}
             />
           </Section>
           <Section n={4} title="When"><ScheduleFields draft={draft} set={set} /></Section>
@@ -179,5 +185,6 @@ export function PromotionEditor({ initial, promotionId, status, options, names, 
         </aside>
       </div>
     </div>
+    </SetsProvider>
   );
 }

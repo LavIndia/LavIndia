@@ -13,7 +13,7 @@ import { catalogService } from "../src/modules/catalog";
 import { inventoryService } from "../src/modules/inventory";
 import { posService } from "../src/modules/pos";
 import { toEnginePromotion } from "../src/modules/promotions/mapping";
-import { PROMOTION_INCLUDE } from "../src/modules/promotions/repository";
+import { PROMOTION_INCLUDE, countOrderRedemption, releaseOrderRedemption } from "../src/modules/promotions/repository";
 import { VariantId } from "../src/modules/_shared/ids";
 
 let failed = 0;
@@ -82,6 +82,18 @@ async function main() {
 
     const after = await prisma.promotion.findUniqueOrThrow({ where: { id: promotion.id } });
     check("the offer's use is counted", [after.usedCount, after.discountGivenCents], [1, saving]);
+
+    // Cancelling gives the use back — once, however often it is repeated.
+    await prisma.$transaction((tx) => releaseOrderRedemption(tx, orderId!));
+    await prisma.$transaction((tx) => releaseOrderRedemption(tx, orderId!));
+    const released = await prisma.promotion.findUniqueOrThrow({ where: { id: promotion.id } });
+    check("cancelling returns the use exactly once", [released.usedCount, released.discountGivenCents], [0, 0]);
+
+    // Restoring the order takes it again — also once.
+    await prisma.$transaction((tx) => countOrderRedemption(tx, orderId!));
+    await prisma.$transaction((tx) => countOrderRedemption(tx, orderId!));
+    const recounted = await prisma.promotion.findUniqueOrThrow({ where: { id: promotion.id } });
+    check("restoring counts it again exactly once", [recounted.usedCount, recounted.discountGivenCents], [1, saving]);
   } finally {
     if (orderId) {
       await prisma.invoice.deleteMany({ where: { orderId } });

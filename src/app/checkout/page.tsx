@@ -218,7 +218,7 @@ export default function CheckoutPage() {
   // Every figure on this page comes from the server's pricing — offers,
   // GST, delivery and the cash-on-delivery fee — so what is shown here is
   // exactly what the order will charge.
-  const { quote, loading: quoteLoading } = useCheckoutQuote({
+  const { quote, loading: quoteLoading, refresh: refreshQuote } = useCheckoutQuote({
     items,
     code: couponCode,
     shippingMethod: form.shippingMethod,
@@ -317,6 +317,7 @@ export default function CheckoutPage() {
           image: item.image ?? null,
         })),
         discountCode: couponApplied ? (couponCode ?? undefined) : undefined,
+        expectedPayableCents: quote?.payableCents,
         notes: "",
       };
 
@@ -328,6 +329,9 @@ export default function CheckoutPage() {
 
       if (!orderResponse.ok) {
         const errorData = await orderResponse.json();
+        // The total moved (an offer ended or ran out): show the new figure
+        // and let the client decide, rather than charging them more.
+        if (errorData.code === "PRICE_CHANGED" || errorData.code === "CODE_NOT_APPLIED") refreshQuote();
         throw new Error(errorData.error || "Failed to create order");
       }
 

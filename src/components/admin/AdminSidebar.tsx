@@ -31,6 +31,7 @@ import {
   Award,
   Calculator,
   Truck,
+  Layers,
 } from "lucide-react";
 import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import {
@@ -97,6 +98,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Marketing & Content",
     items: [
       { name: "Offers", href: "/admin/promotions", icon: Tag },
+      { name: "Piece Sets", href: "/admin/promotions/sets", icon: Layers },
       { name: "Hero Banners", href: "/admin/hero-banners", icon: Image },
       { name: "Login Screen Images", href: "/admin/auth-images", icon: Images },
       { name: "Promo Banners", href: "/admin/promo-banners", icon: Megaphone },

@@ -11,8 +11,12 @@
 import { revalidateTag, unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
+  buildSetLibrary,
   customerFacts,
   findActivePromotionRows,
+  loadSetLibrarySource,
+  resolvePromotion,
+  type SetLibrary,
   toEnginePromotions,
   withinCustomerLimits,
   type Channel,
@@ -27,14 +31,16 @@ const DATE_FIELDS = ["startsAt", "endsAt", "activatedAt", "archivedAt", "created
 
 const loadSnapshot = unstable_cache(
   async () => {
-    const [rows, settings] = await Promise.all([
+    const [rows, settings, setSource] = await Promise.all([
       findActivePromotionRows(),
       prisma.siteSettings.findFirst({
         select: { onlinePricesIncludeGst: true, storePricesIncludeGst: true },
       }),
+      loadSetLibrarySource(),
     ]);
     return {
       rows,
+      setSource,
       onlinePricesIncludeGst: settings?.onlinePricesIncludeGst ?? true,
       storePricesIncludeGst: settings?.storePricesIncludeGst ?? false,
     };
@@ -55,7 +61,21 @@ function rehydrate(row: PromotionRow): PromotionRow {
 
 export async function getPromotionSnapshot() {
   const snapshot = await loadSnapshot();
-  return { ...snapshot, rows: snapshot.rows.map(rehydrate) };
+  const setSource = {
+    ...snapshot.setSource,
+    stored: snapshot.setSource.stored.map((s) => ({
+      ...s,
+      archivedAt: s.archivedAt ? new Date(s.archivedAt) : null,
+      createdAt: new Date(s.createdAt),
+      updatedAt: new Date(s.updatedAt),
+    })),
+  };
+  return { ...snapshot, rows: snapshot.rows.map(rehydrate), library: buildSetLibrary(setSource) };
+}
+
+/** Live offers with their Piece Sets filled in, ready for the engine. */
+export function resolvedPromotions(rows: PromotionRow[], library: SetLibrary): EnginePromotion[] {
+  return toEnginePromotions(rows).map((p) => resolvePromotion(p, library));
 }
 
 export interface PricingContext {
@@ -79,7 +99,7 @@ export async function pricingContext(args: {
   const rows = withinCustomerLimits(snapshot.rows, facts);
 
   return {
-    promotions: toEnginePromotions(rows),
+    promotions: resolvedPromotions(rows, snapshot.library),
     customer: { id: customerId, previousOrderCount: facts.previousOrderCount },
     pricesIncludeTax:
       args.channel === "ONLINE" ? snapshot.onlinePricesIncludeGst : snapshot.storePricesIncludeGst,

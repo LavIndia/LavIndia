@@ -9,6 +9,7 @@ import { classOf, type Benefit, type EnginePromotion } from "./contracts";
 import { matchesFilter } from "./engine/units";
 import { pieceAsLine, type PieceFact } from "./read/catalog-facts";
 import type { PromotionInput } from "./schema";
+import { resolvePieces, type SetLibrary } from "./piece-sets";
 import { rupees } from "./summarise";
 
 export interface ValidationResult {
@@ -84,9 +85,29 @@ export function validatePromotion(
   pieces: readonly PieceFact[],
   livePromotions: readonly EnginePromotion[],
   selfId?: string,
+  library?: SetLibrary,
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
+  // Sets are checked as they stand now; one that no longer exists is named.
+  if (library) {
+    const missing = [
+      ...(input.pieces.setIds ?? []),
+      ...(input.benefit.type === "reward" ? (input.benefit.gets?.setIds ?? []) : []),
+      ...(input.benefit.type === "bundle" ? input.benefit.components.flatMap((c) => c.pieces.setIds ?? []) : []),
+    ].filter((id) => !library.has(id));
+    if (missing.length) errors.push("A piece set this offer uses has been archived or deleted — choose another");
+    input = {
+      ...input,
+      pieces: resolvePieces(input.pieces, library),
+      benefit:
+        input.benefit.type === "reward" && input.benefit.gets
+          ? { ...input.benefit, gets: resolvePieces(input.benefit.gets, library) }
+          : input.benefit.type === "bundle"
+            ? { ...input.benefit, components: input.benefit.components.map((c) => ({ ...c, pieces: resolvePieces(c.pieces, library) })) }
+            : input.benefit,
+    };
+  }
   const benefit = input.benefit;
   const cls = classOf(benefit);
 

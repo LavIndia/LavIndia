@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { checkoutService } from "@/modules/ecommerce";
+import { countOrderRedemption } from "@/modules/promotions";
 import { revalidateStockViews } from "@/lib/catalog-cache";
 import { billingService } from "@/modules/billing";
 import { OrderId } from "@/modules/_shared/ids";
@@ -132,6 +133,9 @@ export async function POST(req: NextRequest) {
           tx,
         );
       }
+
+      // The order is real now, so its offers count against their limits.
+      await countOrderRedemption(tx, orderId);
 
       await billingService.issueInvoiceForOrder(OrderId(orderId), undefined, tx);
     }, { timeout: 20_000 });

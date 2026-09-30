@@ -22,6 +22,11 @@ export interface PersistLinesOptions {
   promotions?: readonly EnginePromotion[];
   /** Product image snapshot per variant, when the channel has one. */
   images?: ReadonlyMap<string, string | null>;
+  /**
+   * Count the offers' uses now (counter, cash on delivery), or only check
+   * they are still available and count on payment (online payment).
+   */
+  countUsesNow?: boolean;
 }
 
 export async function persistOrderLines(
@@ -76,6 +81,7 @@ export async function persistOrderLines(
       })),
     })),
     quote.applied,
+    { countNow: options.countUsesNow ?? true },
   );
 }
 

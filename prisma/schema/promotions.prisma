@@ -158,3 +158,31 @@ model PromotionAllocation {
   @@index([orderItemId])
   @@map("promotion_allocations")
 }
+
+/// A named, reusable selection of pieces — "Festive earrings", "Black
+/// necklaces under ₹600" — that offers point at instead of each offer
+/// choosing pieces for itself.
+///
+/// Live, not a snapshot: a piece tagged or priced into the set later joins
+/// every offer using it. Orders already placed keep the prices they got.
+/// Every category and collection is also usable as a set without being
+/// stored here.
+model PieceSet {
+  id                String    @id @default(cuid())
+  name              String
+  description       String?
+  /// "ALL": a piece must meet every row. "ANY": one row is enough.
+  match             String    @default("ALL")
+  /// Rows of { field, op, values?, min?, max? } — see promotions/contracts.ts.
+  rules             Json      @default("[]")
+  /// Pieces always in the set, whatever the rows say.
+  includeProductIds String[]  @default([])
+  /// Pieces never in the set, whatever the rows say.
+  excludeProductIds String[]  @default([])
+  archivedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([archivedAt])
+  @@map("piece_sets")
+}

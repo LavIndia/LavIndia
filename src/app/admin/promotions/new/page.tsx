@@ -53,8 +53,8 @@ export default async function NewPromotionPage({ searchParams }: { searchParams:
           <div className={css({ display: "grid", gridTemplateColumns: { base: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(3, 1fr)" }, gap: "3" })}>
             {PROMOTION_TEMPLATES.filter((t) => t.group === group).map((t) => (
               <Link key={t.id} href={`/admin/promotions/new?template=${t.id}`} className={tile}>
-                <span className={css({ fontFamily: "display", fontSize: "lg", fontWeight: "semibold" })}>{t.name}</span>
-                <span className={css({ fontSize: "sm", color: "fg.muted" })}>{t.hint}</span>
+                <span className={css({ fontSize: "md", fontWeight: "semibold", letterSpacing: "-0.01em" })}>{t.name}</span>
+                <span className={css({ fontSize: "sm", color: "fg.muted", lineHeight: "relaxed" })}>{t.hint}</span>
               </Link>
             ))}
           </div>

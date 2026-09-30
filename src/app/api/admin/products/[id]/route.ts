@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { removePublicAsset } from "@/lib/imagekit-admin";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { deleteProduct, enforceVariantInvariants, setProductRetired } from "@/modules/catalog";
+import { deleteProduct, enforceVariantInvariants, normaliseTags, setProductRetired } from "@/modules/catalog";
 import { isDomainError, toErrorResponse } from "@/modules/_shared/errors";
 import { VariantHasStockError } from "@/lib/product-variant-guards";
 import { applyImageEdits, applyVariantEdits } from "@/lib/product-edit";
@@ -49,6 +49,12 @@ const productUpdateSchema = z.object({
   isFeatured: z.boolean().optional(),
   isLimitedEdition: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  // Normalised on the way in, so "Festive Edit" and "festive-edit" are one tag.
+  tags: z
+    .array(z.string())
+    .max(30)
+    .optional()
+    .transform((t) => (t ? normaliseTags(t) : undefined)),
   // Retire (true) or reinstate (false). Stored as a timestamp, so it is
   // applied through the catalog rather than written as a column value.
   retired: z.boolean().optional(),

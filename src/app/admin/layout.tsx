@@ -11,6 +11,10 @@ const shellStyle = css({
   height: "100vh",
   overflow: "hidden",
   background: "bg.canvas",
+  // The display face draws old-style figures by default, so "₹1,299" sits
+  // unevenly in a heading. The admin is read for its numbers: every figure
+  // here is set level and evenly spaced.
+  fontVariantNumeric: "lining-nums",
 });
 
 const contentColStyle = css({

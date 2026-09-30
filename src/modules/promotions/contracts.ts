@@ -41,6 +41,50 @@ export interface PieceFilter {
   include: Selector[];
   exclude: Selector[];
   or?: Selector[][];
+  /**
+   * Named Piece Sets this selection is made of, by id — how offers built in
+   * the admin choose pieces. A piece counts if it is in any of them. Stored
+   * as ids; resolved to `sets` before the engine runs, so a set edited later
+   * changes every offer using it.
+   */
+  setIds?: string[];
+  sets?: ResolvedPieceSet[];
+}
+
+// --- Piece Sets ----------------------------------------------------------
+
+export type PieceField =
+  | "category"
+  | "collection"
+  | "product"
+  | "tag"
+  | "price"
+  | "colour"
+  | "material"
+  | "size";
+
+/**
+ * One row of a Piece Set: "Category is Earrings", "Price is between ₹200
+ * and ₹400", "Tag is not clearance". Values are ids for category,
+ * collection and product; words for tag, colour, material and size.
+ */
+export interface PieceRule {
+  field: PieceField;
+  op: "is" | "isNot" | "between" | "under" | "over";
+  values?: string[];
+  minCents?: number | null;
+  maxCents?: number | null;
+}
+
+export interface ResolvedPieceSet {
+  id: string;
+  name: string;
+  /** ALL: every row must hold. ANY: one is enough. */
+  match: "ALL" | "ANY";
+  rules: PieceRule[];
+  /** Products always in, and never in, whatever the rows say. */
+  includeProductIds: string[];
+  excludeProductIds: string[];
 }
 
 // --- Conditions on the order --------------------------------------------
@@ -176,6 +220,8 @@ export interface EngineLine {
   material: string | null;
   color: string | null;
   size: string | null;
+  /** The product's tags, normalised. */
+  tags?: string[];
   /** List price per unit, pre-tax. */
   unitPriceCents: number;
   quantity: number;

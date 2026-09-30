@@ -77,6 +77,11 @@ model Product {
   /// A timestamp rather than a flag, because "retired in March" is a question
   /// the shop asks when reviewing the range.
   retiredAt        DateTime?
+  /// Free labels the shop groups pieces by — "festive-edit", "bridal",
+  /// "gift-under-1k". Stored normalised (lower case, dashes) so two
+  /// spellings never become two tags. Offers reach pieces through Piece
+  /// Sets, and a tag is the quickest way to put pieces in one.
+  tags             String[]  @default([])
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

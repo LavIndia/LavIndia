@@ -22,12 +22,15 @@ interface QuoteRequest {
 export function useCheckoutQuote({ items, code, shippingMethod, paymentMethod }: QuoteRequest) {
   const [quote, setQuote] = useState<CheckoutQuote | null>(null);
   const [loading, setLoading] = useState(false);
+  // Bumped to force a fresh price, e.g. after the server says it changed.
+  const [nonce, setNonce] = useState(0);
 
   const key = JSON.stringify({
     items: items.map((i) => [i.id, i.variantId ?? null, i.qty]),
     code,
     shippingMethod,
     paymentMethod,
+    nonce,
   });
 
   useEffect(() => {
@@ -74,5 +77,5 @@ export function useCheckoutQuote({ items, code, shippingMethod, paymentMethod }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  return { quote, loading };
+  return { quote, loading, refresh: () => setNonce((n) => n + 1) };
 }

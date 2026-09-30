@@ -84,6 +84,7 @@ function engineLines(lines: readonly OrderLineInput[], variants: Map<string, Sel
       material: variant.productMaterial,
       color: variant.attributes.color,
       size: variant.attributes.size,
+      tags: variant.tags,
       unitPriceCents: override ?? variant.priceCents,
       quantity: line.quantity,
       // A price set by hand at the counter is final; offers leave it alone.

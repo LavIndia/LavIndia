@@ -39,5 +39,7 @@ export const getSiteSettings = cache(async () => {
     // Free until the owner says otherwise — a fallback must never invent a
     // charge the customer was not told about.
     codFeeCents: 0,
+    standardShippingCents: 9_900,
+    expressShippingCents: 19_900,
   };
 });

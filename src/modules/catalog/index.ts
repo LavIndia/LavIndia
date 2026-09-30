@@ -13,6 +13,7 @@ export type {
 } from "./contracts";
 export { catalogService } from "./catalog-service";
 export type { ProductDeletion } from "./products/product-lifecycle";
+export { normaliseTag, normaliseTags, tagLabel } from "./products/tags";
 export {
   assertNoneRetired,
   deleteProduct,

@@ -49,6 +49,19 @@ export async function generateMetadata(): Promise<Metadata> {
     title: settings.metaTitle || settings.businessName,
     description:
       settings.metaDescription || "Luxury handcrafted jewelry from India",
+    robots: {
+      index: true,
+      follow: true,
+      nocache: false,
+      googleBot: {
+        index: true,
+        follow: true,
+        noimageindex: false,
+      },
+      "max-snippet": -1,
+      "max-image-preview": "large",
+      "max-video-preview": -1,
+    },
   };
 }
 
@@ -89,6 +102,8 @@ export default async function RootLayout({
             blinkitLink: settings.blinkitLink,
             zeptoLink: settings.zeptoLink,
             codFeeCents: settings.codFeeCents,
+            standardShippingCents: settings.standardShippingCents,
+            expressShippingCents: settings.expressShippingCents,
           }}
         >
           <SessionProvider>

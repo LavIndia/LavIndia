@@ -6,7 +6,7 @@
  * and every offer consumes whole units. A unit is used by one piece offer at
  * most — a piece inside a set price cannot also take 10% off.
  */
-import type { EngineLine, PieceFilter, Selector } from "../contracts";
+import type { EngineLine, PieceFilter, PieceRule, ResolvedPieceSet, Selector } from "../contracts";
 
 export interface Unit {
   /** `${lineId}#${index}` — stable, unique within the cart. */
@@ -109,8 +109,66 @@ function matchesGroup(line: EngineLine, include: readonly Selector[]): boolean {
   return narrowing.every((s) => matchesSelector(line, s));
 }
 
+const norm = (value: string | null | undefined) => (value ?? "").trim().toLowerCase();
+
+function ruleHolds(line: EngineLine, rule: PieceRule): boolean {
+  const values = (rule.values ?? []).map(norm);
+  const has = (actual: string | string[] | null) => {
+    const list = Array.isArray(actual) ? actual.map(norm) : [norm(actual)];
+    return list.some((v) => v !== "" && values.includes(v));
+  };
+  let hit: boolean;
+  switch (rule.field) {
+    case "category":
+      hit = has(line.categoryId);
+      break;
+    case "collection":
+      hit = has(line.collectionIds);
+      break;
+    case "product":
+      hit = has(line.productId);
+      break;
+    case "tag":
+      hit = has(line.tags ?? []);
+      break;
+    case "colour":
+      hit = has(line.color);
+      break;
+    case "material":
+      hit = has(line.material);
+      break;
+    case "size":
+      hit = has(line.size);
+      break;
+    case "price": {
+      const p = line.unitPriceCents;
+      if (rule.op === "under") return rule.maxCents == null || p <= rule.maxCents;
+      if (rule.op === "over") return rule.minCents == null || p >= rule.minCents;
+      return (rule.minCents == null || p >= rule.minCents) && (rule.maxCents == null || p <= rule.maxCents);
+    }
+  }
+  return rule.op === "isNot" ? !hit : hit;
+}
+
+/** Whether a piece is in a Piece Set: always-in and never-in win over rows. */
+export function inPieceSet(line: EngineLine, set: ResolvedPieceSet): boolean {
+  if (set.excludeProductIds.includes(line.productId)) return false;
+  if (set.includeProductIds.includes(line.productId)) return true;
+  if (set.rules.length === 0) return false;
+  return set.match === "ANY"
+    ? set.rules.some((rule) => ruleHolds(line, rule))
+    : set.rules.every((rule) => ruleHolds(line, rule));
+}
+
 export function matchesFilter(line: EngineLine, filter: PieceFilter): boolean {
   if (filter.exclude.some((s) => matchesSelector(line, s))) return false;
+  // An offer built from Piece Sets: in any of its sets. Ids whose set could
+  // not be found resolve to nothing, so a deleted set narrows, never widens.
+  if (filter.setIds?.length || filter.sets?.length) {
+    if ((filter.sets ?? []).some((set) => inPieceSet(line, set))) return true;
+    // Pieces picked by name alongside the sets count too.
+    return filter.include.length > 0 && matchesGroup(line, filter.include);
+  }
   if (matchesGroup(line, filter.include)) return true;
   // Further groups only ever add pieces; an empty one would mean "every
   // piece", so it is skipped rather than silently widening the offer.

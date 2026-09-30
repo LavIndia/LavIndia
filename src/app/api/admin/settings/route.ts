@@ -27,6 +27,12 @@ const settingsSchema = z.object({
   // never accumulates rounding. Capped at a figure no delivery fee should
   // ever reach, which catches a rupees-entered-as-paise slip.
   codFeeCents: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  standardShippingCents: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  expressShippingCents: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  // Whether each channel's prices already include GST — decides whether the
+  // tax is taken from the price or added on top.
+  onlinePricesIncludeGst: z.boolean().optional(),
+  storePricesIncludeGst: z.boolean().optional(),
   facebook: z.string().url().optional().nullable().or(z.literal("")),
   instagram: z.string().url().optional().nullable().or(z.literal("")),
   twitter: z.string().url().optional().nullable().or(z.literal("")),
@@ -110,6 +116,8 @@ export async function PATCH(req: NextRequest) {
 
     revalidateTag("site-settings");
     revalidateTag("homepage");
+    // Delivery rates and GST treatment price every cart.
+    revalidateTag("promotions");
 
     return NextResponse.json(settings);
   } catch (error) {

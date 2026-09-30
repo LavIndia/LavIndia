@@ -64,6 +64,7 @@ const VARIANT_SELECT = {
       isPublished: true,
       categoryId: true,
       material: true,
+      tags: true,
       collections: { select: { collectionId: true } },
       images: GROUPED_IMAGES,
     },
@@ -93,6 +94,7 @@ function toSellableVariant(row: VariantRow): SellableVariant {
     categoryId: row.product.categoryId,
     collectionIds: row.product.collections.map((c) => c.collectionId),
     productMaterial: row.product.material,
+    tags: row.product.tags,
     // The variant's own group's image, else the product's general one —
     // the rule lives in image-groups.ts so no consumer has to know it.
     imageUrl: variantImageUrl(row.product.images, row),

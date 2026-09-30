@@ -7,6 +7,20 @@ const nextConfig: NextConfig = {
   // bookmarked and guarded by middleware, so they redirect to the tab that
   // actually holds the content rather than falling through to the catch-all
   // category route.
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noai, noimageai",
+          },
+        ],
+      },
+    ];
+  },
+
   async redirects() {
     return [
       {

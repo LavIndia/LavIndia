@@ -34,6 +34,9 @@ interface SiteSettingsValue {
    * with no request in the middle of a purchase.
    */
   codFeeCents: number;
+  /** What each delivery speed costs, in paise, as set in Settings. */
+  standardShippingCents: number;
+  expressShippingCents: number;
 }
 
 const SiteSettingsContext = createContext<SiteSettingsValue>({
@@ -51,6 +54,8 @@ const SiteSettingsContext = createContext<SiteSettingsValue>({
   blinkitLink: null,
   zeptoLink: null,
   codFeeCents: 0,
+  standardShippingCents: 9_900,
+  expressShippingCents: 19_900,
 });
 
 export function SiteSettingsProvider({

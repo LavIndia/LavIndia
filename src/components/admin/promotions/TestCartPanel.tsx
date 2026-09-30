@@ -22,6 +22,7 @@ export interface TestPiece {
   material: string | null;
   color: string | null;
   size: string | null;
+  tags: string[];
   priceCents: number;
 }
 
@@ -58,7 +59,7 @@ const num = css({ fontVariantNumeric: "tabular-nums", textAlign: "right", whiteS
 const small = css({ width: "4", height: "4" });
 
 function asLine(p: TestPiece) {
-  return { lineId: p.variantId, variantId: p.variantId, productId: p.productId, categoryId: p.categoryId, collectionIds: p.collectionIds, material: p.material, color: p.color, size: p.size, unitPriceCents: p.priceCents, quantity: 1 };
+  return { lineId: p.variantId, variantId: p.variantId, productId: p.productId, categoryId: p.categoryId, collectionIds: p.collectionIds, material: p.material, color: p.color, size: p.size, tags: p.tags, unitPriceCents: p.priceCents, quantity: 1 };
 }
 
 /**
@@ -79,7 +80,10 @@ export function TestCartPanel({ draft, pieces, selfId }: { draft: Draft; pieces:
   const add = (piece: TestPiece) =>
     setCart((c) => (c.some((x) => x.piece.variantId === piece.variantId) ? c.map((x) => (x.piece.variantId === piece.variantId ? { ...x, quantity: x.quantity + 1 } : x)) : [...c, { piece, quantity: 1 }]));
   const fill = () => {
-    const filter: PieceFilter = draft.benefit.type === "bundle" ? { include: [], exclude: [] } : draft.pieces;
+    // Sets are resolved on the server, so the sample is drawn from the whole
+    // catalog when the offer uses them; the server prices it exactly.
+    const filter: PieceFilter =
+      draft.benefit.type === "bundle" || draft.pieces.setIds?.length ? { include: [], exclude: [] } : draft.pieces;
     const matching = pieces.filter((p) => matchesFilter(asLine(p), filter)).sort((a, b) => a.priceCents - b.priceCents);
     const pick = [...matching.slice(0, 2), ...matching.slice(-2)].filter((p, i, all) => all.indexOf(p) === i);
     setCart(pick.map((piece) => ({ piece, quantity: 1 })));

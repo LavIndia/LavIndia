@@ -37,7 +37,10 @@ export function draftFromTemplate(template: PromotionTemplate): Draft {
     benefit: d.benefit,
     minQuantity: null,
     minSubtotalCents: d.minSubtotalCents ?? null,
-    priceIncludesTax: false,
+    // An offer price is what the client pays, on either channel: online
+    // prices already include GST, and at the counter the price is treated as
+    // GST-inclusive too, so "3 for ₹999" costs ₹999 everywhere.
+    priceIncludesTax: true,
     maxApplicationsPerOrder: null,
     maxDiscountCents: null,
     usageLimit: null,

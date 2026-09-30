@@ -34,6 +34,10 @@ interface SiteSettings {
   upiVpa: string | null;
   upiPayeeName: string | null;
   codFeeCents: number;
+  standardShippingCents: number;
+  expressShippingCents: number;
+  onlinePricesIncludeGst: boolean;
+  storePricesIncludeGst: boolean;
   facebook: string | null;
   instagram: string | null;
   twitter: string | null;
@@ -244,8 +248,14 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
       {/* What delivery costs the customer. Sits next to payments because it
           is the other half of the same conversation. */}
       <DeliveryChargesSection
-        codFeeCents={settings.codFeeCents ?? 0}
-        onChange={(codFeeCents) => handleChange("codFeeCents", codFeeCents)}
+        values={{
+          codFeeCents: settings.codFeeCents ?? 0,
+          standardShippingCents: settings.standardShippingCents ?? 9_900,
+          expressShippingCents: settings.expressShippingCents ?? 19_900,
+          onlinePricesIncludeGst: settings.onlinePricesIncludeGst ?? true,
+          storePricesIncludeGst: settings.storePricesIncludeGst ?? false,
+        }}
+        onChange={(field, value) => handleChange(field, value as SiteSettings[typeof field])}
       />
 
       <SocialLinksSection

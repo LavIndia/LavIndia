@@ -7,11 +7,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { apiHandler } from "@/lib/api-handler";
 import { requireAdmin } from "@/lib/require-admin";
-import { getPromotionSnapshot } from "@/lib/promotions-cache";
+import { getPromotionSnapshot, resolvedPromotions } from "@/lib/promotions-cache";
+import { prisma } from "@/lib/prisma";
+import { DELIVERY_RATES_SELECT, shippingCentsFor } from "@/lib/online-charges";
 import { catalogService } from "@/modules/catalog";
 import { GST_RATE_BPS, quoteCart } from "@/modules/orders";
 import { VariantId } from "@/modules/_shared/ids";
-import { inputToEngine, promotionInputSchema, toEnginePromotions } from "@/modules/promotions";
+import { inputToEngine, promotionInputSchema, resolvePromotion } from "@/modules/promotions";
 
 const schema = z.object({
   input: promotionInputSchema,
@@ -27,13 +29,14 @@ export const POST = apiHandler(async (req: NextRequest) => {
   await requireAdmin("catalog:write");
   const body = schema.parse(await req.json());
 
-  const [snapshot, variantList] = await Promise.all([
+  const [snapshot, rates, variantList] = await Promise.all([
     getPromotionSnapshot(),
+    prisma.siteSettings.findFirst({ select: DELIVERY_RATES_SELECT }),
     catalogService.findVariantsByIds(body.lines.map((l) => VariantId(l.variantId))),
   ]);
-  const draft = inputToEngine(body.input, body.selfId ?? "draft");
+  const draft = resolvePromotion(inputToEngine(body.input, body.selfId ?? "draft"), snapshot.library);
   const others = body.includeLive
-    ? toEnginePromotions(snapshot.rows.filter((row) => row.id !== body.selfId))
+    ? resolvedPromotions(snapshot.rows.filter((row) => row.id !== body.selfId), snapshot.library)
     : [];
   const pricesIncludeTax =
     body.channel === "ONLINE" ? snapshot.onlinePricesIncludeGst : snapshot.storePricesIncludeGst;
@@ -45,7 +48,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
       lines: body.lines.map((l) => ({ variantId: VariantId(l.variantId), quantity: l.quantity })),
       promotions: [draft, ...others],
       codes,
-      shippingCents: body.channel === "ONLINE" ? 9_900 : 0,
+      shippingCents: body.channel === "ONLINE" ? shippingCentsFor("standard", rates) : 0,
       pricesIncludeTax,
       taxRateBps: GST_RATE_BPS,
       now: body.at,

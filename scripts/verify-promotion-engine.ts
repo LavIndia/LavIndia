@@ -218,5 +218,33 @@ function totals(lines: EngineLine[], promotions: EnginePromotion[], context = ct
     t.perUnit.map((d) => d > 0), [true, false, true, false, false, true]);
 }
 
+// Piece Sets --------------------------------------------------------------------
+{
+  const festive = { id: "s1", name: "Festive", match: "ALL" as const, rules: [{ field: "tag" as const, op: "is" as const, values: ["festive-edit"] }, { field: "price" as const, op: "under" as const, maxCents: 50_000 }], includeProductIds: ["pr-vip"], excludeProductIds: ["pr-no"] };
+  const blackNecklaces = { id: "s2", name: "Black necklaces", match: "ALL" as const, rules: [{ field: "category" as const, op: "is" as const, values: ["necklaces"] }, { field: "colour" as const, op: "is" as const, values: ["black"] }], includeProductIds: [], excludeProductIds: [] };
+  const offer = promo({ type: "percentOff", bps: 1_000 }, { pieces: { include: [], exclude: [], setIds: ["s1", "s2"], sets: [festive, blackNecklaces] } });
+  const t = totals([
+    { ...line("tagged", 400, "earrings"), tags: ["festive-edit"] },
+    { ...line("dear", 700, "earrings"), tags: ["festive-edit"] },
+    { ...line("vip", 900, "rings"), productId: "pr-vip" },
+    { ...line("no", 300, "earrings"), productId: "pr-no", tags: ["festive-edit"] },
+    { ...line("blk", 800, "necklaces"), color: "Black" },
+    line("plain", 300, "earrings"),
+  ], [offer]);
+  check("Sets: tagged under ₹500, always-in, never-in, or black necklaces", t.perUnit.map((d) => d > 0), [true, false, true, false, true, false]);
+  const gone = promo({ type: "percentOff", bps: 1_000 }, { pieces: { include: [], exclude: [], setIds: ["deleted"], sets: [] } });
+  check("A deleted set matches nothing — it never widens to every piece", totals([line("x", 500)], [gone]).result.applied.length, 0);
+}
+
+// Sets plus pieces picked by name ----------------------------------------------------
+{
+  const earrings = { id: "c", name: "Earrings", match: "ALL" as const, rules: [{ field: "category" as const, op: "is" as const, values: ["earrings"] }], includeProductIds: [], excludeProductIds: [] };
+  const offer = promo({ type: "percentOff", bps: 1_000 }, { pieces: { include: [{ type: "products", ids: ["pr-ring"] }], exclude: [{ type: "products", ids: ["pr-e2"] }], setIds: ["c"], sets: [earrings] } });
+  const t = totals([line("e1", 500, "earrings"), line("e2", 500, "earrings"), line("ring", 900, "rings"), line("neck", 900, "necklaces")], [offer]);
+  check("A set, a piece by name, and one left out", t.perUnit.map((d) => d > 0), [true, false, true, false]);
+  const onlyNamed = promo({ type: "percentOff", bps: 1_000 }, { pieces: { include: [{ type: "products", ids: ["pr-ring"] }], exclude: [] } });
+  check("Only pieces picked by name", totals([line("ring", 900, "rings"), line("e", 500, "earrings")], [onlyNamed]).perUnit.map((d) => d > 0), [true, false]);
+}
+
 console.log(failures === 0 ? "\nAll engine checks passed." : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);

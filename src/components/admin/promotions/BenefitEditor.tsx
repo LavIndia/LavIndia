@@ -2,23 +2,18 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { css } from "styled-system/css";
 import type { Benefit, RewardValue } from "@/modules/promotions/contracts";
-import { chipRow, hint, inlineMoney, inlineNumber, pill, sentence, toggleRow } from "./editor.styles";
+import { chipRow, hint, inlineMoney, inlineNumber, pill, sentence } from "./editor.styles";
 import { CountInput, MoneyInput } from "./MoneyInput";
-import { PieceFilterEditor, type CatalogOptions } from "./PieceFilterEditor";
+import { PiecesChooser } from "./PiecesChooser";
 import { OrderTierEditor, PercentTierEditor, SetTierEditor } from "./TierEditors";
 
 interface Props {
   benefit: Benefit;
   onChange: (b: Benefit) => void;
-  options: CatalogOptions;
   maxApplications: number | null;
   onMaxApplications: (n: number | null) => void;
-  priceIncludesTax: boolean;
-  onPriceIncludesTax: (v: boolean) => void;
 }
 
 const block = css({ display: "flex", flexDirection: "column", gap: "4" });
@@ -60,20 +55,8 @@ function RewardValueEditor({ value, onChange }: { value: RewardValue; onChange: 
   );
 }
 
-function TaxToggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <div className={toggleRow}>
-      <div>
-        <Label htmlFor="price-incl-tax">This price includes GST</Label>
-        <p className={hint}>Online prices already include GST. Switch on if the counter should treat this price the same way.</p>
-      </div>
-      <Switch id="price-incl-tax" checked={value} onCheckedChange={onChange} />
-    </div>
-  );
-}
-
 /** What the client gets, written as the sentence it means. */
-export function BenefitEditor({ benefit, onChange, options, maxApplications, onMaxApplications, priceIncludesTax, onPriceIncludesTax }: Props) {
+export function BenefitEditor({ benefit, onChange, maxApplications, onMaxApplications }: Props) {
   switch (benefit.type) {
     case "setPrice":
       return (
@@ -85,7 +68,6 @@ export function BenefitEditor({ benefit, onChange, options, maxApplications, onM
             <MoneyInput id="set-price" ariaLabel="Set price" className={inlineMoney} value={benefit.priceCents} onChange={(v) => onChange({ ...benefit, priceCents: v ?? 0 })} />
           </div>
           <Repeat value={maxApplications} onChange={onMaxApplications} />
-          <TaxToggle value={priceIncludesTax} onChange={onPriceIncludesTax} />
         </div>
       );
     case "setPriceTiers":
@@ -98,7 +80,6 @@ export function BenefitEditor({ benefit, onChange, options, maxApplications, onM
             <button type="button" className={pill(benefit.leftovers === "FULL_PRICE")} aria-pressed={benefit.leftovers === "FULL_PRICE"} onClick={() => onChange({ ...benefit, leftovers: "FULL_PRICE" })}>pay full price</button>
           </div>
           <p className={hint}>The client always gets the combination of sets that costs them least.</p>
-          <TaxToggle value={priceIncludesTax} onChange={onPriceIncludesTax} />
         </div>
       );
     case "reward":
@@ -124,7 +105,7 @@ export function BenefitEditor({ benefit, onChange, options, maxApplications, onM
           {benefit.gets && (
             <div className={part}>
               <span className={hint}>Pieces the client can get</span>
-              <PieceFilterEditor idPrefix="gets" value={benefit.gets} options={options} allowEvery={false} onChange={(gets) => onChange({ ...benefit, gets })} />
+              <PiecesChooser id="gets" value={benefit.gets} allowAll={false} onChange={(gets) => onChange({ ...benefit, gets })} />
             </div>
           )}
           <Repeat value={maxApplications} onChange={onMaxApplications} />
@@ -144,7 +125,7 @@ export function BenefitEditor({ benefit, onChange, options, maxApplications, onM
                   <Trash2 className={icon} />
                 </Button>
               </div>
-              <PieceFilterEditor idPrefix={`bundle-${i}`} value={component.pieces} options={options} allowEvery={false} onChange={(pieces) => onChange({ ...benefit, components: benefit.components.map((c, j) => (j === i ? { ...c, pieces } : c)) })} />
+              <PiecesChooser id={`bundle-${i}`} value={component.pieces} allowAll={false} onChange={(pieces) => onChange({ ...benefit, components: benefit.components.map((c, j) => (j === i ? { ...c, pieces } : c)) })} />
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={() => onChange({ ...benefit, components: [...benefit.components, { pieces: { include: [], exclude: [] }, quantity: 1 }] })}>
@@ -155,7 +136,6 @@ export function BenefitEditor({ benefit, onChange, options, maxApplications, onM
             <MoneyInput id="bundle-price" ariaLabel="Bundle price" className={inlineMoney} value={benefit.priceCents} onChange={(v) => onChange({ ...benefit, priceCents: v ?? 0 })} />
           </div>
           <Repeat value={maxApplications} onChange={onMaxApplications} />
-          <TaxToggle value={priceIncludesTax} onChange={onPriceIncludesTax} />
         </div>
       );
     case "percentOff":
@@ -194,7 +174,6 @@ export function BenefitEditor({ benefit, onChange, options, maxApplications, onM
             <span>Each of these pieces for</span>
             <MoneyInput id="each-price" ariaLabel="Price each" className={inlineMoney} value={benefit.cents} onChange={(v) => onChange({ ...benefit, cents: v ?? 0 })} />
           </div>
-          <TaxToggle value={priceIncludesTax} onChange={onPriceIncludesTax} />
         </div>
       );
     case "percentTiers":

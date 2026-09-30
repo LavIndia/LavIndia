@@ -12,6 +12,8 @@ export interface NameLookup {
   collections: Record<string, string>;
   products: Record<string, string>;
   variants: Record<string, string>;
+  /** Piece Set names by id, built-in sets included. */
+  sets?: Record<string, string>;
 }
 
 const EMPTY: NameLookup = { categories: {}, collections: {}, products: {}, variants: {} };
@@ -73,6 +75,13 @@ function describeGroup(include: Selector[], names: NameLookup): string {
 }
 
 export function describePieces(filter: PieceFilter | null, names: NameLookup = EMPTY): string {
+  if (filter?.setIds?.length) {
+    const named = filter.include.flatMap((s) => (s.type === "products" ? s.ids : []));
+    return list([
+      ...filter.setIds.map((id) => names.sets?.[id] ?? "a removed set"),
+      ...named.map((id) => names.products[id] ?? "a removed piece"),
+    ]);
+  }
   const extra = (filter?.or ?? []).filter((g) => g.length > 0);
   if (filter && extra.length > 0) {
     const all = [filter.include, ...extra].filter((g) => g.length > 0).map((g) => describeGroup(g, names));

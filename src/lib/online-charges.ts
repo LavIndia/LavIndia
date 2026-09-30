@@ -1,11 +1,34 @@
 /**
- * What an online order adds beyond its pieces, decided on the server.
+ * What an online order adds beyond its pieces, decided on the server from
+ * the owner's settings (Admin → Settings → Delivery charges).
  */
 import type { PaymentInstrument } from "@/modules/promotions";
 
-/** Standard ₹99, express ₹199 — the rates the checkout has always shown. */
-export function shippingCentsFor(method: "standard" | "express" | undefined): number {
-  return method === "express" ? 19_900 : 9_900;
+export interface DeliveryRates {
+  standardShippingCents: number;
+  expressShippingCents: number;
+  codFeeCents: number;
+}
+
+/** Used only when no settings row exists yet — the rates the shop launched with. */
+export const DEFAULT_DELIVERY_RATES: DeliveryRates = {
+  standardShippingCents: 9_900,
+  expressShippingCents: 19_900,
+  codFeeCents: 0,
+};
+
+export const DELIVERY_RATES_SELECT = {
+  standardShippingCents: true,
+  expressShippingCents: true,
+  codFeeCents: true,
+} as const;
+
+export function shippingCentsFor(
+  method: "standard" | "express" | undefined,
+  rates: Partial<DeliveryRates> | null | undefined,
+): number {
+  const r = { ...DEFAULT_DELIVERY_RATES, ...(rates ?? {}) };
+  return method === "express" ? r.expressShippingCents : r.standardShippingCents;
 }
 
 /**
