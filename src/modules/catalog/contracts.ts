@@ -54,6 +54,12 @@ export interface SellableVariant {
    * channel decides what to do with it.
    */
   isPublished: boolean;
+  /** Where the piece sits in the catalog — what offers select pieces by. */
+  categoryId: string;
+  collectionIds: string[];
+  /** What the piece is made of, from the product (the variant's own
+   *  `attributes.material` is deprecated). */
+  productMaterial: string | null;
   /** Primary image for this variant, falling back to the product's. */
   imageUrl: string | null;
   attributes: {

@@ -60,6 +60,7 @@ export function toEnginePromotion(row: PromotionRow): EnginePromotion | null {
   return {
     id: row.id,
     label: labelOf(row),
+    invoiceLabel: row.invoiceLabel,
     trigger: row.trigger,
     codes: row.codes.map((c) => c.code.toUpperCase()),
     channels: row.channels as Channel[],

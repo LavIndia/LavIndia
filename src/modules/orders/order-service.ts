@@ -15,7 +15,9 @@ import { OrderId, VariantId } from "../_shared/ids";
 import { catalogService, withdrawSoldOutRetiredProducts } from "../catalog";
 import { inventoryService } from "../inventory";
 import type { CreateOrderInput, CreatedOrder, OrdersPort } from "./contracts";
-import { priceLines, totalsFor } from "./pricing";
+import { GST_RATE_BPS } from "./pricing";
+import { quoteCart, type Quote } from "./quote";
+import { appliedSnapshot, persistOrderLines } from "./persist-lines";
 
 /**
  * Order numbers are date-stamped and random, not sequential.
@@ -63,23 +65,35 @@ class OrderService implements OrdersPort {
       }
     }
 
-    const lines = priceLines(input.lines, byId);
-    const totals = totalsFor(lines, {
-      shippingCents: input.shippingCents,
-      orderDiscountCents: input.discountCents,
-    });
+    // One pricing path for both channels: catalog, manual prices, offers,
+    // then GST per line.
+    const quote = quoteCart(
+      {
+        channel: input.source,
+        lines: input.lines,
+        promotions: input.pricing?.promotions ?? [],
+        codes: input.pricing?.codes,
+        customer: input.pricing?.customer,
+        paymentMethod: input.pricing?.paymentMethod,
+        shippingCents: input.shippingCents,
+        manualOrderDiscountCents: input.discountCents,
+        pricesIncludeTax: input.pricing?.pricesIncludeTax ?? false,
+        taxRateBps: GST_RATE_BPS,
+      },
+      byId,
+    );
 
-    const run = (client: Tx) => this.write(client, input, lines, totals);
+    const run = (client: Tx) => this.write(client, input, quote);
     return tx ? run(tx) : prisma.$transaction(run, { timeout: 15_000 });
   }
 
   private async write(
     client: Tx,
     input: CreateOrderInput,
-    lines: ReturnType<typeof priceLines>,
-    totals: ReturnType<typeof totalsFor>,
+    quote: Quote,
   ): Promise<CreatedOrder> {
     const now = new Date();
+    const { lines, totals } = quote;
 
     // A retried submission must not create a second order. The order number
     // is unique, so an existing one for this key means the first attempt
@@ -117,8 +131,11 @@ class OrderService implements OrdersPort {
         totalCents: totals.subtotalCents,
         shippingCents: totals.shippingCents,
         taxCents: totals.taxCents,
+        taxIncluded: totals.taxIncluded,
         discountCents: totals.discountCents,
-        discountCode: input.discountCode ?? null,
+        discountCode:
+          quote.applied.find((a) => a.code)?.code ?? input.discountCode ?? null,
+        appliedPromotions: appliedSnapshot(quote),
         status: input.status ?? (input.source === "STORE" ? "DELIVERED" : "PENDING"),
         paymentStatus: input.payment.status,
         paymentMethod: input.payment.method,
@@ -129,30 +146,10 @@ class OrderService implements OrdersPort {
       select: { id: true, orderNumber: true, createdAt: true },
     });
 
-    // Each line freezes what it was sold as, so an invoice never depends on
-    // the catalog's current state.
-    await client.orderItem.createMany({
-      data: lines.map((line) => ({
-        orderId: order.id,
-        productId: line.productId,
-        variantId: line.variantId,
-        quantity: line.quantity,
-        priceCents: line.priceCents,
-        catalogPriceCents: line.catalogPriceCents,
-        unitCostCents: line.unitCostCents,
-        name: line.name,
-        variantName: line.variantName,
-        sku: line.sku,
-        barcode: line.barcode,
-        discountCents: line.discountCents,
-        taxCents: line.taxCents,
-        taxRateBps: line.taxRateBps,
-        overrideReason:
-          line.priceCents !== line.catalogPriceCents
-            ? (input.lines.find((l) => l.variantId === line.variantId)?.overrideReason ?? null)
-            : null,
-        overriddenBy: line.priceCents !== line.catalogPriceCents ? (input.actorId ?? null) : null,
-      })),
+    await persistOrderLines(client, order.id, quote, {
+      inputs: input.lines,
+      actorId: input.actorId,
+      promotions: input.pricing?.promotions,
     });
 
     await client.payment.create({

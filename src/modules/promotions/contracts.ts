@@ -133,8 +133,10 @@ export interface EngineSchedule {
 
 export interface EnginePromotion {
   id: string;
-  /** What the client and the invoice call it. */
+  /** What the client sees it called. */
   label: string;
+  /** What the invoice prints against its discount, when set apart. */
+  invoiceLabel: string | null;
   trigger: "AUTOMATIC" | "CODE";
   /** Upper-case codes that unlock a CODE promotion. */
   codes: string[];

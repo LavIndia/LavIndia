@@ -185,6 +185,12 @@ function PaymentAndTotals({ invoice }: { invoice: InvoiceSnapshot }) {
             <span>−{formatPaisa(totals.discountCents)}</span>
           </div>
         )}
+        {totals.offers?.map((offer) => (
+          <div key={offer.label} style={{ ...row, fontSize: "2.6mm" }}>
+            <span style={{ color: T.textMuted, paddingLeft: "3mm" }}>{offer.label}</span>
+            <span style={{ color: T.textMuted }}>−{formatPaisa(offer.savingCents)}</span>
+          </div>
+        ))}
         {totals.shippingCents > 0 && (
           <div style={row}>
             <span style={{ color: T.textMuted }}>Shipping</span>
@@ -193,7 +199,8 @@ function PaymentAndTotals({ invoice }: { invoice: InvoiceSnapshot }) {
         )}
         <div style={row}>
           <span style={{ color: T.textMuted }}>
-            Tax{invoice.lines[0]?.taxRateBps ? ` (${invoice.lines[0].taxRateBps / 100}%)` : ""}
+            {totals.taxIncluded ? "GST included" : "Tax"}
+            {invoice.lines[0]?.taxRateBps ? ` (${invoice.lines[0].taxRateBps / 100}%)` : ""}
           </span>
           <span>{formatPaisa(totals.taxCents)}</span>
         </div>

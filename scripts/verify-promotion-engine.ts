@@ -29,6 +29,7 @@ function promo(benefit: Benefit, over: Partial<EnginePromotion> = {}): EnginePro
   return {
     id: `p${seq}`,
     label: `Offer ${seq}`,
+    invoiceLabel: null,
     trigger: "AUTOMATIC",
     codes: [],
     channels: ["ONLINE", "STORE"],

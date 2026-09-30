@@ -15,6 +15,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { createAuditLog } from "@/lib/audit";
 import { posService } from "@/modules/pos";
 import { VariantId } from "@/modules/_shared/ids";
+import { pricingContext } from "@/lib/promotions-cache";
 
 const schema = z.object({
   lines: z
@@ -44,6 +45,8 @@ const schema = z.object({
     })
     .optional(),
   discountCents: z.number().int().min(0).optional(),
+  /** Offer codes the client handed over at the counter. */
+  codes: z.array(z.string().trim().min(1).max(40)).max(5).optional(),
   notes: z.string().trim().max(500).optional(),
   /** Makes a double-tap or a retry safe — the same key returns the same sale. */
   idempotencyKey: z.string().min(8).max(200).optional(),
@@ -60,6 +63,15 @@ export const POST = apiHandler(async (req: NextRequest) => {
     await requireAdmin("pos:override-price");
   }
 
+  // The same live offers the counter screen showed, re-applied here: the
+  // bill is priced on the server, never from what the screen sent.
+  const pricing = await pricingContext({
+    channel: "STORE",
+    customerId: input.customer?.customerId ?? null,
+    codes: input.codes,
+    paymentMethod: input.payment.method === "OTHER" ? null : input.payment.method,
+  });
+
   const sale = await posService.completeSale({
     lines: input.lines.map((line) => ({
       variantId: VariantId(line.variantId),
@@ -70,6 +82,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
     payment: input.payment,
     customer: input.customer,
     discountCents: input.discountCents,
+    pricing,
     notes: input.notes,
     actorId: actor.id,
     idempotencyKey: input.idempotencyKey,

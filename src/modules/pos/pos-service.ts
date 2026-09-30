@@ -17,7 +17,7 @@ import { DomainError } from "../_shared/errors";
 import { CustomerId, type OrderId } from "../_shared/ids";
 import { billingService } from "../billing/billing-service";
 import { orderService } from "../orders/order-service";
-import type { OrderLineInput, PosPaymentMethod } from "../orders/contracts";
+import type { CreateOrderInput, OrderLineInput, PosPaymentMethod } from "../orders/contracts";
 import type { InvoiceSnapshot } from "../billing/invoices/invoice-types";
 
 export interface PosSaleInput {
@@ -37,6 +37,8 @@ export interface PosSaleInput {
   };
   /** An order-level discount in paisa, on top of any per-line override. */
   discountCents?: number;
+  /** The live offers and codes the sale is priced against. */
+  pricing?: CreateOrderInput["pricing"];
   notes?: string;
   actorId: string;
   idempotencyKey?: string;
@@ -87,6 +89,7 @@ class PosService {
           },
           status: "DELIVERED",
           discountCents: input.discountCents,
+          pricing: input.pricing,
           notes: input.notes,
           actorId: input.actorId,
           idempotencyKey: input.idempotencyKey,

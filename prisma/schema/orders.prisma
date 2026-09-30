@@ -58,6 +58,13 @@ model Order {
   /// [{ promotionId, label, savingCents }]. A snapshot, so a receipt never
   /// needs a join and never changes when an offer is edited.
   appliedPromotions Json?
+  /// Whether the prices on this order already included GST.
+  ///
+  /// When true, `taxCents` is the GST contained IN the prices and the client
+  /// paid total − discount + shipping; when false, GST was added on top.
+  /// Recorded per order because the setting can change, and an invoice has
+  /// to state what was true when the sale was made.
+  taxIncluded       Boolean       @default(false)
   notes             String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt

@@ -27,6 +27,16 @@ export interface BillingPort {
   getInvoiceByOrder(orderId: OrderId): Promise<IssuedInvoice | null>;
 }
 
+/** The offers frozen onto an order, in the shape the invoice prints. */
+function offersOf(value: unknown): Array<{ label: string; savingCents: number }> | undefined {
+  if (!Array.isArray(value) || value.length === 0) return undefined;
+  return value
+    .filter((entry): entry is { label: string; savingCents: number } =>
+      Boolean(entry) && typeof entry.label === "string" && typeof entry.savingCents === "number",
+    )
+    .map(({ label, savingCents }) => ({ label, savingCents }));
+}
+
 class BillingService implements BillingPort {
   async issueInvoiceForOrder(
     orderId: OrderId,
@@ -113,9 +123,14 @@ class BillingService implements BillingPort {
         subtotalCents: order.totalCents,
         discountCents: order.discountCents,
         taxCents: order.taxCents,
+        taxIncluded: order.taxIncluded,
+        offers: offersOf(order.appliedPromotions),
         shippingCents: order.shippingCents,
         grandTotalCents:
-          order.totalCents - order.discountCents + order.taxCents + order.shippingCents,
+          order.totalCents -
+          order.discountCents +
+          (order.taxIncluded ? 0 : order.taxCents) +
+          order.shippingCents,
       },
       payment: {
         method: order.paymentMethod ?? "—",

@@ -2,39 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { revalidateStockViews } from "@/lib/catalog-cache";
 import { checkoutService } from "@/modules/ecommerce";
+import { appliedSnapshot, persistOrderLines } from "@/modules/orders";
 import { OrderId } from "@/modules/_shared/ids";
+import { isDomainError, toErrorResponse } from "@/modules/_shared/errors";
 import { BESTSELLERS_TAG } from "@/lib/bestseller-ranking";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { cartItemSchema, resolveCartLines } from "@/lib/cart-lines";
+import { priceCart } from "@/lib/cart-quote";
+import { onlinePaymentInstrument, shippingCentsFor } from "@/lib/online-charges";
 import { z } from "zod";
-import {
-  checkDiscountEligibility,
-  computeDiscountCents,
-  findDiscountByCode,
-} from "@/lib/discounts";
 
+// The client sends WHAT it wants, never what it costs. Every price, offer,
+// tax and fee is worked out here, the same way the cart and checkout showed
+// it (src/lib/cart-quote.ts). Older clients still send price fields; they
+// are accepted and ignored.
 const orderSchema = z.object({
   addressId: z.string(),
   paymentMethod: z.enum(["cod", "razorpay"]),
+  /** The instrument chosen on the checkout page, for offers that ask. */
+  paymentChoice: z.enum(["upi", "card", "cod"]).optional(),
   shippingMethod: z.enum(["standard", "express"]),
-  items: z
-    .array(
-      z.object({
-        productId: z.string(),
-        variantId: z.string().optional(),
-        quantity: z.number().int().positive(),
-        priceCents: z.number().int().positive(),
-        name: z.string(),
-        image: z.string().optional(),
-      })
-    )
-    .min(1),
-  totalCents: z.number().int().positive(),
-  shippingCents: z.number().int().min(0),
-  taxCents: z.number().int().min(0),
-  // The client sends the code only — the discount amount is always
-  // recomputed server-side (never trust a client-provided amount).
-  discountCode: z.string().optional(),
+  items: z.array(cartItemSchema).min(1),
+  discountCode: z.string().trim().max(40).optional(),
   notes: z.string().optional(),
 });
 
@@ -45,6 +35,12 @@ function generateOrderNumber(): string {
   return `LVI-${timestamp}-${random}`;
 }
 
+function stockProblem(problem: { available: number; productName: string }) {
+  return problem.available === 0
+    ? `${problem.productName} has just sold out`
+    : `Only ${problem.available} left of ${problem.productName}`;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
@@ -52,247 +48,183 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const validated = orderSchema.parse(body);
+    const validated = orderSchema.parse(await req.json());
 
-    // Verify address belongs to user
-    const address = await prisma.address.findFirst({
-      where: {
-        id: validated.addressId,
-        userId: session.user.id,
-      },
-    });
+    const [address, settings, lines] = await Promise.all([
+      prisma.address.findFirst({ where: { id: validated.addressId, userId: session.user.id } }),
+      // The cash-on-delivery fee is read from settings, never taken from the
+      // request — the same rule every price and charge follows.
+      prisma.siteSettings.findFirst({ select: { codFeeCents: true } }),
+      resolveCartLines(validated.items),
+    ]);
 
     if (!address) {
       return NextResponse.json({ error: "Invalid address" }, { status: 400 });
     }
 
-    // Generate order number
-    const orderNumber = generateOrderNumber();
+    const codFeeCents = validated.paymentMethod === "cod" ? (settings?.codFeeCents ?? 0) : 0;
+    const code = validated.discountCode?.trim().toUpperCase() || null;
 
-    // Determine shipping fee based on shipping method
-    const shippingCents = validated.shippingMethod === "express" ? 19900 : 9900;
-
-    // The cash-on-delivery fee is read from settings here, never taken from
-    // the request — the same rule the shipping charge and the discount
-    // follow. A client that asked to be charged nothing would otherwise be
-    // obliged.
-    const settings = await prisma.siteSettings.findFirst({
-      select: { codFeeCents: true },
+    const priced = await priceCart({
+      channel: "ONLINE",
+      lines,
+      codes: code ? [code] : [],
+      customerId: session.user.id,
+      paymentMethod: onlinePaymentInstrument(
+        validated.paymentChoice ?? (validated.paymentMethod === "cod" ? "cod" : undefined),
+      ),
+      shippingCents: shippingCentsFor(validated.shippingMethod),
     });
-    const codFeeCents =
-      validated.paymentMethod === "cod" ? (settings?.codFeeCents ?? 0) : 0;
+    const { quote } = priced;
 
-    // Pre-check the coupon outside the transaction so a bad/expired code
-    // fails fast with a clear message before any writes happen.
-    if (validated.discountCode) {
-      const preCheckDiscount = await findDiscountByCode(validated.discountCode);
-      if (!preCheckDiscount) {
-        return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
-      }
-      const eligibilityError = checkDiscountEligibility(
-        preCheckDiscount,
-        validated.totalCents,
+    // Draft is a statement about the website: an unpublished piece cannot be
+    // bought online by anyone who happens to have its id.
+    const unlisted = [...priced.variants.values()].filter((v) => !v.isPublished || !v.isActive);
+    if (unlisted.length > 0) {
+      return NextResponse.json(
+        { error: `"${unlisted[0].productName}" is not available to buy online` },
+        { status: 400 },
       );
-      if (eligibilityError) {
-        return NextResponse.json({ error: eligibilityError }, { status: 400 });
-      }
     }
 
-    // Stock is checked and HELD server-side. The client's prices and
-    // quantities are advisory; this is what actually decides whether the
-    // sale may proceed, and it is what stops two people buying the same
-    // last piece.
-    const stockLines = validated.items
-      .filter((item) => item.variantId)
-      .map((item) => ({ variantId: item.variantId!, quantity: item.quantity }));
+    // A code that does nothing is an error at this point, not a silent no-op:
+    // the checkout showed it applied, or the client would not be here.
+    const codeProblem = priced.codeProblems[0];
+    if (codeProblem) {
+      return NextResponse.json(
+        { error: codeProblem.text, code: "CODE_NOT_APPLIED" },
+        { status: 400 },
+      );
+    }
 
-    if (stockLines.length > 0) {
-      const check = await checkoutService.validate(stockLines);
-      if (!check.ok) {
-        const first = check.problems[0];
-        return NextResponse.json(
-          {
-            error:
-              first.available === 0
-                ? `${first.productName} has just sold out`
-                : `Only ${first.available} left of ${first.productName}`,
-            code: "INSUFFICIENT_STOCK",
-            problems: check.problems,
+    // Stock is checked and HELD server-side. This is what decides whether the
+    // sale may proceed, and it is what stops two people buying the same last
+    // piece.
+    const stockLines = lines.map((line) => ({ variantId: line.variantId, quantity: line.quantity }));
+    const check = await checkoutService.validate(stockLines);
+    if (!check.ok) {
+      return NextResponse.json(
+        { error: stockProblem(check.problems[0]), code: "INSUFFICIENT_STOCK", problems: check.problems },
+        { status: 409 },
+      );
+    }
+
+    const grandTotalCents = quote.totals.grandTotalCents + codFeeCents;
+    const images = new Map(lines.map((line) => [line.variantId, line.image]));
+
+    const order = await prisma.$transaction(
+      async (tx) => {
+        const newOrder = await tx.order.create({
+          data: {
+            userId: session.user.id,
+            addressId: validated.addressId,
+            orderNumber: generateOrderNumber(),
+            totalCents: quote.totals.subtotalCents,
+            shippingCents: quote.totals.shippingCents,
+            codFeeCents,
+            taxCents: quote.totals.taxCents,
+            taxIncluded: quote.totals.taxIncluded,
+            discountCode: quote.applied.find((a) => a.code)?.code ?? null,
+            discountCents: quote.totals.discountCents,
+            appliedPromotions: appliedSnapshot(quote),
+            paymentMethod: validated.paymentMethod,
+            paymentProvider: validated.paymentMethod === "razorpay" ? "razorpay" : null,
+            paymentStatus: "PENDING",
+            status: validated.paymentMethod === "cod" ? "PROCESSING" : "PENDING",
+            notes: validated.notes,
+            customerName: address.fullName,
+            customerMobile: address.mobile,
           },
-          { status: 409 },
-        );
-      }
-    }
-
-    // Create order with payment and tracking in transaction
-    const order = await prisma.$transaction(async (tx) => {
-      let discountCents = 0;
-      let discountCode: string | null = null;
-
-      if (validated.discountCode) {
-        // Re-fetch and re-validate inside the transaction (not the
-        // pre-check instance) so the usage-limit check and the increment
-        // below are atomic against concurrent redemptions of the same code.
-        const discount = await tx.discount.findFirst({
-          where: { code: { equals: validated.discountCode.trim(), mode: "insensitive" } },
         });
-        if (!discount) throw new Error("DISCOUNT_INVALID");
-        const eligibilityError = checkDiscountEligibility(discount, validated.totalCents);
-        if (eligibilityError) throw new Error("DISCOUNT_INELIGIBLE");
 
-        discountCents = computeDiscountCents(discount, validated.totalCents);
-        discountCode = discount.code;
-
-        await tx.discount.update({
-          where: { id: discount.id },
-          data: { usedCount: { increment: 1 } },
+        // Lines, the offers behind each line's discount, and each offer's
+        // use — counted atomically, so a limited offer cannot be overspent.
+        await persistOrderLines(tx, newOrder.id, quote, {
+          promotions: priced.pricing.promotions,
+          images,
         });
-      }
 
-      const grandTotalCents =
-        validated.totalCents +
-        shippingCents +
-        codFeeCents +
-        validated.taxCents -
-        discountCents;
+        await tx.payment.create({
+          data: {
+            orderId: newOrder.id,
+            amountCents: grandTotalCents,
+            currency: "INR",
+            method: validated.paymentMethod,
+            status: validated.paymentMethod === "cod" ? "COMPLETED" : "PENDING",
+          },
+        });
 
-      // Create order
-      const newOrder = await tx.order.create({
-        data: {
-          userId: session.user.id,
-          addressId: validated.addressId,
-          orderNumber,
-          totalCents: validated.totalCents,
-          shippingCents,
-          codFeeCents,
-          taxCents: validated.taxCents,
-          discountCode,
-          discountCents,
-          paymentMethod: validated.paymentMethod,
-          paymentProvider:
-            validated.paymentMethod === "razorpay" ? "razorpay" : null,
-          paymentStatus:
-            validated.paymentMethod === "cod" ? "PENDING" : "PENDING",
-          status: validated.paymentMethod === "cod" ? "PROCESSING" : "PENDING",
-          notes: validated.notes,
-        },
-      });
-
-      // Create order items
-      await tx.orderItem.createMany({
-        data: validated.items.map((item) => ({
-          orderId: newOrder.id,
-          productId: item.productId,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          priceCents: item.priceCents,
-          name: item.name,
-          image: item.image,
-        })),
-      });
-
-      // Create payment record
-      await tx.payment.create({
-        data: {
-          orderId: newOrder.id,
-          amountCents: grandTotalCents,
-          currency: "INR",
-          method: validated.paymentMethod,
-          status: validated.paymentMethod === "cod" ? "COMPLETED" : "PENDING",
-        },
-      });
-
-      // Create initial tracking entry
-      await tx.orderTracking.create({
-        data: {
-          orderId: newOrder.id,
-          status: "Order placed",
-          description:
-            validated.paymentMethod === "cod"
-              ? "Order placed with Cash on Delivery"
-              : "Order placed, awaiting payment confirmation",
-          updatedBy: session.user.id,
-        },
-      });
-
-      // Held inside the same transaction as the order, so an order never
-      // exists without its stock set aside. COD is settled immediately —
-      // there is no gateway step to wait for — while a gateway payment keeps
-      // the hold until it is confirmed.
-      if (stockLines.length > 0) {
-        await checkoutService.reserveForOrder(OrderId(newOrder.id), stockLines, tx);
-        if (validated.paymentMethod === "cod") {
-          await checkoutService.commitPaidOrder(OrderId(newOrder.id), stockLines, tx);
-        }
-      }
-
-      if (validated.paymentMethod === "cod") {
-        // For COD, add another tracking entry
         await tx.orderTracking.create({
           data: {
             orderId: newOrder.id,
-            status: "Processing",
-            description: "Order is being prepared for shipment",
-            updatedBy: "system",
+            status: "Order placed",
+            description:
+              validated.paymentMethod === "cod"
+                ? "Order placed with Cash on Delivery"
+                : "Order placed, awaiting payment confirmation",
+            updatedBy: session.user.id,
           },
         });
-      }
 
-      return newOrder;
-    });
+        // Held inside the same transaction as the order, so an order never
+        // exists without its stock set aside. COD is settled immediately —
+        // there is no gateway step to wait for — while a gateway payment keeps
+        // the hold until it is confirmed.
+        await checkoutService.reserveForOrder(OrderId(newOrder.id), stockLines, tx);
+        if (validated.paymentMethod === "cod") {
+          await checkoutService.commitPaidOrder(OrderId(newOrder.id), stockLines, tx);
+          await tx.orderTracking.create({
+            data: {
+              orderId: newOrder.id,
+              status: "Processing",
+              description: "Order is being prepared for shipment",
+              updatedBy: "system",
+            },
+          });
+        }
 
-    // A new order changes the bestseller ranking, so its cache is dropped
-    // here rather than waiting for the revalidate window to lapse.
+        return newOrder;
+      },
+      { timeout: 20_000 },
+    );
+
+    // A new order changes the bestseller ranking, and it took stock with it,
+    // so the listings and product pages are dropped too.
     revalidateTag(BESTSELLERS_TAG);
-    // The order also took the stock with it, so the listings and the product
-    // pages must be dropped too — not just the homepage. Without this a
-    // single-piece design went on showing as available on its category page
-    // for up to a minute after it was sold.
     revalidateStockViews();
 
-    // Fetch complete order details
     const orderWithDetails = await prisma.order.findUnique({
       where: { id: order.id },
       include: {
         items: true,
         address: true,
         payment: true,
-        tracking: {
-          orderBy: { createdAt: "asc" },
-        },
+        tracking: { orderBy: { createdAt: "asc" } },
       },
     });
 
     return NextResponse.json({
       success: true,
       order: orderWithDetails,
+      payableCents: grandTotalCents,
       message:
         validated.paymentMethod === "cod"
           ? "Order placed successfully"
           : "Order created, please complete payment",
     });
   } catch (error) {
-    console.error("Order creation error:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Invalid order data", details: error.errors },
-        { status: 400 }
-      );
-    }
-    if (error instanceof Error && error.message === "DISCOUNT_INVALID") {
-      return NextResponse.json({ error: "Invalid coupon code" }, { status: 400 });
-    }
-    if (error instanceof Error && error.message === "DISCOUNT_INELIGIBLE") {
-      return NextResponse.json(
-        { error: "This coupon is no longer valid for this order" },
         { status: 400 },
       );
     }
-    return NextResponse.json(
-      { error: "Failed to create order" },
-      { status: 500 }
-    );
+    if (isDomainError(error)) {
+      const { body, status } = toErrorResponse(error);
+      return NextResponse.json(body, { status });
+    }
+    console.error("Order creation error:", error);
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 }
 

@@ -8,6 +8,7 @@
  */
 import type { Tx } from "../_shared/db";
 import type { CustomerId, OrderId, VariantId } from "../_shared/ids";
+import type { EnginePromotion, PaymentInstrument } from "../promotions/contracts";
 
 export type OrderSource = "ONLINE" | "STORE";
 
@@ -70,7 +71,20 @@ export interface CreateOrderInput {
   status?: OrderStatus;
   shippingCents?: number;
   discountCode?: string;
+  /** A manual discount off the whole order, as given at the counter. */
   discountCents?: number;
+  /**
+   * What the order is priced against beyond the catalog: the live offers,
+   * any codes entered, and whether this channel's prices include GST.
+   * Absent means no offers and GST added on top.
+   */
+  pricing?: {
+    promotions: readonly EnginePromotion[];
+    codes?: readonly string[];
+    customer?: { id: string | null; previousOrderCount: number };
+    paymentMethod?: PaymentInstrument | null;
+    pricesIncludeTax: boolean;
+  };
   notes?: string;
   /** Who rang up the sale. Null for a customer's own online checkout. */
   actorId?: string;
@@ -94,15 +108,41 @@ export interface OrderLineSnapshot {
   /** What one unit cost the shop, frozen at the moment of sale. */
   unitCostCents: number | null;
   discountCents: number;
+  /** The part of `discountCents` that came from offers. */
+  promotionDiscountCents: number;
+  /** Which offers gave that discount, summed over the line's units. */
+  allocations: LineAllocation[];
   taxCents: number;
   taxRateBps: number;
   lineTotalCents: number;
 }
 
+/** One offer's share of one line's discount. */
+export interface LineAllocation {
+  promotionId: string;
+  label: string;
+  code: string | null;
+  applicationKey: string;
+  cents: number;
+}
+
+/**
+ * An order's money, in one convention across both channels:
+ *
+ *   subtotal  — every piece at its list price
+ *   discount  — everything taken off it: offers and manual price changes
+ *   tax       — GST, summed from the lines (never recomputed on the total)
+ *   grand     — subtotal − discount + shipping, plus tax unless the prices
+ *               already included it
+ */
 export interface OrderTotals {
   subtotalCents: number;
   discountCents: number;
+  /** The part of `discountCents` that came from offers. */
+  promotionDiscountCents: number;
   taxCents: number;
+  /** True when `taxCents` is contained in the prices rather than added. */
+  taxIncluded: boolean;
   shippingCents: number;
   grandTotalCents: number;
 }

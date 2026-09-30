@@ -5,10 +5,11 @@ import { FooterSection } from "@/components/layout/FooterSection";
 import TopPromoBanner from "@/components/home/TopPromoBanner";
 import { BreadcrumbNavigation } from "@/components/layout/BreadcrumbNavigation";
 import { useCart } from "@/components/cart/useCart";
+import { useCheckoutQuote } from "@/components/checkout/useCheckoutQuote";
+import { CheckoutTotals } from "@/components/checkout/CheckoutTotals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import RazorpayCheckout from "@/components/payment/RazorpayCheckout";
-import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import {
   PaymentMethodChoice,
   isOnlinePayment,
@@ -19,7 +20,7 @@ import {
   type CheckoutShippingChoice,
 } from "@/components/checkout/ShippingMethodChoice";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -130,29 +131,11 @@ const couponRemoveStyle = css({
   background: "transparent",
   border: "none",
 });
-const discountValueStyle = css({ fontWeight: "medium", color: "success" });
-
-const totalsStyle = css({ marginTop: "4", display: "flex", flexDirection: "column", gap: "2", fontSize: "sm" });
-const totalsRowStyle = css({ display: "flex", alignItems: "center", justifyContent: "space-between" });
-const totalsLabelStyle = css({ color: "fg.default" });
-const totalsValueStyle = css({ fontWeight: "medium", color: "fg.default" });
-const grandTotalRowStyle = css({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  fontSize: "md",
-  paddingTop: "2",
-  borderTop: "1px solid",
-  borderColor: "border.subtle",
-});
-const grandTotalLabelStyle = css({ fontFamily: "display", fontWeight: "semibold", color: "fg.default" });
-const grandTotalValueStyle = css({ fontFamily: "display", fontWeight: "semibold", fontSize: "lg", color: "fg.default" });
-
 const placeOrderBtnStyle = css({ width: "full", marginTop: "4" });
 const continueBtnStyle = css({ width: "full", marginTop: "2" });
 
 export default function CheckoutPage() {
-  const { items, totalPrice, totalCount, clear } = useCart();
+  const { items, totalCount, clear } = useCart();
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -171,15 +154,11 @@ export default function CheckoutPage() {
     paymentMethod: "upi" as CheckoutPaymentChoice,
   });
 
-  const { codFeeCents } = useSiteSettings();
   const [isProcessing, setIsProcessing] = useState(false);
   const [couponInput, setCouponInput] = useState("");
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-  const [appliedCoupon, setAppliedCoupon] = useState<{
-    code: string;
-    title: string;
-    discountCents: number;
-  } | null>(null);
+  // The code the client asked for. Whether it applies is the server's call,
+  // answered by the quote below.
+  const [couponCode, setCouponCode] = useState<string | null>(null);
   const [showRazorpay, setShowRazorpay] = useState(false);
   const [razorpayData, setRazorpayData] = useState<{
     orderId: string;
@@ -236,80 +215,45 @@ export default function CheckoutPage() {
     fetchUserData();
   }, [session]);
 
-  const shippingFee = useMemo(
-    () => (totalPrice > 0 ? (form.shippingMethod === "express" ? 199 : 99) : 0),
-    [totalPrice, form.shippingMethod]
+  // Every figure on this page comes from the server's pricing — offers,
+  // GST, delivery and the cash-on-delivery fee — so what is shown here is
+  // exactly what the order will charge.
+  const { quote, loading: quoteLoading } = useCheckoutQuote({
+    items,
+    code: couponCode,
+    shippingMethod: form.shippingMethod,
+    paymentMethod: form.paymentMethod,
+  });
+
+  const couponApplied = Boolean(
+    couponCode && quote?.applied.some((offer) => offer.code === couponCode),
   );
 
-  /**
-   * What cash on delivery adds to the bill.
-   *
-   * Charged only when the customer actually chooses to pay cash, and only on
-   * a non-empty basket, so an empty checkout never shows a fee for a service
-   * nobody has asked for. The rate is the owner's, set in Settings.
-   */
-  const codFee = useMemo(
-    () => (totalPrice > 0 && form.paymentMethod === "cod" ? Math.round(codFeeCents / 100) : 0),
-    [totalPrice, form.paymentMethod, codFeeCents],
-  );
-
-  const tax = useMemo(() => 0, []); // placeholder, GST/VAT can be calculated later
-
-  const discountRupees = appliedCoupon
-    ? Math.round(appliedCoupon.discountCents / 100)
-    : 0;
-
-  const grandTotal = useMemo(
-    () => Math.max(0, totalPrice + shippingFee + codFee + tax - discountRupees),
-    [totalPrice, shippingFee, codFee, tax, discountRupees]
-  );
-
-  const grandTotalCents = useMemo(() => grandTotal * 100, [grandTotal]);
-
-  const applyCoupon = async (code: string) => {
-    if (!code.trim() || totalPrice <= 0) return;
-    setIsApplyingCoupon(true);
-    try {
-      const res = await fetch("/api/discounts/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, subtotalCents: totalPrice * 100 }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.valid) {
-        setAppliedCoupon(null);
-        toast.error(data.error || "Invalid coupon code");
-        return;
-      }
-      setAppliedCoupon({
-        code: data.code,
-        title: data.title,
-        discountCents: data.discountCents,
-      });
-      toast.success(`Coupon "${data.code}" applied`);
-    } catch {
-      toast.error("Could not validate coupon right now");
-    } finally {
-      setIsApplyingCoupon(false);
+  // A code the cart cannot use is dropped with the reason, rather than left
+  // looking applied. Each code is announced once, not on every re-price.
+  const announcedCode = useRef<string | null>(null);
+  useEffect(() => {
+    if (!couponCode || !quote) return;
+    const problem = quote.codeProblems.find((p) => p.code === couponCode);
+    if (problem) {
+      toast.error(problem.text);
+      announcedCode.current = null;
+      setCouponCode(null);
+    } else if (couponApplied && announcedCode.current !== couponCode) {
+      announcedCode.current = couponCode;
+      toast.success(`Code ${couponCode} applied`);
     }
-  };
+  }, [quote, couponCode, couponApplied]);
 
-  const handleApplyCoupon = () => applyCoupon(couponInput);
+  const handleApplyCoupon = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (code && items.length > 0) setCouponCode(code);
+  };
 
   const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
+    setCouponCode(null);
     setCouponInput("");
   };
-
-  // Re-validate silently if the cart total changes while a coupon is
-  // applied (e.g. quantity edited) — a min-purchase or % amount can go
-  // stale otherwise.
-  useEffect(() => {
-    if (appliedCoupon) {
-      applyCoupon(appliedCoupon.code);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalPrice]);
 
   const handlePlaceOrder = async () => {
     // Client-side validation
@@ -365,37 +309,14 @@ export default function CheckoutPage() {
         addressId: address.id,
         paymentMethod: paidOnline ? "razorpay" : "cod",
         shippingMethod: form.shippingMethod,
-        items: items.map((item) => {
-          const orderItem: {
-            productId: string;
-            variantId?: string;
-            quantity: number;
-            priceCents: number;
-            name: string;
-            image?: string;
-          } = {
-            productId: item.id,
-            quantity: item.qty,
-            priceCents: item.price * 100,
-            name: item.name,
-          };
-
-          // Only include variantId if it exists
-          if (item.variantId) {
-            orderItem.variantId = item.variantId;
-          }
-
-          // Only include image if it exists
-          if (item.image) {
-            orderItem.image = item.image;
-          }
-
-          return orderItem;
-        }),
-        totalCents: totalPrice * 100,
-        shippingCents: shippingFee * 100,
-        taxCents: tax * 100,
-        discountCode: appliedCoupon?.code,
+        paymentChoice: form.paymentMethod,
+        items: items.map((item) => ({
+          productId: item.id,
+          variantId: item.variantId ?? null,
+          quantity: item.qty,
+          image: item.image ?? null,
+        })),
+        discountCode: couponApplied ? (couponCode ?? undefined) : undefined,
         notes: "",
       };
 
@@ -410,7 +331,7 @@ export default function CheckoutPage() {
         throw new Error(errorData.error || "Failed to create order");
       }
 
-      const { order } = await orderResponse.json();
+      const { order, payableCents } = await orderResponse.json();
 
       // Step 3: Settle the payment
       if (!paidOnline) {
@@ -422,7 +343,7 @@ export default function CheckoutPage() {
         setRazorpayData({
           orderId: order.id,
           orderNumber: order.orderNumber,
-          amount: grandTotalCents,
+          amount: payableCents,
         });
         setShowRazorpay(true);
       }
@@ -580,10 +501,10 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              {appliedCoupon ? (
+              {couponApplied ? (
                 <div className={couponAppliedStyle}>
                   <span>
-                    Coupon <strong>{appliedCoupon.code}</strong> applied
+                    Code <strong>{couponCode}</strong> applied
                   </span>
                   <button
                     type="button"
@@ -596,7 +517,7 @@ export default function CheckoutPage() {
               ) : (
                 <div className={couponRowStyle}>
                   <Input
-                    placeholder="Coupon code"
+                    placeholder="Offer code"
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
                     onKeyDown={(e) => {
@@ -611,55 +532,14 @@ export default function CheckoutPage() {
                     type="button"
                     variant="outline"
                     onClick={handleApplyCoupon}
-                    disabled={isApplyingCoupon || !couponInput.trim() || items.length === 0}
+                    disabled={Boolean(couponCode) || !couponInput.trim() || items.length === 0}
                   >
-                    {isApplyingCoupon ? "Checking..." : "Apply"}
+                    {couponCode && quoteLoading ? "Checking..." : "Apply"}
                   </Button>
                 </div>
               )}
 
-              <div className={totalsStyle}>
-                <div className={totalsRowStyle}>
-                  <span className={totalsLabelStyle}>Subtotal</span>
-                  <span className={totalsValueStyle}>
-                    ₹{totalPrice.toLocaleString()}
-                  </span>
-                </div>
-                <div className={totalsRowStyle}>
-                  <span className={totalsLabelStyle}>Shipping</span>
-                  <span className={totalsValueStyle}>
-                    ₹{shippingFee.toLocaleString()}
-                  </span>
-                </div>
-                {/* Shown only when it applies, so a card customer is never
-                    told about a fee they are not paying. */}
-                {codFee > 0 && (
-                  <div className={totalsRowStyle}>
-                    <span className={totalsLabelStyle}>Cash on delivery fee</span>
-                    <span className={totalsValueStyle}>₹{codFee.toLocaleString()}</span>
-                  </div>
-                )}
-                {tax > 0 && (
-                  <div className={totalsRowStyle}>
-                    <span className={totalsLabelStyle}>Tax</span>
-                    <span className={totalsValueStyle}>₹{tax.toLocaleString()}</span>
-                  </div>
-                )}
-                {appliedCoupon && (
-                  <div className={totalsRowStyle}>
-                    <span className={totalsLabelStyle}>Discount</span>
-                    <span className={discountValueStyle}>
-                      −₹{discountRupees.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                )}
-                <div className={grandTotalRowStyle}>
-                  <span className={grandTotalLabelStyle}>Total</span>
-                  <span className={grandTotalValueStyle}>
-                    ₹{grandTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  </span>
-                </div>
-              </div>
+              <CheckoutTotals quote={quote} loading={quoteLoading} />
 
               <Button
                 className={placeOrderBtnStyle}
@@ -669,7 +549,8 @@ export default function CheckoutPage() {
                   !form.firstName ||
                   !form.address1 ||
                   !form.city ||
-                  isProcessing
+                  isProcessing ||
+                  !quote
                 }
                 onClick={handlePlaceOrder}
               >

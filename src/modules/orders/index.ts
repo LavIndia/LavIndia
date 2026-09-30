@@ -7,6 +7,7 @@
 export type {
   CreateOrderInput,
   CreatedOrder,
+  LineAllocation,
   OrderLineInput,
   OrderLineSnapshot,
   OrderSource,
@@ -17,5 +18,8 @@ export type {
   PosPaymentMethod,
 } from "./contracts";
 export { orderService } from "./order-service";
-export { GST_RATE_BPS, priceLines, totalsFor } from "./pricing";
+export { GST_RATE_BPS } from "./pricing";
+export { quoteCart } from "./quote";
+export type { Quote, QuoteInput } from "./quote";
+export { persistOrderLines, appliedSnapshot } from "./persist-lines";
 export { orderCustomerName, orderCustomerContact, WALK_IN_CUSTOMER_LABEL } from "./customer-display";

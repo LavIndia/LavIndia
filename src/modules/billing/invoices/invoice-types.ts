@@ -49,6 +49,11 @@ export interface InvoiceTotals {
   subtotalCents: number;
   discountCents: number;
   taxCents: number;
+  /** True when the GST is contained in the prices rather than added on top.
+   *  Absent on invoices issued before this was recorded, which added it. */
+  taxIncluded?: boolean;
+  /** The offers behind the discount, as the client was told them. */
+  offers?: Array<{ label: string; savingCents: number }>;
   shippingCents: number;
   grandTotalCents: number;
 }
