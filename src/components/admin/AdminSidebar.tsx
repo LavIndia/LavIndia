@@ -96,7 +96,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Marketing & Content",
     items: [
-      { name: "Discounts", href: "/admin/discounts", icon: Tag },
+      { name: "Offers", href: "/admin/promotions", icon: Tag },
       { name: "Hero Banners", href: "/admin/hero-banners", icon: Image },
       { name: "Login Screen Images", href: "/admin/auth-images", icon: Images },
       { name: "Promo Banners", href: "/admin/promo-banners", icon: Megaphone },

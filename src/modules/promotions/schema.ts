@@ -32,6 +32,8 @@ export const selectorSchema = z.discriminatedUnion("type", [
 export const pieceFilterSchema = z.object({
   include: z.array(selectorSchema).default([]),
   exclude: z.array(selectorSchema).default([]),
+  /** Further groups of pieces, each narrowed on its own. */
+  or: z.array(z.array(selectorSchema)).max(10).optional(),
 });
 
 export const conditionSchema = z.discriminatedUnion("type", [

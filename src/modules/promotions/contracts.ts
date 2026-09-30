@@ -28,10 +28,19 @@ export type Selector =
   | { type: "sizes"; values: string[] }
   | { type: "priceRange"; minCents?: number | null; maxCents?: number | null };
 
-/** An empty `include` means every piece. */
+/**
+ * Which pieces count.
+ *
+ * `include` is the first group of pieces; `or` holds any further groups,
+ * each with its own categories and its own price, colour or size — so one
+ * offer can cover "earrings at ₹200–₹400 or black necklaces under ₹600".
+ * A piece counts if it fits any group and is not in `exclude`.
+ * An empty `include` with no further groups means every piece.
+ */
 export interface PieceFilter {
   include: Selector[];
   exclude: Selector[];
+  or?: Selector[][];
 }
 
 // --- Conditions on the order --------------------------------------------

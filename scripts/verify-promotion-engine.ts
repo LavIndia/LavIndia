@@ -189,5 +189,34 @@ function totals(lines: EngineLine[], promotions: EnginePromotion[], context = ct
   check("Set price including GST: pre-tax ₹969.90", incl.net, 96_990);
 }
 
+// Selection semantics ---------------------------------------------------------
+{
+  const bangleBand = promo({ type: "percentOff", bps: 1_000 }, {
+    pieces: { include: [{ type: "categories", ids: ["bangles"] }, { type: "priceRange", minCents: 29_900, maxCents: 69_900 }], exclude: [] },
+  });
+  const t = totals([line("in", 499), line("dear", 999), line("ring", 499, "rings")], [bangleBand]);
+  check("Bangles ₹299–₹699 means bangles WITHIN that price, not every piece at it", t.perUnit, [4_990, 0, 0]);
+  const above = promo({ type: "percentOff", bps: 1_000 }, { pieces: { include: [{ type: "priceRange", minCents: 2_00_001 }], exclude: [] } });
+  const u = totals([line("a", 2_499, "necklaces"), line("b", 1_999, "necklaces")], [above]);
+  check("A price rule alone applies across every piece", u.perUnit, [24_990, 0]);
+}
+
+// Several groups of pieces, each narrowed on its own -----------------------------
+{
+  const mixed = promo({ type: "setPrice", setSize: 3, priceCents: 99_900 }, {
+    pieces: {
+      include: [{ type: "categories", ids: ["earrings"] }, { type: "priceRange", minCents: 20_000, maxCents: 40_000 }],
+      or: [[{ type: "categories", ids: ["necklaces"] }, { type: "colors", values: ["Black"] }, { type: "priceRange", maxCents: 59_999 }]],
+      exclude: [],
+    },
+  });
+  const black = { ...line("n1", 550, "necklaces"), color: "Black" };
+  const gold = { ...line("n2", 550, "necklaces"), color: "Gold" };
+  const dearBlack = { ...line("n3", 650, "necklaces"), color: "black" };
+  const t = totals([line("e1", 300, "earrings"), line("e2", 450, "earrings"), black, gold, dearBlack, line("e3", 390, "earrings")], [mixed]);
+  check("Earrings ₹200–₹400 OR black necklaces under ₹600: only those three form the set",
+    t.perUnit.map((d) => d > 0), [true, false, true, false, false, true]);
+}
+
 console.log(failures === 0 ? "\nAll engine checks passed." : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);

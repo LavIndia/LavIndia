@@ -62,16 +62,39 @@ function describeSelector(selector: Selector, names: NameLookup): string {
   }
 }
 
+function describeGroup(include: Selector[], names: NameLookup): string {
+  const groupTypes = new Set(["all", "categories", "collections", "products", "variants"]);
+  const groups = include.filter((s) => groupTypes.has(s.type));
+  const narrowing = include.filter((s) => !groupTypes.has(s.type));
+  const base = groups.length ? list(groups.map((s) => describeSelector(s, names))) : "pieces";
+  return narrowing.length
+    ? `${base} (${narrowing.map((s) => describeSelector(s, names)).join(", ")})`
+    : base;
+}
+
 export function describePieces(filter: PieceFilter | null, names: NameLookup = EMPTY): string {
+  const extra = (filter?.or ?? []).filter((g) => g.length > 0);
+  if (filter && extra.length > 0) {
+    const all = [filter.include, ...extra].filter((g) => g.length > 0).map((g) => describeGroup(g, names));
+    const excluded = filter.exclude.map((s) => describeSelector(s, names));
+    const joined = all.join(" or ");
+    return excluded.length ? `${joined}, except ${list(excluded)}` : joined;
+  }
   if (!filter || filter.include.length === 0) {
     const base = "any piece";
     return filter?.exclude.length
       ? `${base} except ${list(filter.exclude.map((s) => describeSelector(s, names)))}`
       : base;
   }
-  const included = list(filter.include.map((s) => describeSelector(s, names)));
+  const groupTypes = new Set(["all", "categories", "collections", "products", "variants"]);
+  const groups = filter.include.filter((s) => groupTypes.has(s.type));
+  const narrowing = filter.include.filter((s) => !groupTypes.has(s.type));
+  const base = groups.length ? list(groups.map((s) => describeSelector(s, names))) : "pieces";
+  const narrowed = narrowing.length
+    ? `${base} (${narrowing.map((s) => describeSelector(s, names)).join(", ")})`
+    : base;
   const excluded = filter.exclude.map((s) => describeSelector(s, names));
-  return excluded.length ? `${included}, except ${list(excluded)}` : included;
+  return excluded.length ? `${narrowed}, except ${list(excluded)}` : narrowed;
 }
 
 function describeReward(value: RewardValue): string {

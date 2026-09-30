@@ -81,15 +81,40 @@ export function matchesSelector(line: EngineLine, selector: Selector): boolean {
   }
 }
 
+/** Selectors that name WHERE pieces come from, as opposed to narrowing them. */
+const GROUP_SELECTORS: ReadonlySet<Selector["type"]> = new Set([
+  "all",
+  "categories",
+  "collections",
+  "products",
+  "variants",
+]);
+
 /**
- * Entries in `include` mean "any of these"; `exclude` means "and not".
- * An empty include list means every piece.
+ * How an admin reads a selection, made exact:
+ *
+ *   - categories, collections and named pieces mean "any of these";
+ *   - material, colour, size and price NARROW that — "Bangles, ₹299–₹699"
+ *     is bangles within that price, never every bangle plus every piece at
+ *     that price;
+ *   - `exclude` takes pieces back out.
+ *
+ * With no group chosen, the narrowing applies to every piece; an empty
+ * include list means every piece.
  */
+function matchesGroup(line: EngineLine, include: readonly Selector[]): boolean {
+  const groups = include.filter((s) => GROUP_SELECTORS.has(s.type));
+  const narrowing = include.filter((s) => !GROUP_SELECTORS.has(s.type));
+  if (groups.length > 0 && !groups.some((s) => matchesSelector(line, s))) return false;
+  return narrowing.every((s) => matchesSelector(line, s));
+}
+
 export function matchesFilter(line: EngineLine, filter: PieceFilter): boolean {
-  const included =
-    filter.include.length === 0 || filter.include.some((s) => matchesSelector(line, s));
-  if (!included) return false;
-  return !filter.exclude.some((s) => matchesSelector(line, s));
+  if (filter.exclude.some((s) => matchesSelector(line, s))) return false;
+  if (matchesGroup(line, filter.include)) return true;
+  // Further groups only ever add pieces; an empty one would mean "every
+  // piece", so it is skipped rather than silently widening the offer.
+  return (filter.or ?? []).some((group) => group.length > 0 && matchesGroup(line, group));
 }
 
 export function sumList(units: readonly Unit[]): number {

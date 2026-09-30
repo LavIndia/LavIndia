@@ -1,5 +1,6 @@
-import { DiscountForm } from "@/components/admin/discounts/DiscountForm";
+import { redirect } from "next/navigation";
 
-export default function NewDiscountPage() {
-  return <DiscountForm />;
+/** Coupons are created and edited as offers now — see Admin → Offers. */
+export default function DiscountRedirect() {
+  redirect("/admin/promotions");
 }

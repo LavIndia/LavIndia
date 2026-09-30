@@ -88,3 +88,40 @@ export function toEnginePromotion(row: PromotionRow): EnginePromotion | null {
     createdAt: row.createdAt,
   };
 }
+
+/** An unsaved draft as the engine sees it — for testing before saving. */
+export function inputToEngine(
+  input: import("./schema").PromotionInput,
+  id = "draft",
+): EnginePromotion {
+  return {
+    id,
+    label: input.title || headline(input.benefit),
+    invoiceLabel: input.invoiceLabel,
+    trigger: input.trigger,
+    codes: input.code ? [input.code] : [],
+    channels: input.channels,
+    schedule: {
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      isRecurring: input.isRecurring,
+      recurrenceType: input.recurrenceType,
+      recurrenceDaysOfWeek: input.recurrenceDaysOfWeek,
+      recurrenceDayOfMonth: input.recurrenceDayOfMonth,
+      recurrenceStartTime: input.recurrenceStartTime,
+      recurrenceEndTime: input.recurrenceEndTime,
+    },
+    pieces: input.pieces,
+    minQuantity: input.minQuantity,
+    minSubtotalCents: input.minSubtotalCents,
+    conditions: input.conditions,
+    benefit: input.benefit,
+    priceIncludesTax: input.priceIncludesTax,
+    maxApplicationsPerOrder: input.maxApplicationsPerOrder,
+    maxDiscountCents: input.maxDiscountCents,
+    combinesWithOtherClasses: input.combinesWithOtherClasses,
+    exclusive: input.exclusive,
+    rank: input.rank,
+    createdAt: new Date(),
+  };
+}

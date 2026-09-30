@@ -48,6 +48,7 @@ export {
 export {
   labelOf,
   statusOf,
+  inputToEngine,
   toEnginePromotion,
   type PromotionRow,
   type PromotionStatus,
@@ -61,3 +62,17 @@ export {
   withinCustomerLimits,
   type CustomerFacts,
 } from "./repository";
+export {
+  changeLifecycle,
+  checkPromotion,
+  createPromotion,
+  deletePromotion,
+  duplicatePromotion,
+  getPromotion,
+  listPromotions,
+  toInput,
+  updatePromotion,
+  type LifecycleAction,
+} from "./promotion-service";
+export type { ValidationResult } from "./validate";
+export { loadCatalogFacts, pieceAsLine, type CatalogFacts, type PieceFact } from "./read/catalog-facts";

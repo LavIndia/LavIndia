@@ -1,25 +1,10 @@
-import { prisma } from "@/lib/prisma";
-import { DiscountsTable } from "@/components/admin/discounts/DiscountsTable";
-import { DiscountsHeader } from "@/components/admin/discounts/DiscountsHeader";
-import { css } from "styled-system/css";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-async function getDiscounts() {
-  const discounts = await prisma.discount.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-  return discounts;
-}
-
-export default async function DiscountsPage() {
-  const discounts = await getDiscounts();
-
-  return (
-    <div className={css({ display: "flex", flexDirection: "column", gap: "6" })}>
-      <DiscountsHeader />
-      <DiscountsTable discounts={discounts} />
-    </div>
-  );
+/**
+ * Coupons are now offers with a code, built and run from Admin → Offers.
+ * The old coupon list is kept as read-only history in the database; its
+ * codes were carried over by scripts/migrate-discounts-to-promotions.ts.
+ */
+export default function DiscountsPage() {
+  redirect("/admin/promotions");
 }
