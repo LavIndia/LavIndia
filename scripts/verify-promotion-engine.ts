@@ -246,5 +246,24 @@ function totals(lines: EngineLine[], promotions: EnginePromotion[], context = ct
   check("Only pieces picked by name", totals([line("ring", 900, "rings"), line("e", 500, "earrings")], [onlyNamed]).perUnit.map((d) => d > 0), [true, false]);
 }
 
+// Marked down, new arrivals, featured, limited ---------------------------------------
+{
+  const recent = { id: "n", name: "New", match: "ALL" as const, rules: [{ field: "newArrival" as const, op: "is" as const, days: 30 }, { field: "markedDown" as const, op: "isNot" as const }], includeProductIds: [], excludeProductIds: [] };
+  const offer = promo({ type: "percentOff", bps: 1_000 }, { pieces: { include: [], exclude: [], setIds: ["n"], sets: [recent] } });
+  const t = totals([
+    { ...line("fresh", 500), ageDays: 3 },
+    { ...line("old", 500), ageDays: 90 },
+    { ...line("freshReduced", 500), ageDays: 3, compareAtCents: 80_000 },
+  ], [offer]);
+  check("New in the last 30 days and not already marked down", t.perUnit.map((d) => d > 0), [true, false, false]);
+  const skip = promo({ type: "percentOff", bps: 1_000 }, { pieces: { include: [], exclude: [{ type: "markedDown" }] } });
+  const u = totals([{ ...line("full", 500), compareAtCents: null }, { ...line("reduced", 500), compareAtCents: 70_000 }], [skip]);
+  check("Leave out pieces already marked down", u.perUnit.map((d) => d > 0), [true, false]);
+  const special = { id: "f", name: "Special", match: "ANY" as const, rules: [{ field: "featured" as const, op: "is" as const }, { field: "limitedEdition" as const, op: "is" as const }], includeProductIds: [], excludeProductIds: [] };
+  const v = totals([{ ...line("feat", 500), isFeatured: true }, { ...line("lim", 500), isLimitedEdition: true }, line("plain", 500)],
+    [promo({ type: "percentOff", bps: 1_000 }, { pieces: { include: [], exclude: [], setIds: ["f"], sets: [special] } })]);
+  check("Featured or limited edition", v.perUnit.map((d) => d > 0), [true, true, false]);
+}
+
 console.log(failures === 0 ? "\nAll engine checks passed." : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);

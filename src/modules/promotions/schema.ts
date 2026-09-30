@@ -27,6 +27,7 @@ export const selectorSchema = z.discriminatedUnion("type", [
     minCents: cents.nullable().optional(),
     maxCents: cents.nullable().optional(),
   }),
+  z.object({ type: z.literal("markedDown") }),
 ]);
 
 export const pieceFilterSchema = z.object({
@@ -39,11 +40,25 @@ export const pieceFilterSchema = z.object({
 });
 
 export const pieceRuleSchema = z.object({
-  field: z.enum(["category", "collection", "product", "tag", "price", "colour", "material", "size"]),
+  field: z.enum([
+    "category",
+    "collection",
+    "product",
+    "tag",
+    "price",
+    "colour",
+    "material",
+    "size",
+    "markedDown",
+    "newArrival",
+    "featured",
+    "limitedEdition",
+  ]),
   op: z.enum(["is", "isNot", "between", "under", "over"]),
   values: z.array(z.string().trim().min(1)).max(50).optional(),
   minCents: z.number().int().min(0).nullable().optional(),
   maxCents: z.number().int().min(0).nullable().optional(),
+  days: z.number().int().min(1).max(365).nullable().optional(),
 });
 
 export const pieceSetInputSchema = z.object({
@@ -62,7 +77,7 @@ export const conditionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("minOrderQuantity"), quantity: count }),
   z.object({ type: z.literal("signedInOnly") }),
   z.object({ type: z.literal("firstOrderOnly") }),
-  z.object({ type: z.literal("customers"), customerIds: z.array(id).min(1) }),
+  z.object({ type: z.literal("customers"), customerIds: z.array(id) }),
   z.object({
     type: z.literal("paymentMethods"),
     methods: z.array(z.enum(["CASH", "UPI", "CARD", "COD", "ONLINE"])).min(1),

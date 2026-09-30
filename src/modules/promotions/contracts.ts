@@ -26,7 +26,9 @@ export type Selector =
   | { type: "materials"; values: string[] }
   | { type: "colors"; values: string[] }
   | { type: "sizes"; values: string[] }
-  | { type: "priceRange"; minCents?: number | null; maxCents?: number | null };
+  | { type: "priceRange"; minCents?: number | null; maxCents?: number | null }
+  /** Pieces already reduced (a compare-at price above the price). */
+  | { type: "markedDown" };
 
 /**
  * Which pieces count.
@@ -61,7 +63,13 @@ export type PieceField =
   | "price"
   | "colour"
   | "material"
-  | "size";
+  | "size"
+  /** Already reduced: the catalog shows a higher compare-at price. */
+  | "markedDown"
+  /** Added to the catalog within the last `days` days. */
+  | "newArrival"
+  | "featured"
+  | "limitedEdition";
 
 /**
  * One row of a Piece Set: "Category is Earrings", "Price is between ₹200
@@ -74,6 +82,8 @@ export interface PieceRule {
   values?: string[];
   minCents?: number | null;
   maxCents?: number | null;
+  /** For newArrival: how recent counts as new. */
+  days?: number | null;
 }
 
 export interface ResolvedPieceSet {
@@ -222,6 +232,13 @@ export interface EngineLine {
   size: string | null;
   /** The product's tags, normalised. */
   tags?: string[];
+  /** The crossed-out price shown to the client, when there is one. */
+  compareAtCents?: number | null;
+  /** Whole days since the product was added — worked out by the caller,
+   *  who knows what "now" is, so the engine stays free of the clock. */
+  ageDays?: number | null;
+  isFeatured?: boolean;
+  isLimitedEdition?: boolean;
   /** List price per unit, pre-tax. */
   unitPriceCents: number;
   quantity: number;

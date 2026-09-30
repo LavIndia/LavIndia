@@ -34,7 +34,7 @@ function toData(input: PromotionInput) {
 export function toInput(row: PromotionRow): PromotionInput {
   return promotionInputSchema.parse({
     ...row,
-    code: row.codes[0]?.code ?? null,
+    code: row.codes.find((c) => !c.batch)?.code ?? null,
   });
 }
 
@@ -53,14 +53,17 @@ async function findRow(id: string): Promise<PromotionRow> {
 }
 
 export async function checkPromotion(input: PromotionInput, selfId?: string): Promise<ValidationResult> {
-  const [facts, rows, setSource] = await Promise.all([
+  const [facts, rows, setSource, batchCodes] = await Promise.all([
     loadCatalogFacts(),
     findActivePromotionRows(),
     loadSetLibrarySource(),
+    selfId && input.trigger === "CODE"
+      ? prisma.promotionCode.count({ where: { promotionId: selfId, batch: { not: null } } })
+      : Promise.resolve(0),
   ]);
   const library = buildSetLibrary(setSource);
   const live = toEnginePromotions(rows).map((p) => resolvePromotion(p, library));
-  return validatePromotion(input, facts.pieces, live, selfId, library);
+  return validatePromotion(input, facts.pieces, live, selfId, library, batchCodes > 0);
 }
 
 export async function createPromotion(raw: unknown, actorId: string): Promise<PromotionRow> {
@@ -83,9 +86,10 @@ export async function updatePromotion(id: string, raw: unknown): Promise<Promoti
   await assertCodeFree(input.code, id);
 
   return prisma.$transaction(async (tx) => {
-    const current = existing.codes[0]?.code ?? null;
+    const current = existing.codes.find((c) => !c.batch)?.code ?? null;
     if (current !== input.code) {
-      await tx.promotionCode.deleteMany({ where: { promotionId: id } });
+      // Only the shared code changes; generated batches are left alone.
+      await tx.promotionCode.deleteMany({ where: { promotionId: id, batch: null } });
       if (input.code) await tx.promotionCode.create({ data: { promotionId: id, code: input.code } });
     }
     return tx.promotion.update({ where: { id }, data: toData(input), include: PROMOTION_INCLUDE });

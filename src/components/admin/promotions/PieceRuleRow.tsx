@@ -20,11 +20,29 @@ export const FIELD_LABEL: Record<PieceField, string> = {
   colour: "Colour",
   material: "Material",
   size: "Size",
+  markedDown: "Marked down",
+  newArrival: "New arrival",
+  featured: "Featured",
+  limitedEdition: "Limited edition",
 };
+
+/** Fields that are a yes/no fact about the piece, with no value to pick. */
+const FLAG_FIELDS: ReadonlySet<PieceField> = new Set(["markedDown", "featured", "limitedEdition"]);
 
 /** A fresh row for a field, with the operator that reads most naturally. */
 export function newRule(field: PieceField): PieceRule {
-  return field === "price" ? { field, op: "under", maxCents: null } : { field, op: "is", values: [] };
+  if (field === "price") return { field, op: "under", maxCents: null };
+  if (field === "newArrival") return { field, op: "is", days: 30 };
+  if (FLAG_FIELDS.has(field)) return { field, op: "is" };
+  return { field, op: "is", values: [] };
+}
+
+/** Whether a row says something yet — rows with nothing chosen are dropped on save. */
+export function ruleIsComplete(rule: PieceRule): boolean {
+  if (rule.field === "price") return rule.minCents != null || rule.maxCents != null;
+  if (rule.field === "newArrival") return Boolean(rule.days);
+  if (FLAG_FIELDS.has(rule.field)) return true;
+  return (rule.values ?? []).length > 0;
 }
 
 const tagText = (t: string) => t.replace(/-/g, " ");
@@ -91,6 +109,8 @@ function Values({ rule, options, onChange, id }: { rule: PieceRule; options: Cat
 /** One row: "Category is Earrings", "Price is under ₹600", "Tag is not clearance". */
 export function PieceRuleRow({ rule, onChange, onRemove, options, id }: { rule: PieceRule; onChange: (r: PieceRule) => void; onRemove: () => void; options: CatalogOptions; id: string }) {
   const isPrice = rule.field === "price";
+  const isFlag = FLAG_FIELDS.has(rule.field);
+  const isNew = rule.field === "newArrival";
   return (
     <div className={row}>
       <div className={sentence}>
@@ -115,6 +135,11 @@ export function PieceRuleRow({ rule, onChange, onRemove, options, id }: { rule: 
                 <SelectItem value="over">is over</SelectItem>
                 <SelectItem value="between">is between</SelectItem>
               </>
+            ) : isFlag || isNew ? (
+              <>
+                <SelectItem value="is">yes</SelectItem>
+                <SelectItem value="isNot">no</SelectItem>
+              </>
             ) : (
               <>
                 <SelectItem value="is">is</SelectItem>
@@ -123,6 +148,22 @@ export function PieceRuleRow({ rule, onChange, onRemove, options, id }: { rule: 
             )}
           </SelectContent>
         </Select>
+        {isNew && (
+          <>
+            <span>added in the last</span>
+            <Input
+              id={`${id}-days`}
+              aria-label="Days"
+              type="number"
+              min={1}
+              max={365}
+              className={css({ width: "20" })}
+              value={rule.days ?? ""}
+              onChange={(e) => onChange({ ...rule, days: parseInt(e.target.value, 10) || null })}
+            />
+            <span>days</span>
+          </>
+        )}
         {isPrice && rule.op !== "under" && (
           <MoneyInput id={`${id}-min`} ariaLabel="From" className={inlineMoney} value={rule.minCents ?? null} onChange={(v) => onChange({ ...rule, minCents: v })} />
         )}
@@ -134,7 +175,9 @@ export function PieceRuleRow({ rule, onChange, onRemove, options, id }: { rule: 
           <Trash2 className={css({ width: "4", height: "4" })} />
         </Button>
       </div>
-      {!isPrice && <Values rule={rule} options={options} id={id} onChange={(values) => onChange({ ...rule, values })} />}
+      {!isPrice && !isFlag && !isNew && (
+        <Values rule={rule} options={options} id={id} onChange={(values) => onChange({ ...rule, values })} />
+      )}
     </div>
   );
 }

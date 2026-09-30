@@ -54,6 +54,8 @@ function describeSelector(selector: Selector, names: NameLookup): string {
       return `${list(selector.values)} pieces`;
     case "sizes":
       return `size ${list(selector.values)}`;
+    case "markedDown":
+      return "pieces already marked down";
     case "priceRange": {
       const { minCents, maxCents } = selector;
       if (minCents != null && maxCents != null) return `pieces ${rupees(minCents)}–${rupees(maxCents)}`;

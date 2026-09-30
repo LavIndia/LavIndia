@@ -56,6 +56,7 @@ export function useProductForm(product?: Product) {
     categoryId: product?.categoryId || "",
     sku: product?.sku || "",
     material: product?.material || "",
+    tags: (product?.tags ?? []).join(","),
     isPublished: product?.isPublished || false,
     isFeatured: product?.isFeatured || false,
     isLimitedEdition: product?.isLimitedEdition || false,

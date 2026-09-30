@@ -25,6 +25,10 @@ export interface PieceFact {
   size: string | null;
   tags: string[];
   imageUrl: string | null;
+  compareAtCents: number | null;
+  isFeatured: boolean;
+  isLimitedEdition: boolean;
+  ageDays: number;
   priceCents: number;
   costCents: number | null;
   onlineSellable: boolean;
@@ -75,6 +79,10 @@ export async function loadCatalogFacts(): Promise<CatalogFacts> {
             isPublished: true,
             retiredAt: true,
             tags: true,
+            compareAtCents: true,
+            isFeatured: true,
+            isLimitedEdition: true,
+            createdAt: true,
             images: { select: { url: true }, orderBy: [{ isPrimary: "desc" }, { position: "asc" }], take: 1 },
             collections: { select: { collectionId: true } },
           },
@@ -99,6 +107,10 @@ export async function loadCatalogFacts(): Promise<CatalogFacts> {
     size: v.size,
     tags: v.product.tags,
     imageUrl: v.product.images[0]?.url ?? null,
+    compareAtCents: v.product.compareAtCents,
+    isFeatured: v.product.isFeatured,
+    isLimitedEdition: v.product.isLimitedEdition,
+    ageDays: Math.floor((Date.now() - v.product.createdAt.getTime()) / 86_400_000),
     priceCents: v.priceCents ?? v.product.priceCents,
     costCents: v.product.costCents,
     onlineSellable: v.product.isPublished && !v.product.retiredAt,
@@ -146,6 +158,10 @@ export function pieceAsLine(piece: PieceFact, quantity = 1, lineId = piece.varia
     color: piece.color,
     size: piece.size,
     tags: piece.tags,
+    compareAtCents: piece.compareAtCents,
+    isFeatured: piece.isFeatured,
+    isLimitedEdition: piece.isLimitedEdition,
+    ageDays: piece.ageDays,
     unitPriceCents: piece.priceCents,
     quantity,
   };

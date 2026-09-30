@@ -7,7 +7,9 @@ import { benefitSchema, conditionSchema, pieceFilterSchema } from "./schema";
 import { headline } from "./summarise";
 import { z } from "zod";
 
-export type PromotionRow = Promotion & { codes: Pick<PromotionCode, "code">[] };
+export type PromotionRow = Promotion & {
+  codes: Pick<PromotionCode, "code" | "batch" | "usedCount" | "usageLimit">[];
+};
 
 export type PromotionStatus = "DRAFT" | "SCHEDULED" | "LIVE" | "PAUSED" | "ENDED" | "ARCHIVED";
 
@@ -62,7 +64,11 @@ export function toEnginePromotion(row: PromotionRow): EnginePromotion | null {
     label: labelOf(row),
     invoiceLabel: row.invoiceLabel,
     trigger: row.trigger,
-    codes: row.codes.map((c) => c.code.toUpperCase()),
+    // A code used as often as it may be is no longer offered, so the cart
+    // says so at once rather than at the order.
+    codes: row.codes
+      .filter((c) => c.usageLimit === null || c.usedCount < c.usageLimit)
+      .map((c) => c.code.toUpperCase()),
     channels: row.channels as Channel[],
     schedule: {
       startsAt: row.startsAt,

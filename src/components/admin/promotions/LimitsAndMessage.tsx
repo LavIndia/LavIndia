@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Condition, PaymentInstrument } from "@/modules/promotions/contracts";
 import { chipRow, field, grid2, grid3, hint, pill, toggleRow } from "./editor.styles";
 import { CountInput, MoneyInput } from "./MoneyInput";
+import { ClientPicker } from "./ClientPicker";
 import type { Draft, DraftPatch } from "./promotion-draft";
 
 type CardProps = { draft: Draft; set: (patch: DraftPatch) => void; isOrderOffer: boolean };
@@ -49,7 +50,11 @@ export function LimitsFields({ draft, set, isOrderOffer }: CardProps) {
       <div className={field}>
         <Label>Who</Label>
         <div className={chipRow}>
-          <button type="button" className={pill(!hasCondition(draft.conditions, "signedInOnly") && !hasCondition(draft.conditions, "firstOrderOnly"))} onClick={() => set({ conditions: draft.conditions.filter((c) => c.type !== "signedInOnly" && c.type !== "firstOrderOnly") })}>
+          <button
+            type="button"
+            className={pill(!["signedInOnly", "firstOrderOnly", "customers"].some((t) => hasCondition(draft.conditions, t as Condition["type"])))}
+            onClick={() => set({ conditions: draft.conditions.filter((c) => !["signedInOnly", "firstOrderOnly", "customers"].includes(c.type)) })}
+          >
             Everyone
           </button>
           <button type="button" className={pill(hasCondition(draft.conditions, "signedInOnly"))} onClick={() => withCondition("signedInOnly", hasCondition(draft.conditions, "signedInOnly") ? null : { type: "signedInOnly" })}>
@@ -58,7 +63,20 @@ export function LimitsFields({ draft, set, isOrderOffer }: CardProps) {
           <button type="button" className={pill(hasCondition(draft.conditions, "firstOrderOnly"))} onClick={() => withCondition("firstOrderOnly", hasCondition(draft.conditions, "firstOrderOnly") ? null : { type: "firstOrderOnly" })}>
             First order only
           </button>
+          <button
+            type="button"
+            className={pill(hasCondition(draft.conditions, "customers"))}
+            onClick={() => withCondition("customers", hasCondition(draft.conditions, "customers") ? null : { type: "customers", customerIds: [] })}
+          >
+            Chosen clients
+          </button>
         </div>
+        {hasCondition(draft.conditions, "customers") && (
+          <ClientPicker
+            value={(draft.conditions.find((c) => c.type === "customers") as { customerIds: string[] }).customerIds}
+            onChange={(ids) => withCondition("customers", { type: "customers", customerIds: ids })}
+          />
+        )}
       </div>
 
       <div className={field}>

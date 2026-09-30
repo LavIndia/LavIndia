@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { css } from "styled-system/css";
 import type { PieceField, PieceRule } from "@/modules/promotions/contracts";
 import { chipRow, field, hint, pill } from "./editor.styles";
-import { FIELD_LABEL, PieceRuleRow, newRule } from "./PieceRuleRow";
+import { FIELD_LABEL, PieceRuleRow, newRule, ruleIsComplete } from "./PieceRuleRow";
 import { ProductPicker, type CatalogOptions } from "./ProductPicker";
 
 export interface PieceSetDraft {
@@ -111,7 +111,7 @@ export function PieceSetEditor({
         body: JSON.stringify({
           ...draft,
           // Rows left without a value say nothing; they are dropped rather than saved.
-          rules: draft.rules.filter((r) => (r.field === "price" ? r.minCents != null || r.maxCents != null : (r.values ?? []).length > 0)),
+          rules: draft.rules.filter(ruleIsComplete),
         }),
       });
       const body = await res.json();

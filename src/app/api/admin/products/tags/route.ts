@@ -14,6 +14,14 @@ const schema = z.object({
   remove: z.array(z.string()).max(20).default([]),
 });
 
+/** Every tag in use, for pickers. */
+export const GET = apiHandler(async () => {
+  await requireAdmin("catalog:write");
+  const rows = await prisma.$queryRaw<Array<{ tag: string }>>`
+    SELECT DISTINCT unnest("tags") AS tag FROM "products" ORDER BY tag`;
+  return NextResponse.json({ tags: rows.map((r) => r.tag) });
+});
+
 export const POST = apiHandler(async (req: NextRequest) => {
   const actor = await requireAdmin("catalog:write");
   const input = schema.parse(await req.json());

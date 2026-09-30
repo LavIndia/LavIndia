@@ -14,6 +14,7 @@ import { templateById } from "@/modules/promotions/templates";
 import type { PromotionStatus } from "@/modules/promotions/mapping";
 import { BenefitEditor } from "./BenefitEditor";
 import { cardBody, cardNumber } from "./editor.styles";
+import { CodesPanel } from "./CodesPanel";
 import { LimitsFields, MessageFields } from "./LimitsAndMessage";
 import { PiecesChooser, SetsProvider } from "./PiecesChooser";
 import type { CatalogOptions } from "./ProductPicker";
@@ -156,6 +157,11 @@ export function PromotionEditor({ initial, promotionId, status, options, names, 
       <div className={layout}>
         <div className={main}>
           <Section n={1} title="Offer"><BasicsFields draft={draft} set={set} /></Section>
+          {draft.trigger === "CODE" && (
+            <Section title="Unique codes (optional)">
+              <CodesPanel promotionId={promotionId} />
+            </Section>
+          )}
           {cls !== "DELIVERY" && draft.benefit.type !== "bundle" && (
             <Section n={2} title={cls === "ORDER" ? "Which pieces count towards it" : "Which pieces"}>
               <PiecesChooser id="pieces" value={draft.pieces} onChange={(pieces) => set({ pieces })} />

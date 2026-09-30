@@ -77,6 +77,8 @@ export interface Product {
   categoryId: string;
   sku: string | null;
   material: string | null;
+  /** Normalised labels the shop groups pieces by, e.g. "festive-edit". */
+  tags?: string[];
   isPublished: boolean;
   isFeatured: boolean;
   isLimitedEdition: boolean;
@@ -138,6 +140,8 @@ export interface ProductFormData {
   categoryId: string;
   sku: string;
   material: string;
+  /** Tags, comma-joined so the form's string fields stay uniform. */
+  tags: string;
   isPublished: boolean;
   isFeatured: boolean;
   isLimitedEdition: boolean;

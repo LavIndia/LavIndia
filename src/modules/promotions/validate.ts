@@ -86,6 +86,7 @@ export function validatePromotion(
   livePromotions: readonly EnginePromotion[],
   selfId?: string,
   library?: SetLibrary,
+  hasBatchCodes = false,
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -111,7 +112,13 @@ export function validatePromotion(
   const benefit = input.benefit;
   const cls = classOf(benefit);
 
-  if (input.trigger === "CODE" && !input.code) errors.push("Give the offer a code, or make it automatic");
+  if (input.trigger === "CODE" && !input.code && !hasBatchCodes) {
+    errors.push("Give the offer a code (or generate unique codes), or make it automatic");
+  }
+  const clients = input.conditions.find((c) => c.type === "customers");
+  if (clients && clients.type === "customers" && clients.customerIds.length === 0) {
+    errors.push("Choose at least one client, or set Who to Everyone");
+  }
   if (input.startsAt && input.endsAt && input.endsAt <= input.startsAt) {
     errors.push("The end is before the start");
   }

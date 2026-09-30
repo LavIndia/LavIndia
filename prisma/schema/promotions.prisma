@@ -122,6 +122,9 @@ model PromotionCode {
   code        String   @unique
   usageLimit  Int?
   usedCount   Int      @default(0)
+  /// Set on codes generated in bulk (one per VIP, say); null for the offer's
+  /// own shared code. Editing the offer's code never touches a batch.
+  batch       String?
   createdAt   DateTime @default(now())
 
   promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)

@@ -3,6 +3,7 @@
 import { createContext, useContext, useState } from "react";
 import type { PieceFilter } from "@/modules/promotions/contracts";
 import { css } from "styled-system/css";
+import { Switch } from "@/components/ui/switch";
 import { ProductPicker, type CatalogOptions } from "./ProductPicker";
 import { SetPicker, type SetOption } from "./SetPicker";
 
@@ -58,9 +59,13 @@ export function PiecesChooser({
 }) {
   const { sets, addSet, options } = useSets();
   const excluded = value.exclude.flatMap((s) => (s.type === "products" ? s.ids : []));
+  const skipMarkedDown = value.exclude.some((s) => s.type === "markedDown");
+  const exclusions = (ids: string[], markedDown: boolean): PieceFilter["exclude"] => [
+    ...(ids.length ? [{ type: "products" as const, ids }] : []),
+    ...(markedDown ? [{ type: "markedDown" as const }] : []),
+  ];
   const named = value.include.flatMap((s) => (s.type === "products" ? s.ids : []));
   const include = (ids: string[]): PieceFilter["include"] => (ids.length ? [{ type: "products", ids }] : []);
-  const withExcluded = (ids: string[]): PieceFilter["exclude"] => (ids.length ? [{ type: "products", ids }] : []);
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
       <SetPicker
@@ -95,9 +100,20 @@ export function PiecesChooser({
           chosen={excluded}
           products={options.products}
           placeholder="Leave out a piece…"
-          onChange={(ids) => onChange({ ...value, exclude: withExcluded(ids) })}
+          onChange={(ids) => onChange({ ...value, exclude: exclusions(ids, skipMarkedDown) })}
         />
       </div>
+      <label className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "3", fontSize: "sm" })}>
+        <span>
+          Leave out pieces already marked down
+          <span className={css({ display: "block", color: "fg.muted" })}>So a reduced piece is never reduced twice.</span>
+        </span>
+        <Switch
+          id={`${id}-markdown`}
+          checked={skipMarkedDown}
+          onCheckedChange={(on) => onChange({ ...value, exclude: exclusions(excluded, on) })}
+        />
+      </label>
     </div>
   );
 }

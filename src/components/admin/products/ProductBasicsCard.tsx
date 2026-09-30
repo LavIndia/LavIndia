@@ -1,5 +1,6 @@
 "use client";
 
+import { TagInput } from "./TagInput";
 import { useId, useState } from "react";
 import { Link2, PencilLine } from "lucide-react";
 import {
@@ -181,6 +182,19 @@ export function ProductBasicsCard({
           <p className={hintStyle}>
             The same design in another material is a separate product, because
             the price differs.
+          </p>
+        </div>
+
+        <div className={fieldStyle}>
+          <Label htmlFor={`${ids}-tags`}>Tags</Label>
+          <TagInput
+            id={`${ids}-tags`}
+            value={formData.tags ? formData.tags.split(",").filter(Boolean) : []}
+            onChange={(tags) => onChange("tags", tags.join(","))}
+          />
+          <p className={hintStyle}>
+            Group pieces your own way — festive edit, bridal, gift under 1k — then build offers on
+            them from Offers → Piece Sets.
           </p>
         </div>
 

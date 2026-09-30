@@ -34,6 +34,7 @@ export function buildProductPayload(
     categoryId: formData.categoryId,
     sku: formData.sku || null,
     material: formData.material.trim() || null,
+    tags: formData.tags ? formData.tags.split(",").filter(Boolean) : [],
     isPublished: publish,
     // Publishing also clears any leftover soft-archive state (set when
     // a product with existing orders was previously deleted) — without

@@ -62,6 +62,10 @@ export interface SellableVariant {
   productMaterial: string | null;
   /** The product's tags, normalised — what Piece Sets group pieces by. */
   tags: string[];
+  isFeatured: boolean;
+  isLimitedEdition: boolean;
+  /** When the product joined the catalog, for "new arrival" offers. */
+  addedAt: Date;
   /** Primary image for this variant, falling back to the product's. */
   imageUrl: string | null;
   attributes: {

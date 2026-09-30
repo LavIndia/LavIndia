@@ -98,3 +98,10 @@ export {
 export { inPieceSet } from "./engine/units";
 export { pieceRuleSchema, pieceSetInputSchema, type PieceSetInput } from "./schema";
 export type { PieceField, PieceRule, ResolvedPieceSet } from "./contracts";
+export {
+  generateCodes,
+  listCodeBatches,
+  randomCode,
+  removeUnusedBatchCodes,
+  type CodeBatchSummary,
+} from "./codes";

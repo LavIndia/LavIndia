@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { BulkDeleteDialog, ProductDeleteDialog } from "./ProductDeleteDialogs";
+import { BulkTagDialog } from "./BulkTagDialog";
 import { ProductsFilterBar } from "@/components/admin/products/ProductsFilterBar";
 import { css } from "styled-system/css";
 import {
@@ -77,6 +78,7 @@ export function ProductsTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkTagOpen, setBulkTagOpen] = useState(false);
   const [bulkWorking, setBulkWorking] = useState(false);
 
   const applyFilters = (
@@ -241,6 +243,9 @@ export function ProductsTable({
               onClick={() => bulkSetPublished(false)}
             >
               Unpublish
+            </Button>
+            <Button variant="outline" size="sm" disabled={bulkWorking} onClick={() => setBulkTagOpen(true)}>
+              Tags
             </Button>
             <Button
               variant="destructive"
@@ -472,6 +477,16 @@ export function ProductsTable({
             });
           }
           setDeleteTarget(null);
+          router.refresh();
+        }}
+      />
+
+      <BulkTagDialog
+        open={bulkTagOpen}
+        productIds={Array.from(selected)}
+        onClose={() => setBulkTagOpen(false)}
+        onDone={() => {
+          setBulkTagOpen(false);
           router.refresh();
         }}
       />

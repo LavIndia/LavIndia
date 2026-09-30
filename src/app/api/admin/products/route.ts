@@ -1,3 +1,4 @@
+import { normaliseTags } from "@/modules/catalog";
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
@@ -46,6 +47,11 @@ const productSchema = z.object({
   categoryId: z.string(),
   sku: z.string().optional().nullable(),
   material: z.string().trim().max(120).optional().nullable(),
+  tags: z
+    .array(z.string())
+    .max(30)
+    .optional()
+    .transform((t) => (t ? normaliseTags(t) : undefined)),
   isPublished: z.boolean().default(false),
   isFeatured: z.boolean().default(false),
   isLimitedEdition: z.boolean().default(false),

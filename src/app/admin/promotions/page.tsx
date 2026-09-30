@@ -31,7 +31,7 @@ async function getItems(): Promise<PromotionListItem[]> {
           : "Settings incomplete",
       status: statusOf(row, now),
       trigger: row.trigger,
-      code: row.codes[0]?.code ?? null,
+      code: row.codes.find((c) => !c.batch)?.code ?? (row.codes.length ? `${row.codes.length} codes` : null),
       channels: row.channels,
       startsAt: row.startsAt?.toISOString() ?? null,
       endsAt: row.endsAt?.toISOString() ?? null,

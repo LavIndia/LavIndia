@@ -7,7 +7,9 @@ import { DomainError } from "../_shared/errors";
 import type { EnginePromotion } from "./contracts";
 import { toEnginePromotion, type PromotionRow } from "./mapping";
 
-export const PROMOTION_INCLUDE = { codes: { select: { code: true } } } as const;
+export const PROMOTION_INCLUDE = {
+  codes: { select: { code: true, batch: true, usedCount: true, usageLimit: true } },
+} as const;
 
 /**
  * Every promotion that could apply now or later today: activated, not

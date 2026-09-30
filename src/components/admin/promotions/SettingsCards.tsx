@@ -1,6 +1,8 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { css } from "styled-system/css";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +11,18 @@ import { chipRow, field, grid2, hint, pill, toggleRow } from "./editor.styles";
 import type { Draft, DraftPatch } from "./promotion-draft";
 
 type CardProps = { draft: Draft; set: (patch: DraftPatch) => void };
+
+// No 0/O or 1/I: codes are read aloud at the counter and typed from a card.
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/** A readable code from the offer's name: "Diwali Trio" → "DIWALI-K7M2". */
+function suggestCode(name: string): string {
+  const word = name.toUpperCase().replace(/[^A-Z0-9 ]/g, "").split(" ").find((w) => w.length >= 3) ?? "LAV";
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  const tail = [...bytes].map((b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
+  return `${word.slice(0, 10)}-${tail}`;
+}
 
 const CHANNELS = [
   { key: "ONLINE", label: "Online" },
@@ -38,12 +52,21 @@ export function BasicsFields({ draft, set }: CardProps) {
       {draft.trigger === "CODE" && (
         <div className={field}>
           <Label htmlFor="promo-code">Code</Label>
-          <Input
-            id="promo-code"
-            value={draft.code ?? ""}
-            onChange={(e) => set({ code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "") || null })}
-            placeholder="FESTIVE10"
-          />
+          <div className={css({ display: "flex", gap: "2" })}>
+            <Input
+              id="promo-code"
+              value={draft.code ?? ""}
+              onChange={(e) => set({ code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, "") || null })}
+              placeholder="FESTIVE10"
+            />
+            <Button type="button" variant="outline" onClick={() => set({ code: suggestCode(draft.name) })}>
+              Suggest
+            </Button>
+          </div>
+          <p className={hint}>
+            One code everyone can use. For a code per client, use Unique codes below. Capital
+            letters don&rsquo;t matter to clients typing it.
+          </p>
         </div>
       )}
       <div className={field}>

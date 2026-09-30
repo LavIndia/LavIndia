@@ -102,9 +102,13 @@ export async function priceCart(args: {
     const rejected = offer
       ? quote.evaluation.rejected.find((r) => r.promotionId === offer.id)
       : undefined;
+    const codeRow = offer?.codes.find((c) => c.code === code);
+    const usedUp = codeRow && codeRow.usageLimit !== null && codeRow.usedCount >= codeRow.usageLimit;
     const text = !offer
       ? "This code isn't valid"
-      : rejected?.reason === "NOT_COMBINABLE" || rejected?.reason === "SAVES_LESS"
+      : usedUp
+        ? "This code has already been used"
+        : rejected?.reason === "NOT_COMBINABLE" || rejected?.reason === "SAVES_LESS"
         ? "Your cart already has a better offer, so this code wasn't needed"
         : rejected?.reason === "EXCLUSIVE_ELSEWHERE"
           ? "This code can't be used with the offer already applied"

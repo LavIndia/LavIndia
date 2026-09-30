@@ -72,6 +72,8 @@ export function matchesSelector(line: EngineLine, selector: Selector): boolean {
       return matchesValue(line.color, selector.values);
     case "sizes":
       return matchesValue(line.size, selector.values);
+    case "markedDown":
+      return line.compareAtCents != null && line.compareAtCents > line.unitPriceCents;
     case "priceRange": {
       const { minCents, maxCents } = selector;
       if (typeof minCents === "number" && line.unitPriceCents < minCents) return false;
@@ -139,6 +141,18 @@ function ruleHolds(line: EngineLine, rule: PieceRule): boolean {
       break;
     case "size":
       hit = has(line.size);
+      break;
+    case "markedDown":
+      hit = line.compareAtCents != null && line.compareAtCents > line.unitPriceCents;
+      break;
+    case "featured":
+      hit = Boolean(line.isFeatured);
+      break;
+    case "limitedEdition":
+      hit = Boolean(line.isLimitedEdition);
+      break;
+    case "newArrival":
+      hit = line.ageDays != null && line.ageDays <= (rule.days ?? 30);
       break;
     case "price": {
       const p = line.unitPriceCents;

@@ -72,6 +72,9 @@ export function TestCartPanel({ draft, pieces, selfId }: { draft: Draft; pieces:
   const [query, setQuery] = useState("");
   const [channel, setChannel] = useState<"ONLINE" | "STORE">(draft.channels[0] ?? "ONLINE");
   const [includeLive, setIncludeLive] = useState(true);
+  // Empty means "now". A date lets the owner check a scheduled offer, or an
+  // evening-hours one, before the day comes.
+  const [at, setAt] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -97,7 +100,14 @@ export function TestCartPanel({ draft, pieces, selfId }: { draft: Draft; pieces:
       const res = await fetch("/api/admin/promotions/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: toPayload(draft), selfId, channel, includeLive, lines: cart.map((c) => ({ variantId: c.piece.variantId, quantity: c.quantity })) }),
+        body: JSON.stringify({
+          input: toPayload(draft),
+          selfId,
+          channel,
+          includeLive,
+          at: at ? new Date(at).toISOString() : undefined,
+          lines: cart.map((c) => ({ variantId: c.piece.variantId, quantity: c.quantity })),
+        }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Could not price this cart");
@@ -121,6 +131,11 @@ export function TestCartPanel({ draft, pieces, selfId }: { draft: Draft; pieces:
       <div className={css({ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "3" })}>
         <Label htmlFor="test-live">Include offers already live</Label>
         <Switch id="test-live" checked={includeLive} onCheckedChange={setIncludeLive} />
+      </div>
+      <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>
+        <Label htmlFor="test-at">Test as if it were</Label>
+        <Input id="test-at" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />
+        <span className={hint}>{at ? "Priced at that date and time." : "Empty means right now."}</span>
       </div>
       <Input id="test-search" placeholder="Add a piece…" value={query} onChange={(e) => setQuery(e.target.value)} />
       {found.map((p) => (

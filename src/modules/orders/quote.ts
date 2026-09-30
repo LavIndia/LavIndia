@@ -60,7 +60,11 @@ interface UnitPrice {
   allocations: UnitAllocation[];
 }
 
-function engineLines(lines: readonly OrderLineInput[], variants: Map<string, SellableVariant>) {
+function engineLines(
+  lines: readonly OrderLineInput[],
+  variants: Map<string, SellableVariant>,
+  now: Date,
+) {
   return lines.map((line, index): EngineLine => {
     const variant = variants.get(line.variantId);
     if (!variant) {
@@ -85,6 +89,10 @@ function engineLines(lines: readonly OrderLineInput[], variants: Map<string, Sel
       color: variant.attributes.color,
       size: variant.attributes.size,
       tags: variant.tags,
+      compareAtCents: variant.compareAtCents,
+      isFeatured: variant.isFeatured,
+      isLimitedEdition: variant.isLimitedEdition,
+      ageDays: Math.floor((now.getTime() - new Date(variant.addedAt).getTime()) / 86_400_000),
       unitPriceCents: override ?? variant.priceCents,
       quantity: line.quantity,
       // A price set by hand at the counter is final; offers leave it alone.
@@ -113,7 +121,7 @@ function sumAllocations(units: readonly UnitPrice[]): LineAllocation[] {
 }
 
 export function quoteCart(input: QuoteInput, variants: Map<string, SellableVariant>): Quote {
-  const lines = engineLines(input.lines, variants);
+  const lines = engineLines(input.lines, variants, input.now ?? new Date());
   const evaluation = evaluatePromotions(lines, input.promotions, {
     channel: input.channel,
     now: input.now ?? new Date(),
