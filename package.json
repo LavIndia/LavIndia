@@ -25,6 +25,7 @@
     "unrs-resolver": true
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.130.0",
     "@auth/prisma-adapter": "^2.11.0",
     "@hookform/resolvers": "^5.2.2",
     "@pandacss/dev": "^1.12.1",

@@ -18,6 +18,7 @@ const EDITOR_SECTIONS: HelpEntry["sections"] = [
       { term: "Every piece", text: "The offer can use any piece." },
       { term: "Sets, categories, collections", text: "Choose one or more; a piece counts if it is in any of them. New set of pieces builds one without leaving the offer." },
       { term: "Specific pieces", text: "Add pieces by name, alongside or instead of sets." },
+      { term: "Not created yet · Create set", text: "A Piece Set suggested by Describe your offer, shown with a dashed outline. It covers no pieces until you press Create set, check the rows and pieces it shows, and save it — then it is used here automatically. The offer can't be activated while one is still waiting." },
       { term: "Except these pieces", text: "Pieces the offer never uses." },
       { term: "Leave out pieces already marked down", text: "Keeps pieces that already show a reduced price out, so nothing is reduced twice." },
       { term: "N pieces included", text: "How many sellable pieces the choice covers right now. Red at 0 — the offer would never apply." },

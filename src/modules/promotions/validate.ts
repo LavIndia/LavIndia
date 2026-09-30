@@ -97,7 +97,13 @@ export function validatePromotion(
       ...(input.benefit.type === "reward" ? (input.benefit.gets?.setIds ?? []) : []),
       ...(input.benefit.type === "bundle" ? input.benefit.components.flatMap((c) => c.pieces.setIds ?? []) : []),
     ].filter((id) => !library.has(id));
-    if (missing.length) errors.push("A piece set this offer uses has been archived or deleted — choose another");
+    // "proposed:" sets come from Describe your offer and exist only once created.
+    if (missing.some((id) => id.startsWith("proposed:"))) {
+      errors.push("Create the suggested Piece Sets first — press Create set on each one marked “Not created yet”");
+    }
+    if (missing.some((id) => !id.startsWith("proposed:"))) {
+      errors.push("A piece set this offer uses has been archived or deleted — choose another");
+    }
     input = {
       ...input,
       pieces: resolvePieces(input.pieces, library),

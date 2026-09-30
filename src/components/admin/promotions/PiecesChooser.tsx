@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import type { PieceFilter } from "@/modules/promotions/contracts";
 import { css } from "styled-system/css";
 import { Switch } from "@/components/ui/switch";
@@ -9,7 +9,10 @@ import { SetPicker, type SetOption } from "./SetPicker";
 
 interface SetsContextValue {
   sets: SetOption[];
-  addSet: (set: SetOption) => void;
+  /** Adds a newly made set; `replaces` names the proposed set it was made for. */
+  addSet: (set: SetOption, replaces?: string) => void;
+  /** Proposed set id → the set created for it. */
+  created: Record<string, string>;
   options: CatalogOptions;
 }
 
@@ -26,10 +29,13 @@ export function SetsProvider({
   children: React.ReactNode;
 }) {
   const [sets, setSets] = useState(initialSets);
+  const [created, setCreated] = useState<Record<string, string>>({});
+  const addSet = useCallback((s: SetOption, replaces?: string) => {
+    setSets((list) => [s, ...list.filter((x) => x.id !== s.id && x.id !== replaces)]);
+    if (replaces) setCreated((map) => ({ ...map, [replaces]: s.id }));
+  }, []);
   return (
-    <SetsContext.Provider
-      value={{ sets, options, addSet: (s) => setSets((list) => [s, ...list.filter((x) => x.id !== s.id)]) }}
-    >
+    <SetsContext.Provider value={{ sets, options, addSet, created }}>
       {children}
     </SetsContext.Provider>
   );
@@ -57,7 +63,7 @@ export function PiecesChooser({
   allowAll?: boolean;
   id: string;
 }) {
-  const { sets, addSet, options } = useSets();
+  const { sets, addSet, options, created } = useSets();
   const excluded = value.exclude.flatMap((s) => (s.type === "products" ? s.ids : []));
   const skipMarkedDown = value.exclude.some((s) => s.type === "markedDown");
   const exclusions = (ids: string[], markedDown: boolean): PieceFilter["exclude"] => [
@@ -76,6 +82,7 @@ export function PiecesChooser({
         onEvery={() => onChange({ include: [], exclude: value.exclude, setIds: [] })}
         sets={sets}
         onSetCreated={addSet}
+        created={created}
         options={options}
         allowAll={allowAll}
       />

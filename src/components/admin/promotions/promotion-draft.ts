@@ -15,6 +15,9 @@ export type Draft = Omit<PromotionInput, "startsAt" | "endsAt"> & {
 
 export type DraftPatch = Partial<Draft>;
 
+/** Where "Describe your offer" leaves its draft for the editor to pick up. */
+export const DESCRIBED_OFFER_KEY = "lavindia.describedOffer";
+
 /** "2026-10-01T10:00" in the admin's own clock, for a datetime input. */
 export function toLocalInput(value: Date | string | null | undefined): string {
   if (!value) return "";

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { css } from "styled-system/css";
 import { describeBenefit, describeCondition, headline, type NameLookup } from "@/modules/promotions/summarise";
+import { useSets } from "./PiecesChooser";
 import { type Draft, toPayload } from "./promotion-draft";
 
 export interface CheckResult {
@@ -55,7 +56,10 @@ export function useDraftCheck(draft: Draft, selfId?: string) {
 }
 
 /** The offer in plain words, with what would stop it or is worth knowing. */
-export function PromotionSummary({ draft, names, check }: { draft: Draft; names: NameLookup; check: CheckResult | null }) {
+export function PromotionSummary({ draft, names: given, check }: { draft: Draft; names: NameLookup; check: CheckResult | null }) {
+  // Sets made while editing are named too, not shown as removed.
+  const { sets } = useSets();
+  const names: NameLookup = { ...given, sets: { ...Object.fromEntries(sets.map((s) => [s.id, s.name])), ...given.sets } };
   const title = draft.title || headline(draft.benefit);
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>

@@ -51,9 +51,25 @@ export const OFFERS_HELP: HelpEntry[] = [
   {
     route: "/admin/promotions/new",
     area: "Marketing & Content",
-    title: "New offer — choose a kind",
-    purpose: "Pick the kind of offer closest to what you have in mind. Everything about it — pieces, prices, dates, who gets it — can be changed on the next page.",
+    title: "New offer — describe it or choose a kind",
+    purpose: "Describe the offer in your own words and have it filled in for you, or pick the kind of offer closest to what you have in mind. Either way, everything about it — pieces, prices, dates, who gets it — can be changed on the next page.",
+    steps: [
+      "Write the offer in the “Describe your offer” box, e.g. “Any 3 earrings for ₹999 this weekend”, or tap one of the examples.",
+      "Press Fill in the offer. The offer editor opens with the settings filled in and a gold box of notes on top.",
+      "Read the notes, then check every step — especially Which pieces and the piece count under it — and test it with a cart.",
+      "Save draft or Save and activate, as with any offer.",
+    ],
     sections: [
+      {
+        heading: "Describe your offer",
+        items: [
+          { term: "What to write", text: "The pieces, what the client gets, and when — the way you would tell a colleague. Names of categories, collections, materials, colours and pieces are matched to your catalog; price limits (“above ₹2,000”, “between ₹200 and ₹400”) and several groups (“earrings under ₹400 or black necklaces under ₹600”) are understood." },
+          { term: "The notes", text: "Every assumption made and anything that couldn't be filled in: a name not in your catalog, a date that wasn't clear, or things it can't set up (free gifts, tags, chosen clients, card or bank offers). A name that isn't in your catalog is always left out — never swapped for a near miss — and if that would make the offer cover more pieces than you described, the whole group is left out for you to choose." },
+          { term: "Suggested Piece Sets", text: "Pieces a category, collection or name can't cover on its own — “black necklaces under ₹600” — are suggested as a new Piece Set, marked “Not created yet” under Which pieces. Press Create set, check the pieces, and save it. Until then the offer covers none of those pieces and can't be activated." },
+          { term: "Nothing is saved", text: "It only fills in the editor. The offer is saved or goes live only when you press Save draft or Save and activate there." },
+          { term: "“Not switched on yet”", text: "The box needs a Claude API key (ANTHROPIC_API_KEY) in the server settings. Until it is added, choose a kind of offer below instead." },
+        ],
+      },
       {
         heading: "Kinds of offer",
         items: [

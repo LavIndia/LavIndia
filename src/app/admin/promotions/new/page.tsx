@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DescribedEditor } from "@/components/admin/promotions/DescribedEditor";
+import { DescribeOffer } from "@/components/admin/promotions/DescribeOffer";
 import { PromotionEditor } from "@/components/admin/promotions/PromotionEditor";
 import { draftForTemplateId } from "@/components/admin/promotions/promotion-draft";
 import { PROMOTION_TEMPLATES } from "@/modules/promotions";
+import { isDescribeConfigured } from "@/modules/promotions/describe/describe-offer";
 import { css } from "styled-system/css";
 import { loadEditorData } from "../editor-data";
 
@@ -27,8 +30,12 @@ const tile = css({
   _focusVisible: { outline: "2px solid", outlineColor: "accent.default" },
 });
 
-export default async function NewPromotionPage({ searchParams }: { searchParams: Promise<{ template?: string }> }) {
-  const { template } = await searchParams;
+export default async function NewPromotionPage({ searchParams }: { searchParams: Promise<{ template?: string; described?: string }> }) {
+  const { template, described } = await searchParams;
+  if (described) {
+    // The draft itself is in the admin's browser; only the pickers' data is loaded here.
+    return <DescribedEditor {...await loadEditorData()} />;
+  }
   const draft = draftForTemplateId(template);
 
   if (draft) {
@@ -44,9 +51,11 @@ export default async function NewPromotionPage({ searchParams }: { searchParams:
         </Button>
         <div>
           <h1 className={css({ fontFamily: "display", fontSize: { base: "2xl", md: "3xl" }, fontWeight: "bold" })}>What kind of offer?</h1>
-          <p className={css({ fontSize: "sm", color: "fg.muted" })}>Pick the closest one — everything about it can be changed on the next page.</p>
+          <p className={css({ fontSize: "sm", color: "fg.muted" })}>Describe it in your own words, or pick the closest kind — everything can be changed on the next page.</p>
         </div>
       </div>
+      <DescribeOffer configured={isDescribeConfigured()} />
+      <p className={css({ fontSize: "sm", fontWeight: "medium", color: "fg.muted" })}>Or start from a kind of offer:</p>
       {GROUPS.map((group) => (
         <section key={group} className={css({ display: "flex", flexDirection: "column", gap: "3" })}>
           <h2 className={css({ fontSize: "xs", fontWeight: "semibold", letterSpacing: "0.08em", textTransform: "uppercase", color: "fg.muted" })}>{group}</h2>
