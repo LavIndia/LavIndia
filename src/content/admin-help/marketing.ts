@@ -267,7 +267,7 @@ export const MARKETING_HELP: HelpEntry[] = [
         { term: "New Arrivals", text: "Published pieces added in the last 30 days, newest first. It fills and empties on its own." },
         { term: "Highlights", text: "Visible highlights from Highlights." },
         { term: "Trust Badges", text: "Cash on delivery, customer count, rating and support hours from Settings." },
-        { term: "Coupons", text: "Discount codes that are active and within their dates." },
+        { term: "Coupons", text: "The “Offers for You” band: live offers switched to “Show in the storefront's offers” in Offers. Code offers show their code to copy; automatic ones say no code is needed. Private one-per-client codes never show." },
       ] },
     ],
     notes: [
