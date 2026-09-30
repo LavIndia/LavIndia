@@ -37,6 +37,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
     where: { id: input.productId },
     select: {
       name: true,
+      retiredAt: true,
       variants: { where: { isActive: true }, select: { id: true, name: true } },
     },
   });
@@ -58,6 +59,15 @@ export const POST = apiHandler(async (req: NextRequest) => {
   const levels = await inventoryService.getLevels([variantId]);
   const current = levels.get(variantId)?.available ?? 0;
   const delta = input.quantity - current;
+
+  // A retired piece is never restocked. Its count can come down (a sale, a
+  // recount, a damaged piece) but not go up from here.
+  if (product.retiredAt && delta > 0) {
+    throw new DomainError(
+      "PRODUCT_RETIRED",
+      `${product.name} is retired and can't be restocked. Reinstate it first, or correct a miscount in Inventory → Adjustments.`,
+    );
+  }
 
   if (delta === 0) {
     return NextResponse.json({ success: true, quantity: current, unchanged: true });

@@ -41,6 +41,8 @@ async function loadOrders(params: OrderFilterParams) {
         totalCents: true,
         shippingCents: true,
         taxCents: true,
+        taxIncluded: true,
+        codFeeCents: true,
         discountCents: true,
         status: true,
         paymentStatus: true,

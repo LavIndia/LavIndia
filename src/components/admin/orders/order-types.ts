@@ -26,6 +26,9 @@ export interface OrderRow {
   totalCents: number;
   shippingCents: number;
   taxCents: number;
+  /** True when the GST is inside the prices rather than added on top. */
+  taxIncluded: boolean;
+  codFeeCents: number;
   discountCents: number;
   status: OrderStatus;
   paymentStatus: PaymentStatus;

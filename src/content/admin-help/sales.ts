@@ -1,0 +1,341 @@
+import type { HelpEntry } from "./types";
+
+/** Help for the sales screens. */
+export const SALES_HELP: HelpEntry[] = [
+  {
+    route: "/admin/pos",
+    area: "Sales",
+    title: "Store POS",
+    purpose: "Sell a piece at the counter. When you confirm payment, the sale, the stock and the invoice are all recorded together.",
+    steps: [
+      "Scan the piece's tag, or type its name, SKU or barcode in Scan or search and pick it from the list.",
+      "Check the quantity and price on each line. To charge a different price, type it over the price and add the reason.",
+      "Under Payment, choose Cash, UPI, Card or Other. For anything but Cash, add the Reference.",
+      "Add the client's name and mobile under Customer (optional), or leave them blank for a walk-in sale.",
+      "Press Generate bill. For UPI, show the client the QR. For anything else, collect the amount.",
+      "Once the money has arrived, press Payment received. Then press Invoice to print the bill, or New sale for the next client.",
+    ],
+    sections: [
+      {
+        heading: "Building the sale",
+        items: [
+          { term: "Scan or search", text: "Scan a barcode, or search by name or SKU. Each result shows how many are available. A scanner works anywhere on this screen, so you don't need to tap the box first. Scanning a piece again adds one more to its line." },
+          { term: "− and + (quantity)", text: "Change how many. Bringing it down to zero removes the line." },
+          { term: "₹ price", text: "Starts at the tag price. Type over it to charge a different price, higher or lower. The tag price then shows struck through, so the change is always visible." },
+          { term: "Why? e.g. long-standing customer", text: "Appears once you change a price. Always fill it in. When a price is lowered, the reason and your name are kept on the sale." },
+          { term: "Reset (circular arrow)", text: "Puts a changed price back to the tag price." },
+          { term: "✕", text: "Removes the line from the sale." },
+          { term: "Only N in stock", text: "You've asked for more than is on the shelf. Generate bill stays off until you lower the quantity. Under the button it says “Not enough stock for N items”." },
+        ],
+      },
+      {
+        heading: "Totals and payment",
+        items: [
+          { term: "Items, offers, Price changes, GST, Total", text: "The running bill, priced exactly as the sale will be charged: each offer that applies is named with what it saves, Price changes shows prices lowered by hand, and GST shows as added or included according to Settings. A gold line under the total says when the client is close to another offer." },
+          { term: "Offer code", text: "Type a code the client gives you and press Apply (or Enter). If it can't be used, the reason shows under the box — for example that the basket doesn't reach the offer's minimum yet." },
+          { term: "Payment: Cash, UPI, Card, Other", text: "How the client is paying. It is printed on the invoice. It also decides whether offers made for paying by UPI or Card apply." },
+          { term: "Reference", text: "For UPI, the UPI transaction ID. For Card, the approval code. For Other, a short note. It is printed on the invoice. It isn't asked for with Cash." },
+          { term: "Customer (optional)", text: "Name and mobile, printed on the invoice. The mobile number links the client's counter and website purchases in Customer Segments, so it is worth asking for." },
+          { term: "Generate bill", text: "Opens the bill for the client to see. It stays off until there is at least one piece and enough stock for every line." },
+        ],
+      },
+      {
+        heading: "The bill and after",
+        items: [
+          { term: "UPI QR", text: "A code the client scans to pay. The amount is already filled in, and your payee name and UPI ID show beneath it. If you see “No UPI ID set yet”, add the UPI ID under Settings → Payments." },
+          { term: "Payment received", text: "Press only once the money has actually arrived, for example when the client's UPI app shows success. This records the sale." },
+          { term: "Back to the sale", text: "Go back and change something. Nothing has been recorded yet." },
+          { term: "Sale complete", text: "Shows the amount charged, the order number (LVI-…), the invoice number (INV/26-27/000123) and each line." },
+          { term: "New sale / Invoice", text: "New sale clears the screen for the next client. Invoice opens the printable bill." },
+          { term: "Sales insights / Counter sales", text: "Buttons at the top. They open Sales Insights, and Orders showing only walk-in sales." },
+        ],
+      },
+    ],
+    notes: [
+      "Nothing is saved until you press Payment received: no order, no stock movement, no invoice number. Backing out leaves no trace.",
+      "Payment received does everything at once. The piece comes out of stock. The sale appears on Orders as Walk-in, Paid and Delivered. A numbered invoice is issued. None of this can be undone from this screen.",
+      "The total on screen, on the bill and in the UPI QR is the amount the sale charges. GST follows Settings → Delivery charges and GST → “Counter prices include GST”: on, the tag price is what the client pays; off, 3% GST is added on top.",
+      "If an offer ends or runs out between showing the total and pressing Payment received, the sale stops and asks you to check the new total with the client — it never charges more than was shown.",
+      "A price you type by hand is final for that line. Offers don't reduce it further.",
+      "Offers only for signed-in clients, first orders or chosen clients don't apply at the counter yet, because a counter sale isn't linked to a website account.",
+      "Pieces not yet shown on the website can still be sold here. If a retired piece sells its last unit, it comes off the website.",
+      "If two people try to sell the last piece at the same moment, only one sale goes through. The other sees a message saying how many are left.",
+    ],
+    related: [{ label: "Orders", href: "/admin/orders" }, { label: "Stock", href: "/admin/inventory/stock" }, { label: "Offers", href: "/admin/promotions" }, { label: "Settings", href: "/admin/settings" }],
+  },
+  {
+    route: "/admin/orders",
+    area: "Sales",
+    title: "Orders",
+    purpose: "Every sale in one list: counter sales and website orders are one order system, so they sit together here and in every report. Find an order, see what was in it, open its invoice, and move website orders through their stages.",
+    steps: [
+      "Pick a Channel and a period to narrow the list. These apply straight away.",
+      "To find one order, type its order number, invoice number, the client's name, mobile or email in the search box, then press Enter or Apply.",
+      "Press the eye to see the order in full, or the invoice icon to open its bill.",
+      "For a website order, choose the new stage in the Stage column as it is packed, shipped and delivered.",
+    ],
+    sections: [
+      {
+        heading: "Top of the screen",
+        items: [
+          { term: "New counter sale", text: "Opens Store POS." },
+          { term: "Export CSV", text: "Downloads a spreadsheet of every order, whatever the filters." },
+          { term: "Showing the latest 100 of N", text: "Shows when more orders match than the list can hold. Narrow the filters to reach older ones." },
+          { term: "Orders", text: "How many orders match the filters." },
+          { term: "Value of goods", text: "The tag value of the pieces in those orders, before discounts, shipping and tax. Below it is the average per order." },
+          { term: "Walk-in / Online", text: "How many of those orders were sold at the counter, and how many were placed on the website." },
+        ],
+      },
+      {
+        heading: "Filters",
+        items: [
+          { term: "Search", text: "Order number, invoice number, client name, mobile or email. Press Enter or Apply." },
+          { term: "Channel", text: "All channels, Walk-in (counter) or Online (website)." },
+          { term: "Period", text: "All time, Today, Last 7 days, Last 30 days, Last 90 days, or This financial year (from 1 April). Ranges count back from midnight today." },
+          { term: "More filters / Fewer filters", text: "Shows or hides the filters below. They stay open while any of them is in use." },
+          { term: "Stage", text: "Pending, Processing, Shipped, Out for delivery, Delivered, Cancelled or Refunded." },
+          { term: "Payment", text: "Paid, Awaiting payment, Failed or Refunded." },
+          { term: "Paid by", text: "Cash, UPI or Card are counter payments. Cash on delivery is a website order paid to the courier. Paid online is a website order paid by card or UPI. Other is a counter sale marked Other." },
+          { term: "Category", text: "Orders with at least one piece from that category. An order with pieces from two categories appears under both." },
+          { term: "Order value (₹)", text: "From and to. Compares the value of the pieces, before shipping and tax." },
+          { term: "Apply / Clear", text: "Apply runs the search and the filters under More filters. Clear removes every filter." },
+        ],
+      },
+      {
+        heading: "The list",
+        items: [
+          { term: "Order", text: "The order number, with the invoice number beneath once one has been issued." },
+          { term: "Channel", text: "Walk-in or Online." },
+          { term: "Customer", text: "The client's name and email or mobile. A counter sale with no name shows as Walk-in customer." },
+          { term: "Items", text: "How many pieces, plus how many different products when that differs." },
+          { term: "Value", text: "The value of the pieces at tag price, before discounts and shipping." },
+          { term: "Payment", text: "Paid, Awaiting, Failed or Refunded, and how the client paid. For website orders this shows the card or UPI details once they are known." },
+          { term: "Stage", text: "For website orders, a menu to change the stage. It saves as soon as you pick. Counter sales show Delivered and can't be changed." },
+          { term: "Actions", text: "The invoice icon opens the bill. A dash means no invoice yet. The eye opens the order's details." },
+        ],
+      },
+      {
+        heading: "Order details",
+        items: [
+          { term: "Invoice INV/…", text: "Opens the bill. Only shown once one exists." },
+          { term: "Customer / Shipping to", text: "Who bought it. Shipping to appears for website orders only." },
+          { term: "Items", text: "Each piece with its colour or size, SKU, category, quantity and price charged." },
+          { term: "Money", text: "Items at tag value, Discount, Shipping, Tax, how it was paid, and the Total." },
+        ],
+      },
+    ],
+    notes: [
+      "A counter sale is finished the moment it is paid: Paid and Delivered, with its invoice already issued.",
+      "Website cash on delivery orders start at Processing, with payment Awaiting.",
+      "Moving an order to Cancelled or Refunded doesn't put the pieces back in stock, return any money, or change its payment state. Do those separately (stock on the Stock screen). It does give back the order's offer uses, and moving it back out of Cancelled counts them again.",
+      "Cancelled and Refunded orders drop out of Sales Insights, Accounting and Customer Segments.",
+      "Invoices are issued automatically for counter sales and for website orders paid online. Cash on delivery orders don't get one at present.",
+      "Every stage change is recorded in Audit Logs with who made it.",
+      "On a phone the list shows as cards. Tap one for its details. Stages can only be changed on a wider screen.",
+      "The export lists every order ever placed, not only the filtered ones. Its Total is the tag value before discounts.",
+    ],
+    related: [{ label: "Store POS", href: "/admin/pos" }, { label: "Sales Insights", href: "/admin/sales-insights" }, { label: "Stock", href: "/admin/inventory/stock" }, { label: "Audit Logs", href: "/admin/audit-logs" }],
+  },
+  {
+    route: "/admin/invoices/[orderId]",
+    area: "Sales",
+    title: "Invoice",
+    purpose: "The bill for one order, exactly as it was issued. Print it, or save it as a PDF to hand to or send to the client.",
+    steps: [
+      "Open it from the invoice icon on Orders, from Invoice in an order's details, or from Invoice after a counter sale.",
+      "Press Print invoice. In the print window, choose your printer or Save as PDF. Set Margins to None and Scale to 100.",
+    ],
+    sections: [
+      {
+        heading: "On the invoice",
+        items: [
+          { term: "INVOICE TO", text: "The client's name, address, mobile and GSTIN, whichever are known. A counter sale with no details reads Walk-in customer." },
+          { term: "Invoice No.", text: "For example INV/26-27/000123. Numbers run in unbroken order within each financial year (April to March), as GST rules require. It is separate from the order number." },
+          { term: "Date / Sold in store", text: "The date it was issued. Sold in store appears on counter sales only." },
+          { term: "GSTIN", text: "The shop's GST number, from Settings. Left off if none was set." },
+          { term: "No, Product Description, Price, Qty, Total", text: "Each piece, with its colour or size, SKU and HSN code. When a piece sold for less than its tag, the tag price shows struck through above the price charged." },
+          { term: "Payment Details", text: "Method, who paid and the UTR or reference when known, and the order number." },
+          { term: "Subtotal, Discount, offers, Shipping", text: "Subtotal is at tag price. Discount is the total taken off, with each offer named beneath it." },
+          { term: "GST included / Tax (3%)", text: "“GST included” means the prices already contained the GST shown. “Tax” means it was added on top. Which one depends on the GST setting at the time of the sale." },
+          { term: "Thank You and closing line", text: "A short greeting chosen for each invoice, with the shop's name, phone, email and address from Settings." },
+        ],
+      },
+    ],
+    notes: [
+      "An invoice is fixed when it is issued. Renaming or repricing a piece, deleting it or changing Settings later never alters it. A reprint years later is identical.",
+      "Each order has one invoice, and its number can't be changed or reused. It can't be edited or cancelled from here.",
+      "On screen the page is ivory. It prints on white, to save ink.",
+      "If an order has no invoice yet (for example, cash on delivery), there is nothing to open.",
+    ],
+    related: [{ label: "Orders", href: "/admin/orders" }, { label: "Store POS", href: "/admin/pos" }, { label: "Settings", href: "/admin/settings" }],
+  },
+  {
+    route: "/admin/sales-insights",
+    area: "Sales",
+    title: "Sales Insights",
+    purpose: "How the shop is trading, counter and website together, over a period you choose: takings, pieces sold, best sellers, how clients paid and what is running low.",
+    steps: [
+      "Pick a period at the top. Every figure on the page follows it, except Running low.",
+      "Read the headline figures, then the counter and website split beneath.",
+      "Check Running low, and press Open Stock to receive more when something needs reordering.",
+    ],
+    sections: [
+      {
+        heading: "Period and headline figures",
+        items: [
+          { term: "Today … All time", text: "Today, Last 7 days, Last 30 days (the default), Last 90 days, This financial year (from 1 April) and All time. Ranges count back from midnight today." },
+          { term: "Value of goods sold", text: "What the pieces sold for after discounts, before shipping and tax." },
+          { term: "Orders / Average order", text: "How many orders, and the average value of each." },
+          { term: "Pieces sold", text: "Units that left the shelf." },
+          { term: "N paid orders have no invoice", text: "A warning. Counter sales always get an invoice. Website cash on delivery orders don't at present." },
+        ],
+      },
+      {
+        heading: "Panels",
+        items: [
+          { term: "Walk-in / Online", text: "Takings, their share of the total, pieces, and number of sales for the counter and for the website." },
+          { term: "How they paid", text: "Takings by payment method, largest first, such as Cash, UPI, Card or Cash on delivery." },
+          { term: "Takings by day", text: "One bar a day, with walk-in and online stacked. Hover over a bar for that day's figures. Tallest day is the best day in the period." },
+          { term: "Best sellers", text: "The top 10 by pieces sold. Counter / Web splits the pieces by channel. Value is what they sold for." },
+          { term: "Categories", text: "Value sold per category, with how many orders." },
+          { term: "Running low", text: "Up to 12 pieces at or below their reorder point right now, whatever the period. Available shows Out of stock at zero. Reorder at is the reorder point. Retired pieces are left out." },
+          { term: "Best customers", text: "The top 8 clients by value, both channels. Counter sales with no name are grouped as Walk-in customer." },
+          { term: "New counter sale / All orders", text: "Buttons at the top. They open Store POS and Orders." },
+        ],
+      },
+    ],
+    notes: [
+      "Cancelled and Refunded orders never count. Every other order does, including website orders still awaiting payment. For settled money only, use Accounting.",
+      "How they paid, Takings by day and Best customers use the tag value before discounts, while the other figures use what pieces sold for. When discounts were given, these totals won't match exactly.",
+    ],
+    related: [{ label: "Orders", href: "/admin/orders" }, { label: "Accounting", href: "/admin/accounting" }, { label: "Stock", href: "/admin/inventory/stock" }, { label: "Analytics", href: "/admin/analytics" }],
+  },
+  {
+    route: "/admin/accounting",
+    area: "Sales",
+    title: "Accounting",
+    purpose: "What the shop earned, what the pieces cost and what was spent on stock over a period. Only money that has actually been settled is counted.",
+    steps: [
+      "Pick a period at the top, then read Revenue, Cost of goods sold, Gross profit and Gross margin.",
+      "If costs are missing, set a cost price on the product, or enter what you paid when receiving stock. The figures fill in from then on.",
+    ],
+    sections: [
+      {
+        heading: "Figures",
+        items: [
+          { term: "Revenue", text: "The tag value of the pieces on settled orders, before discounts and shipping. Discounts show separately below. The caption gives the number of settled orders." },
+          { term: "Cost of goods sold", text: "What the pieces sold had cost, as recorded when each sold. “12 of 40 lines have a cost recorded” means some sales have no cost yet." },
+          { term: "Gross profit", text: "What pieces sold for, after discounts, less their cost. Only sales with a cost recorded are counted." },
+          { term: "Gross margin", text: "The share of that selling value kept as profit. A dash means no cost is known yet." },
+          { term: "GST collected", text: "GST on settled orders. It is held for the government and isn't income." },
+          { term: "Discounts given", text: "Everything taken off settled orders, by hand at the counter and by offers." },
+          { term: "Stock purchased", text: "The cost of stock received in the period, from what you entered when receiving." },
+          { term: "Stock on hand", text: "Everything on the shelves now, valued at each product's cost price, whatever the period. It is an estimate. Units without a cost are counted separately." },
+          { term: "Saved by bargaining", text: "The supplier's asking price less what you paid, for stock received. Only appears once an asking price has been entered." },
+        ],
+      },
+      {
+        heading: "Tables",
+        items: [
+          { term: "Where the profit came from", text: "The 10 most profitable products: Sold, Revenue, Cost, Profit (a loss shows in red) and Margin. Click a name to open the product. A note warns when some costs are missing. Products with unknown profit come last." },
+          { term: "Spend by supplier", text: "Stock received in the period from each supplier: Units, Spend and Last delivery. Only stock received with a supplier chosen appears." },
+        ],
+      },
+    ],
+    notes: [
+      "Settled means the payment was received, or the order reached Delivered (for example, cash on delivery). Counter sales count straight away. Cancelled and Refunded orders never count. Website orders awaiting payment don't count either, so figures here can be lower than on Sales Insights.",
+      "Profit uses the cost recorded on the piece at the moment it sold. Changing a cost price later doesn't rewrite past profit.",
+      "A dash (—) means unknown, not zero.",
+    ],
+    related: [{ label: "Sales Insights", href: "/admin/sales-insights" }, { label: "Products", href: "/admin/products" }, { label: "Stock", href: "/admin/inventory/stock" }, { label: "Movements", href: "/admin/inventory/movements" }],
+  },
+  {
+    route: "/admin/customers",
+    area: "Sales",
+    title: "Customers",
+    purpose: "Clients who have an account on the website, with how many orders they have placed and what they have spent.",
+    steps: [
+      "Look down the list for the client (newest accounts first), or press Export CSV for a spreadsheet of every client account.",
+    ],
+    sections: [
+      {
+        heading: "Columns",
+        items: [
+          { term: "Name / Contact", text: "The name on the account (N/A if none was given), with email and mobile." },
+          { term: "Total Orders", text: "Every order on the account, including cancelled ones and those awaiting payment." },
+          { term: "Successful", text: "Orders that are Shipped, Out for delivery or Delivered." },
+          { term: "Returned", text: "Orders that were Cancelled or Refunded." },
+          { term: "Total Spent", text: "The tag value of orders from Processing through Delivered, before discounts, shipping and tax." },
+          { term: "Discount Saved", text: "How much less the client paid than each piece's compare-at price (or tag price) as it stands today." },
+          { term: "Tier", text: "Set by Total Spent: VIP from ₹50,000, Gold from ₹20,000, Silver from ₹5,000, otherwise Regular." },
+          { term: "Joined", text: "When the account was created." },
+        ],
+      },
+    ],
+    notes: [
+      "Only the 100 newest accounts are shown, and there is no search here yet.",
+      "Walk-in counter clients without a website account aren't listed. Customer Segments shows everyone who has bought, matching counter and website purchases by mobile number.",
+      "Nothing can be edited on this screen.",
+      "The spreadsheet's total spent adds up every order, including cancelled ones, so it can differ from Total Spent here.",
+    ],
+    related: [{ label: "Customer Segments", href: "/admin/customers/rfm" }, { label: "Orders", href: "/admin/orders" }, { label: "Offers", href: "/admin/promotions" }],
+  },
+  {
+    route: "/admin/customers/rfm",
+    area: "Sales",
+    title: "Customer Segments",
+    purpose: "Groups every client who has bought by how recently they bought, how often and how much they spend. It shows who to thank, who to call, and who is drifting away.",
+    steps: [
+      "Read the segments at the top. They are ordered by the money they carry.",
+      "Look at the grid for the overall shape of your clients.",
+      "Find the names in the Customers table and act on each segment's suggestion.",
+    ],
+    sections: [
+      {
+        heading: "The three scores (R F M)",
+        items: [
+          { term: "R: Recency", text: "How recently they last bought. 5 is the most recent fifth of your clients." },
+          { term: "F: Frequency", text: "How many orders they have placed. 5 is the fifth who buy most often." },
+          { term: "M: Monetary", text: "How much they have paid in total. 5 is the top fifth of spenders." },
+          { term: "Compared with your own clients", text: "Scores aren't fixed rupee amounts. They rank each client against LavIndia's other clients." },
+        ],
+      },
+      {
+        heading: "Headline figures",
+        items: [
+          { term: "Customers who have bought", text: "Everyone with at least one order that counts." },
+          { term: "Lifetime revenue", text: "What those clients have paid, all time." },
+          { term: "Champions and loyal / At risk of being lost", text: "Head counts of your best clients, and of those in Cannot lose or At risk." },
+        ],
+      },
+      {
+        heading: "Segments",
+        items: [
+          { term: "Champions", text: "Bought recently, buy often and spend the most. Give them first sight of new pieces." },
+          { term: "Loyal", text: "Buy consistently, though not always the largest orders." },
+          { term: "Potential loyalist", text: "Recent buyers who have come back more than once." },
+          { term: "New / Promising", text: "One purchase, very recently (New) or fairly recently (Promising)." },
+          { term: "Needs attention / About to sleep", text: "Bought a while ago. Needs attention used to buy often. About to sleep didn't." },
+          { term: "At risk / Cannot lose", text: "Bought regularly, but not for a long while. Cannot lose were also big spenders. Call them personally." },
+          { term: "Hibernating / Lost", text: "Long since bought, and rarely. Lost bought once, long ago." },
+          { term: "Per order / % of revenue", text: "Each segment's average order and its share of all revenue." },
+        ],
+      },
+      {
+        heading: "Grid and table",
+        items: [
+          { term: "Where the customers sit", text: "A 5×5 grid, with Recency up the side and Frequency across. Darker squares hold more people. Weight in the lower-left means many clients bought once, long ago." },
+          { term: "Customers", text: "Biggest spenders first: name (or Walk-in customer), mobile, and whether they bought at the counter, online or both." },
+          { term: "Segment, R F M, Orders, Spend, Last bought", text: "Their group, their three scores, their order count, total paid, and how long ago they last bought." },
+        ],
+      },
+    ],
+    notes: [
+      "Counter and website purchases by the same person are combined, matched on mobile number. Ask for the mobile at the counter. A counter sale with no mobile, and no website account, can't be counted here.",
+      "Cancelled and refunded orders are left out. Website orders awaiting payment are included.",
+      "The page refreshes at most once an hour, so a sale just made may not show yet.",
+      "Scores are relative, so a client can move to another segment as other clients buy, without doing anything themselves.",
+    ],
+    related: [{ label: "Customers", href: "/admin/customers" }, { label: "Orders", href: "/admin/orders" }, { label: "Offers", href: "/admin/promotions" }, { label: "Sales Insights", href: "/admin/sales-insights" }],
+  },
+];

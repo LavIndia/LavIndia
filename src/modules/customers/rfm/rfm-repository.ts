@@ -47,8 +47,10 @@ export async function loadRfmFacts(options?: {
         o."createdAt" AS created_at,
         o."source" AS source,
         -- What the customer actually paid, which is what "monetary" means.
+        -- GST is added only when it was not already inside the prices.
         (o."totalCents" + o."shippingCents" + o."codFeeCents"
-          + o."taxCents" - o."discountCents") AS paid_cents
+          + CASE WHEN o."taxIncluded" THEN 0 ELSE o."taxCents" END
+          - o."discountCents") AS paid_cents
       FROM "orders" o
       LEFT JOIN "users" u ON u."id" = o."userId"
       WHERE o."createdAt" >= ${since}

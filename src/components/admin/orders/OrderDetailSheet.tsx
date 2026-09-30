@@ -77,8 +77,14 @@ export function OrderDetailSheet({
   order: OrderRow | null;
   onClose: () => void;
 }) {
+  // What the client paid: GST is added only when it was not already inside
+  // the prices, and a cash-on-delivery fee counts too.
   const grandTotal = order
-    ? order.totalCents + order.shippingCents + order.taxCents - order.discountCents
+    ? order.totalCents +
+      order.shippingCents +
+      order.codFeeCents +
+      (order.taxIncluded ? 0 : order.taxCents) -
+      order.discountCents
     : 0;
 
   return (
