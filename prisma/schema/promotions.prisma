@@ -1,0 +1,160 @@
+// =========================================================================
+// PROMOTIONS DOMAIN
+//
+// Owns offers: what a client gets, on which pieces, when, and how offers
+// play together. The mechanics are evaluated by one pure engine
+// (src/modules/promotions/engine) that both sales channels call, so an offer
+// behaves the same online and at the counter.
+//
+// Marketing surfaces (banners, homepage sections) may REFERENCE a promotion
+// by id, but never copy its pricing. Promotions never reads Marketing.
+// =========================================================================
+
+enum PromotionTrigger {
+  /// Applies by itself whenever a cart qualifies.
+  AUTOMATIC
+  /// Applies only when the client enters one of its codes.
+  CODE
+}
+
+model Promotion {
+  id          String  @id @default(cuid())
+  /// Internal name, seen only in the admin: "Diwali Bangle Trio 2026".
+  name        String
+  /// Internal notes for the team. Never shown to a client.
+  description String?
+  /// The template the admin started from ("ANY_N_FOR_X", "BXGY", ...).
+  /// Decides which cards the editor shows; the engine never reads it.
+  template    String
+
+  trigger  PromotionTrigger @default(AUTOMATIC)
+  channels OrderSource[]    @default([ONLINE, STORE])
+
+  /// The mechanics, each a validated JSON document the engine reads whole.
+  ///
+  /// JSON rather than a table per block because the shapes differ by block
+  /// and are always read and written as one unit — the same reasoning
+  /// ContentPage.sections uses. Every document is validated by the Zod
+  /// schemas in src/modules/promotions/schema.ts on the way in, and carries
+  /// its own `type` so a block can gain a new version without a migration.
+  ///
+  /// `pieces`     which pieces count: { include: Selector[], exclude: Selector[] }
+  /// `conditions` order-level conditions, all of which must hold
+  /// `benefit`    what the client gets, including any tiers
+  pieces     Json @default("{\"include\":[],\"exclude\":[]}")
+  conditions Json @default("[]")
+  benefit    Json
+
+  /// Minimum matching pieces, or minimum value of matching pieces, before
+  /// the offer applies at all. Null means no minimum.
+  minQuantity      Int?
+  minSubtotalCents Int?
+
+  /// Whether set and bundle prices are meant including GST. When true the
+  /// engine converts them to a pre-tax amount before comparing.
+  priceIncludesTax Boolean @default(false)
+
+  // Limits -------------------------------------------------------------
+  maxApplicationsPerOrder Int?
+  maxDiscountCents        Int?
+  usageLimit              Int?
+  perCustomerLimit        Int?
+  /// Stop the offer once this much has been given away in total, in paise.
+  budgetCents             Int?
+  /// Orders that used the offer, and what it gave away. Running totals kept
+  /// on the row so the list screen and the budget check need no aggregate.
+  usedCount               Int  @default(0)
+  discountGivenCents      Int  @default(0)
+
+  // Combining ----------------------------------------------------------
+  /// May a piece offer share an order with an order offer (and vice versa)?
+  /// Both sides must say yes.
+  combinesWithOtherClasses Boolean @default(false)
+  /// When this applies, no other offer does.
+  exclusive                Boolean @default(false)
+  /// Optional tie-breaker between offers that save exactly the same. Lower
+  /// wins. Never overrides "best for the client".
+  rank                     Int?
+
+  // Schedule — same convention as Discount / HeroBanner (src/lib/scheduling.ts).
+  startsAt             DateTime?
+  endsAt               DateTime?
+  isRecurring          Boolean   @default(false)
+  recurrenceType       String?
+  recurrenceDaysOfWeek Int[]     @default([])
+  recurrenceDayOfMonth Int?
+  recurrenceStartTime  String?
+  recurrenceEndTime    String?
+
+  // Lifecycle. Status (Draft / Scheduled / Live / Paused / Ended / Archived)
+  // is DERIVED from these, never stored, so it cannot drift from the truth.
+  activatedAt DateTime?
+  isPaused    Boolean   @default(false)
+  archivedAt  DateTime?
+
+  // What the client sees. Every field optional and hidden when empty.
+  title            String?
+  badge            String?
+  nudgeText        String?
+  appliedText      String?
+  terms            String?
+  invoiceLabel     String?
+  showOnStorefront Boolean @default(false)
+  slug             String? @unique
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  codes       PromotionCode[]
+  allocations PromotionAllocation[]
+
+  @@index([archivedAt, isPaused, activatedAt])
+  @@map("promotions")
+}
+
+/// A code that unlocks a CODE promotion. One per promotion today; the table
+/// exists so bulk, single-use VIP codes are an addition rather than a change.
+model PromotionCode {
+  id          String   @id @default(cuid())
+  promotionId String
+  /// Stored upper-case; looked up case-insensitively.
+  code        String   @unique
+  usageLimit  Int?
+  usedCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId])
+  @@map("promotion_codes")
+}
+
+/// How much of one order line's discount came from which offer.
+///
+/// The per-line truth that invoices, returns and promotion reports are built
+/// from. A line may carry several rows — a set price and an order coupon —
+/// and their sum is that line's promotion discount.
+model PromotionAllocation {
+  id             String   @id @default(cuid())
+  orderId        String
+  orderItemId    String
+  /// Null when the offer has since been deleted; label and code keep the
+  /// record readable.
+  promotionId    String?
+  code           String?
+  /// What the invoice printed against this discount.
+  label          String
+  /// Groups the units of one application, e.g. "set-1".
+  applicationKey String
+  amountCents    Int
+  createdAt      DateTime @default(now())
+
+  orderItem OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  promotion Promotion? @relation(fields: [promotionId], references: [id], onDelete: SetNull)
+
+  @@index([promotionId, createdAt])
+  @@index([orderId])
+  @@index([orderItemId])
+  @@map("promotion_allocations")
+}

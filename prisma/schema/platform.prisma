@@ -112,6 +112,15 @@ model SiteSettings {
   /// wait for a deploy. Zero means cash on delivery is offered free.
   codFeeCents Int @default(0)
 
+  /// Whether the prices shown on each channel already include GST.
+  ///
+  /// When they do, the tax is worked out FROM the price and the client pays
+  /// the price shown; when they do not, GST is added on top. Held per
+  /// channel because that is how the shop trades today — the website's
+  /// prices are what the client pays, the counter adds GST to the bill.
+  onlinePricesIncludeGst Boolean @default(true)
+  storePricesIncludeGst  Boolean @default(false)
+
   // Trust Badges
   codAvailable      Boolean @default(true)
   customerCount     String  @default("9L+")

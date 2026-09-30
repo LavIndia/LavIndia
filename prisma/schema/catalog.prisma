@@ -34,9 +34,9 @@ model Category {
 // Product
 // ---------------------------------------------------------
 model Product {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   name             String
-  slug             String   @unique
+  slug             String    @unique
   description      String?
   priceCents       Int // stored in paisa/cents to avoid floats
   compareAtCents   Int?
@@ -54,8 +54,8 @@ model Product {
   // DEPRECATED. Physical stock is owned by the Inventory domain and tracked
   // per sellable variant (InventoryLevel). Kept for historical/auditing
   // reasons only — nothing in the app reads it as a source of truth.
-  stock            Int      @default(0)
-  sku              String?  @unique
+  stock            Int       @default(0)
+  sku              String?   @unique
   // What the piece is made of — Sterling Silver, Brass, 22k Gold.
   //
   // A product-level fact, deliberately NOT a variant option: material moves
@@ -63,10 +63,10 @@ model Product {
   // design in two materials is two products; colour and size are the only
   // things a shopper chooses on one page.
   material         String?
-  isActive         Boolean  @default(true)
-  isFeatured       Boolean  @default(false)
-  isLimitedEdition Boolean  @default(false)
-  isPublished      Boolean  @default(false)
+  isActive         Boolean   @default(true)
+  isFeatured       Boolean   @default(false)
+  isLimitedEdition Boolean   @default(false)
+  isPublished      Boolean   @default(false)
   /// When the shop decided never to stock this piece again. Null while it is
   /// part of the range.
   ///
@@ -77,8 +77,8 @@ model Product {
   /// A timestamp rather than a flag, because "retired in March" is a question
   /// the shop asks when reviewing the range.
   retiredAt        DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Foreign Keys
   categoryId String
