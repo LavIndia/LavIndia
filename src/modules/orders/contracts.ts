@@ -90,6 +90,12 @@ export interface CreateOrderInput {
   actorId?: string;
   /** Makes a retried submission safe — the same key returns the same order. */
   idempotencyKey?: string;
+  /**
+   * The total the client was shown. The order never charges more: if an
+   * offer ended or ran out in between, it is refused so the total can be
+   * shown again. A lower total goes through in the client's favour.
+   */
+  expectedGrandTotalCents?: number;
 }
 
 /** A line as it was actually sold, frozen at that moment. */

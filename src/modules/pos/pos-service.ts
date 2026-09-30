@@ -39,6 +39,8 @@ export interface PosSaleInput {
   discountCents?: number;
   /** The live offers and codes the sale is priced against. */
   pricing?: CreateOrderInput["pricing"];
+  /** The total the operator showed the client. */
+  expectedGrandTotalCents?: number;
   notes?: string;
   actorId: string;
   idempotencyKey?: string;
@@ -90,6 +92,7 @@ class PosService {
           status: "DELIVERED",
           discountCents: input.discountCents,
           pricing: input.pricing,
+          expectedGrandTotalCents: input.expectedGrandTotalCents,
           notes: input.notes,
           actorId: input.actorId,
           idempotencyKey: input.idempotencyKey,

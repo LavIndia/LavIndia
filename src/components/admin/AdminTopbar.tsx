@@ -14,6 +14,8 @@ import { Bell, LogOut, User, ShoppingBag, Plus, Search } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { css } from "styled-system/css";
+import { Suspense } from "react";
+import { HelpButton } from "@/components/admin/help/HelpButton";
 
 interface AdminTopbarProps {
   user: {
@@ -130,6 +132,10 @@ export function AdminTopbar({ user }: AdminTopbarProps) {
           <ShoppingBag className={css({ height: "4", width: "4" })} />
           <span className={customerViewLabelStyle}>Customer View</span>
         </Button>
+
+        <Suspense fallback={null}>
+          <HelpButton />
+        </Suspense>
 
         <Button variant="ghost" size="icon" className={css({ position: "relative" })}>
           <Bell className={css({ height: "4", width: "4" })} />

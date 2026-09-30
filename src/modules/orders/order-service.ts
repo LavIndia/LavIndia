@@ -83,6 +83,17 @@ class OrderService implements OrdersPort {
       byId,
     );
 
+    if (
+      input.expectedGrandTotalCents !== undefined &&
+      quote.totals.grandTotalCents > input.expectedGrandTotalCents
+    ) {
+      throw new DomainError(
+        "PRICE_CHANGED",
+        "The total has changed — an offer may have ended. Check the new total with the client.",
+        { grandTotalCents: quote.totals.grandTotalCents },
+      );
+    }
+
     const run = (client: Tx) => this.write(client, input, quote);
     return tx ? run(tx) : prisma.$transaction(run, { timeout: 15_000 });
   }

@@ -5,9 +5,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Receipt } from "lucide-react";
+import { Receipt } from "lucide-react";
 import { css } from "styled-system/css";
-import { formatPaisa } from "@/modules/_shared/money";
 import type { PosPaymentMethod } from "@/modules/orders";
 import { VariantSearchField } from "@/components/admin/inventory/VariantSearchField";
 import { useBarcodeScanner } from "@/components/scanning/useBarcodeScanner";
@@ -15,6 +14,8 @@ import { usePosCart } from "./usePosCart";
 import { PosCartLines } from "./PosCartLines";
 import { PosReceipt, type CompletedSale } from "./PosReceipt";
 import { PosBill } from "./PosBill";
+import { PosOffers } from "./PosOffers";
+import { usePosQuote } from "./usePosQuote";
 import type { UpiPayee } from "@/modules/payments/upi/upi-link";
 
 const layoutStyle = css({
@@ -36,25 +37,6 @@ const panelStyle = css({
   background: "bg.surface",
   position: { lg: "sticky" },
   top: { lg: "4" },
-});
-const totalRowStyle = css({
-  display: "flex",
-  justifyContent: "space-between",
-  fontSize: "sm",
-  color: "fg.muted",
-  fontVariantNumeric: "tabular-nums",
-});
-const grandRowStyle = css({
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "baseline",
-  fontFamily: "display",
-  fontSize: "2xl",
-  fontWeight: "semibold",
-  fontVariantNumeric: "tabular-nums",
-  paddingTop: "2",
-  borderTop: "1px solid",
-  borderColor: "border.subtle",
 });
 const methodGridStyle = css({ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "2" });
 const fieldStyle = css({ display: "flex", flexDirection: "column", gap: "1.5" });
@@ -85,6 +67,17 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
   const [customerMobile, setCustomerMobile] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState<CompletedSale | null>(null);
+  const [codes, setCodes] = useState<string[]>([]);
+  // The basket priced as the sale will be charged — offers, codes, GST.
+  const { quote, loading: quoteLoading } = usePosQuote(cart.toPayload(), codes, method);
+  const billTotals = quote
+    ? {
+        subtotalCents: quote.totals.subtotalCents,
+        discountCents: quote.totals.discountCents,
+        taxCents: quote.totals.taxCents,
+        grandTotalCents: quote.totals.grandTotalCents,
+      }
+    : cart.totals;
   const idempotencyKeyRef = useRef<string | null>(null);
 
   /**
@@ -125,6 +118,10 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
         body: JSON.stringify({
           lines: cart.toPayload(),
           payment: { method, reference: reference.trim() || undefined },
+          codes: codes.length ? codes : undefined,
+          // The total the operator told the client. The sale never charges
+          // more; if an offer ended in between, the screen re-prices.
+          expectedGrandTotalCents: quote?.totals.grandTotalCents,
           customer:
             customerName.trim() || customerMobile.trim()
               ? { name: customerName.trim() || undefined, mobile: customerMobile.trim() || undefined }
@@ -152,6 +149,7 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
 
   const startNewSale = () => {
     cart.clear();
+    setCodes([]);
     setCompleted(null);
     setStage("CART");
     setReference("");
@@ -167,7 +165,7 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
     return (
       <PosBill
         lines={cart.lines}
-        totals={cart.totals}
+        totals={billTotals}
         method={method}
         payee={upiPayee}
         reference={saleReference}
@@ -198,25 +196,13 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
       </div>
 
       <div className={panelStyle}>
-        <div className={totalRowStyle}>
-          <span>{cart.totals.itemCount} item{cart.totals.itemCount === 1 ? "" : "s"}</span>
-          <span>{formatPaisa(cart.totals.subtotalCents)}</span>
-        </div>
-        {/* Shown only when something was actually given away. */}
-        {cart.totals.discountCents > 0 && (
-          <div className={totalRowStyle}>
-            <span>Discount</span>
-            <span>−{formatPaisa(cart.totals.discountCents)}</span>
-          </div>
-        )}
-        <div className={totalRowStyle}>
-          <span>GST 3%</span>
-          <span>{formatPaisa(cart.totals.taxCents)}</span>
-        </div>
-        <div className={grandRowStyle}>
-          <span>Total</span>
-          <span>{formatPaisa(cart.totals.grandTotalCents)}</span>
-        </div>
+        <PosOffers
+          quote={quote}
+          loading={quoteLoading}
+          fallback={cart.totals}
+          codes={codes}
+          onCodesChange={setCodes}
+        />
 
         <div className={fieldStyle}>
           <Label>Payment</Label>

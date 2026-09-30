@@ -47,6 +47,8 @@ const schema = z.object({
   discountCents: z.number().int().min(0).optional(),
   /** Offer codes the client handed over at the counter. */
   codes: z.array(z.string().trim().min(1).max(40)).max(5).optional(),
+  /** The total the screen showed; the sale never charges more than this. */
+  expectedGrandTotalCents: z.number().int().min(0).optional(),
   notes: z.string().trim().max(500).optional(),
   /** Makes a double-tap or a retry safe — the same key returns the same sale. */
   idempotencyKey: z.string().min(8).max(200).optional(),
@@ -83,6 +85,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
     customer: input.customer,
     discountCents: input.discountCents,
     pricing,
+    expectedGrandTotalCents: input.expectedGrandTotalCents,
     notes: input.notes,
     actorId: actor.id,
     idempotencyKey: input.idempotencyKey,

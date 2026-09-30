@@ -32,6 +32,7 @@ import {
   Calculator,
   Truck,
   Layers,
+  HelpCircle,
 } from "lucide-react";
 import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import {
@@ -114,6 +115,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { name: "Settings", href: "/admin/settings", icon: Settings },
       { name: "Audit Logs", href: "/admin/audit-logs", icon: FileText },
+      { name: "Help", href: "/admin/help", icon: HelpCircle },
     ],
   },
 ];
