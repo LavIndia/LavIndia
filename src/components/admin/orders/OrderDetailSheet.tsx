@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { FileText } from "lucide-react";
+import { FileMinus, FileText } from "lucide-react";
 import { css } from "styled-system/css";
 import {
   orderCustomerContact,
@@ -23,6 +23,7 @@ import {
   formatRupees,
   paymentDescription,
 } from "./OrderBadges";
+import { OrderRefundPanel } from "./OrderRefundPanel";
 import type { OrderRow } from "./order-types";
 
 const columnStyle = css({ display: "flex", flexDirection: "column", gap: "6" });
@@ -73,9 +74,12 @@ const iconStyle = css({ height: "4", width: "4" });
 export function OrderDetailSheet({
   order,
   onClose,
+  onRecordRefund,
 }: {
   order: OrderRow | null;
   onClose: () => void;
+  /** Opens the refund form for a closed, paid order. */
+  onRecordRefund: (order: OrderRow) => void;
 }) {
   // What the client paid: GST is added only when it was not already inside
   // the prices, and a cash-on-delivery fee counts too.
@@ -115,6 +119,18 @@ export function OrderDetailSheet({
                 </Link>
               </Button>
             )}
+            {/* The invoice stays issued for good; the credit note beside it
+                is what cancels it. */}
+            {order.invoice?.creditNoteNumber && (
+              <Button variant="outline" asChild>
+                <Link href={`/admin/invoices/${order.id}/credit-note`}>
+                  <FileMinus className={iconStyle} />
+                  Credit note {order.invoice.creditNoteNumber}
+                </Link>
+              </Button>
+            )}
+
+            <OrderRefundPanel order={order} onRecordRefund={onRecordRefund} />
 
             <div>
               <h3 className={sectionTitleStyle}>Customer</h3>

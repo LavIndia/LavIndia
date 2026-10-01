@@ -72,6 +72,34 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+/**
+ * How a refund was sent back, as staff record it. The shop refunds by hand,
+ * so these are the instruments the money went out on — "Original payment
+ * method" covers a reversal to the same card or UPI ID it came from.
+ */
+export type RefundMethodCode = "UPI" | "CARD" | "CASH" | "BANK_TRANSFER" | "ORIGINAL";
+
+export const REFUND_METHOD_LABELS: Record<RefundMethodCode, string> = {
+  UPI: "UPI",
+  CARD: "Card",
+  CASH: "Cash",
+  BANK_TRANSFER: "Bank transfer",
+  ORIGINAL: "Original payment method",
+};
+
+export const REFUND_METHODS = Object.keys(REFUND_METHOD_LABELS) as RefundMethodCode[];
+
+/** A paid order, now closed, with no refund recorded yet (orders/refund-state). */
+export const REFUND_OWED_LABEL = "Refund owed";
+/** The same, when the money arrived only after the order was cancelled. */
+export const PAID_AFTER_CANCELLATION_LABEL = "Paid after cancellation — refund owed";
+
+/** A stored refund method → its name ("" when none, so the caller can hide it). */
+export function refundMethodLabel(code: string | null | undefined): string {
+  if (!code) return "";
+  return REFUND_METHOD_LABELS[code as RefundMethodCode] ?? humaniseCode(code);
+}
+
 export function orderStatusLabel(code: string): string {
   return ORDER_STATUS_LABELS[code as OrderStatusCode] ?? humaniseCode(code);
 }

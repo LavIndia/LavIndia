@@ -26,55 +26,55 @@ enum OrderSource {
 }
 
 model Order {
-  id                String        @id @default(cuid())
+  id                   String        @id @default(cuid())
   // Null for walk-in POS sales, which have no account. Online orders always
   // have both a user and a shipping address.
-  userId            String?
-  addressId         String?
-  orderNumber       String        @unique
+  userId               String?
+  addressId            String?
+  orderNumber          String        @unique
   // ONE order system for both channels — see src/modules/orders. The channel is
   // an attribute of the order, never a separate table.
-  source            OrderSource   @default(ONLINE)
-  totalCents        Int
-  status            OrderStatus   @default(PENDING)
-  paymentStatus     PaymentStatus @default(PENDING)
-  paymentMethod     String? // cod, razorpay, etc.
-  paymentId         String? // Razorpay payment_id
-  paymentProvider   String? // razorpay, stripe, etc.
-  shippingCents     Int           @default(0)
+  source               OrderSource   @default(ONLINE)
+  totalCents           Int
+  status               OrderStatus   @default(PENDING)
+  paymentStatus        PaymentStatus @default(PENDING)
+  paymentMethod        String? // cod, razorpay, etc.
+  paymentId            String? // Razorpay payment_id
+  paymentProvider      String? // razorpay, stripe, etc.
+  shippingCents        Int           @default(0)
   /// What the customer was charged for paying cash on delivery, in paise.
   ///
   /// Recorded per order rather than read back from settings, because the
   /// rate the owner charges today is not necessarily the rate this customer
   /// agreed to — an invoice has to state what was actually charged.
-  codFeeCents       Int           @default(0)
-  taxCents          Int           @default(0)
+  codFeeCents          Int           @default(0)
+  taxCents             Int           @default(0)
   // Snapshot of an applied coupon at order time — a code, not a relation,
   // same convention as OrderItem's name/image snapshots — so the order's
   // history stays accurate even if the Discount record is later edited.
-  discountCode      String?
-  discountCents     Int           @default(0)
+  discountCode         String?
+  discountCents        Int           @default(0)
   /// The offers this order received, as the receipt shows them:
   /// [{ promotionId, label, savingCents }]. A snapshot, so a receipt never
   /// needs a join and never changes when an offer is edited.
-  appliedPromotions Json?
+  appliedPromotions    Json?
   /// Whether the prices on this order already included GST.
   ///
   /// When true, `taxCents` is the GST contained IN the prices and the client
   /// paid total − discount + shipping; when false, GST was added on top.
   /// Recorded per order because the setting can change, and an invoice has
   /// to state what was true when the sale was made.
-  taxIncluded       Boolean       @default(false)
+  taxIncluded          Boolean       @default(false)
   /// Whether this order's offers have been counted against their limits.
   ///
   /// Counted when the order is real — at once for the counter and cash on
   /// delivery, on payment for an online payment — and given back if the
   /// order is cancelled or refunded. The flag makes both steps happen once,
   /// however many times a gateway callback or a status change repeats.
-  promotionUsesCounted Boolean @default(false)
-  notes             String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  promotionUsesCounted Boolean       @default(false)
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   // Customer snapshot. For STORE orders this is the whole customer record
   // (walk-in sales are not required to create an account); for ONLINE orders

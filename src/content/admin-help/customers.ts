@@ -8,7 +8,7 @@ export const CUSTOMERS_HELP: HelpEntry[] = [
     title: "Customers",
     purpose: "Clients who have an account on the website, with how many orders they have placed and what they have spent.",
     steps: [
-      "Look down the list for the client (newest accounts first), or press Export CSV for a spreadsheet of every client account.",
+      "Search by name, email or mobile (any format: +91, a leading 0 or spaces), or tap a tier — VIP, Gold, Silver, Regular — to see only those clients. Press Export CSV for a spreadsheet of the list as shown.",
     ],
     sections: [
       {
@@ -20,19 +20,19 @@ export const CUSTOMERS_HELP: HelpEntry[] = [
           { term: "Returned", text: "Orders that were Cancelled or Refunded." },
           { term: "Total Spent", text: "What the client actually paid on Processing to Delivered orders, website and counter (matched by mobile): after discounts, with delivery and GST." },
           { term: "Discount Saved", text: "What offers and discounts took off their orders." },
-          { term: "Tier", text: "Set by Total Spent (what they actually paid): VIP from ₹50,000, Gold from ₹20,000, Silver from ₹5,000, otherwise Regular." },
+          { term: "Tier", text: "Set by Total Spent (what they actually paid). The rupee amount at which each tier begins is set in Settings → Client tiers (₹50,000 / ₹20,000 / ₹5,000 unless changed); below Silver a client is Regular." },
           { term: "Joined", text: "When the account was created." },
         ],
       },
     ],
     notes: [
-      "Clients are shown 25 to a page, newest accounts first; use Previous / Next at the bottom. There is no search here yet.",
+      "Clients are shown 25 to a page, newest accounts first; use Previous / Next at the bottom. A search or tier stays applied as you page, and Clear removes both.",
       "On a phone each client is a card.",
       "Walk-in counter clients without a website account aren't listed, but counter sales made under a client's mobile number do count towards that client. Customer Segments shows everyone who has bought, matching counter and website purchases by mobile number.",
       "Nothing can be edited on this screen.",
-      "The spreadsheet uses the same figures as this screen.",
+      "The spreadsheet uses the same figures as this screen, holds exactly the clients currently shown (search and tier included), and adds each client's tier.",
     ],
-    related: [{ label: "Customer Segments", href: "/admin/customers/rfm" }, { label: "Orders", href: "/admin/orders" }, { label: "Offers", href: "/admin/promotions" }],
+    related: [{ label: "Customer Segments", href: "/admin/customers/rfm" }, { label: "Orders", href: "/admin/orders" }, { label: "Offers", href: "/admin/promotions" }, { label: "Settings", href: "/admin/settings" }],
   },
   {
     route: "/admin/customers/rfm",

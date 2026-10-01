@@ -172,13 +172,13 @@ export const OVERVIEW_HELP: HelpEntry[] = [
         items: [
           {
             term: "Export Report",
-            text: "Downloads a spreadsheet (CSV file) with one row per piece sold: ProductID, ProductName, UnitsSold and Revenue (₹, price charged × units). It counts only orders whose payment has been received, so a cash on delivery order is included once it is marked paid. Rows are not in ranked order.",
+            text: "Downloads a spreadsheet (CSV file) with one row per piece sold, best sellers first: ProductID (blank for a deleted product), ProductName, UnitsSold and Amount paid (₹ — what clients paid for those pieces, after discounts, with GST counted once). Only sales count: cancelled, refunded and unpaid orders are left out, and cash on delivery orders count from Processing. Delivery charges belong to no piece, so the column totals the Dashboard's sales less delivery.",
           },
         ],
       },
     ],
     notes: [
-      "Top Selling Products counts only sales (Processing to Delivered); cancelled, refunded and unpaid orders are left out. The exported spreadsheet counts paid orders only, so the two can differ.",
+      "Top Selling Products and the exported spreadsheet count only sales (Processing to Delivered); cancelled, refunded and unpaid orders are left out.",
       "Product Engagement fills in as people browse the website — including your own staff when they look at pieces there. Counter sales do not add views.",
       "A piece renamed after it sold stays one row in Top Selling Products, under its newest name.",
       "The figures here cover all time or the last 30 days. For a chosen period, day by day, use Sales Insights.",

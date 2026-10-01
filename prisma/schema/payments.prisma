@@ -52,6 +52,12 @@ model Payment {
    * UPI RRN / UTR — the 12-digit bank reference for the transfer.
    */
   utr               String?
+  /// Money sent back to the client, recorded by staff when they refund
+  /// (the shop refunds by hand — nothing here calls a payment gateway).
+  refundedCents     Int?
+  refundedAt        DateTime?
+  refundMethod      String? // UPI, CARD, CASH, BANK_TRANSFER, ORIGINAL
+  refundReference   String?
   metadata          Json?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt

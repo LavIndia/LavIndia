@@ -4,9 +4,12 @@ import { css } from "styled-system/css";
 import {
   CHANNEL_LABELS,
   ORDER_STATUS_LABELS,
+  PAID_AFTER_CANCELLATION_LABEL,
   PAYMENT_STATUS_LABELS,
+  REFUND_OWED_LABEL,
 } from "@/modules/orders/order-labels";
-import type { OrderStatus, PaymentStatus, OrderChannel } from "./order-types";
+import { isPaidAfterCancellation, isRefundOwed } from "@/modules/orders/refund-state";
+import type { OrderStatus, PaymentStatus, OrderChannel, OrderRow } from "./order-types";
 
 /**
  * How an order's state is shown, in one place.
@@ -41,6 +44,21 @@ export function OrderStatusBadge({ status }: { status: OrderStatus }) {
 
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
   return <Badge variant={PAYMENT_VARIANT[status]}>{PAYMENT_STATUS_LABELS[status]}</Badge>;
+}
+
+/**
+ * "Refund owed" on a paid order that has been closed and has no refund
+ * recorded — nothing at all otherwise, so a settled order carries no tag.
+ */
+export function RefundOwedBadge({ order }: { order: OrderRow }) {
+  if (!isRefundOwed(order)) return null;
+  return (
+    <Badge variant="outline" className={css({ borderColor: "danger", color: "danger" })}>
+      {isPaidAfterCancellation(order.payment?.metadata)
+        ? PAID_AFTER_CANCELLATION_LABEL
+        : REFUND_OWED_LABEL}
+    </Badge>
+  );
 }
 
 const channelStyle = css({

@@ -5,7 +5,9 @@ import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { BESTSELLERS_TAG } from "@/lib/bestseller-ranking";
 import { revalidatePromotions } from "@/lib/promotions-cache";
-import { changeOrderStatus } from "@/modules/orders";
+import { changeOrderStatus, recordRefund, refundInputSchema } from "@/modules/orders";
+import { refundMethodLabel } from "@/modules/orders/order-labels";
+import { formatPaisa } from "@/modules/_shared/money";
 import { isDomainError, toErrorResponse } from "@/modules/_shared/errors";
 import { revalidateStockViews } from "@/lib/catalog-cache";
 
@@ -19,7 +21,13 @@ const orderUpdateSchema = z.object({
     "CANCELLED",
     "REFUNDED",
   ]),
-});
+  // The refund staff sent back by hand, recorded with the change. Only a
+  // cancelled or refunded order can carry one.
+  refund: refundInputSchema.optional(),
+}).refine(
+  (body) => !body.refund || body.status === "CANCELLED" || body.status === "REFUNDED",
+  { message: "A refund can be recorded only when the order is cancelled or refunded", path: ["refund"] },
+);
 
 // PATCH /api/admin/orders/[id] - Update order status
 export async function PATCH(
@@ -35,12 +43,18 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await req.json();
-    const { status } = orderUpdateSchema.parse(body);
+    const { status, refund } = orderUpdateSchema.parse(body);
 
-    // Stock, offer uses, payment status and a cash-on-delivery invoice all
-    // follow the status, once only — see src/modules/orders/order-status.ts.
+    // Stock, offer uses, payment status, the cash-on-delivery invoice and a
+    // credit note all follow the status, once only — see
+    // src/modules/orders/order-status.ts. A refund recorded with it commits
+    // or fails together with the change.
     const { order, stockMoved } = await prisma.$transaction(
-      (tx) => changeOrderStatus(tx, id, status, session.user.id),
+      async (tx) => {
+        const changed = await changeOrderStatus(tx, id, status, session.user.id);
+        if (refund) await recordRefund(tx, id, refund);
+        return changed;
+      },
       { timeout: 20_000 },
     );
     revalidatePromotions();
@@ -50,7 +64,9 @@ export async function PATCH(
       data: {
         orderId: order.id,
         status,
-        description: `Order status updated to ${status}`,
+        description: refund
+          ? `Refund of ${formatPaisa(refund.amountCents)} recorded (${refundMethodLabel(refund.method)})`
+          : `Order status updated to ${status}`,
         updatedBy: session.user.id,
       },
     });
@@ -66,6 +82,7 @@ export async function PATCH(
         metadata: {
           orderNumber: order.orderNumber,
           newStatus: status,
+          ...(refund ? { refund } : {}),
         },
       },
     });

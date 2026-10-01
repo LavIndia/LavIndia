@@ -46,12 +46,17 @@ const captionStyle = css({ fontSize: "xs", color: "fg.muted" });
  * the list to walk-in sales in the last 7 days and these four numbers answer
  * "how did the shop do this week" without anyone opening a spreadsheet.
  *
+ * "Amount paid" is what clients actually paid — after discounts, with GST
+ * counted once, delivery and cash-on-delivery charges — over the matching
+ * orders that are sales, so it agrees with the Dashboard and Accounting.
+ *
  * Computed by the page in a single grouped query rather than by summing the
  * rows here, so the totals stay correct once the list is paginated.
  */
 export function OrdersSummaryCards({ summary }: { summary: OrdersSummary }) {
-  const { orderCount, revenueCents, storeCount, onlineCount } = summary;
-  const average = orderCount > 0 ? Math.round(revenueCents / orderCount) : 0;
+  const { orderCount, saleCount, paidCents, storeCount, onlineCount } = summary;
+  const average = saleCount > 0 ? Math.round(paidCents / saleCount) : 0;
+  const notSales = orderCount - saleCount;
 
   return (
     <div className={gridStyle}>
@@ -67,11 +72,15 @@ export function OrdersSummaryCards({ summary }: { summary: OrdersSummary }) {
       <div className={cardStyle}>
         <span className={labelRowStyle}>
           <ReceiptIndianRupee className={iconStyle} />
-          Value of goods
+          Amount paid
         </span>
-        <span className={valueStyle}>{formatRupees(revenueCents)}</span>
+        <span className={valueStyle}>{formatRupees(paidCents)}</span>
         <span className={captionStyle}>
-          {orderCount > 0 ? `${formatRupees(average)} per order` : "before shipping and tax"}
+          {notSales > 0
+            ? `${notSales} cancelled, refunded or unpaid not counted`
+            : saleCount > 0
+              ? `${formatRupees(average)} per order`
+              : "what clients paid, incl. GST and delivery"}
         </span>
       </div>
 

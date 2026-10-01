@@ -20,3 +20,16 @@ export {
   allocateInvoiceNumber,
 } from "./invoices/invoice-number";
 export { INVOICE_GREETINGS, greetingForInvoiceNumber } from "./invoices/greetings";
+export type {
+  CreditNoteSnapshot,
+  CreditedInvoice,
+  IssuedCreditNote,
+} from "./credit-notes/credit-note-types";
+export {
+  issueCreditNoteForOrder,
+  getCreditNoteByOrder,
+} from "./credit-notes/credit-note-service";
+export {
+  allocateCreditNoteNumber,
+  formatCreditNoteNumber,
+} from "./credit-notes/credit-note-number";

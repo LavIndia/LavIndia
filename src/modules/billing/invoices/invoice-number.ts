@@ -16,13 +16,20 @@
 import { Prisma } from "@prisma/client";
 import type { Tx } from "../../_shared/db";
 
+/** India Standard Time is UTC+05:30 all year — no daylight saving. */
+const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+
 /**
  * The Indian financial year runs April to March, so a sale in March 2027
  * belongs to 26-27 while one in April 2027 starts 27-28.
+ *
+ * Read in India time, never the server's clock: a server on UTC would put a
+ * sale made at 00:30 IST on 1 April into the year that had just ended.
  */
 export function financialYearFor(date: Date): string {
-  const year = date.getFullYear();
-  const month = date.getMonth(); // 0 = January
+  const ist = new Date(date.getTime() + IST_OFFSET_MS);
+  const year = ist.getUTCFullYear();
+  const month = ist.getUTCMonth(); // 0 = January
   const startYear = month >= 3 ? year : year - 1;
   const endYear = startYear + 1;
   return `${String(startYear).slice(-2)}-${String(endYear).slice(-2)}`;

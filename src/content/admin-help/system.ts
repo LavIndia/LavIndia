@@ -7,7 +7,7 @@ export const SYSTEM_HELP: HelpEntry[] = [
     area: "System",
     title: "Settings",
     purpose:
-      "The shop's own details in one place: logo, business details, UPI for the counter QR, delivery charges and GST, links, the reassurances shown to clients, and how the shop appears on Google.",
+      "The shop's own details in one place: logo, business details, UPI for the counter QR, delivery charges and GST, client tiers, links, the reassurances shown to clients, and how the shop appears on Google.",
     steps: [
       "To change the logo, pick one of the house marks or press Upload your own. The logo saves on its own, straight away, and saving the rest of the page never changes it.",
       "For everything else, change the fields you need in any of the cards.",
@@ -87,6 +87,15 @@ export const SYSTEM_HELP: HelpEntry[] = [
           {
             term: "Counter prices include GST",
             text: "On: the tag price is what the client pays. Off: GST is added to the bill at the counter.",
+          },
+        ],
+      },
+      {
+        heading: "Client tiers",
+        items: [
+          {
+            term: "VIP from · Gold from · Silver from",
+            text: "The lifetime spend, in ₹, at which a client enters each tier on the Customers screen and in its spreadsheet. Spend is what they actually paid on the website and at the counter, less anything cancelled or refunded. VIP must be above Gold, Gold above Silver, and Silver above ₹0; a client below Silver is Regular. A change re-tiers every client at once; nothing is stored against the client.",
           },
         ],
       },

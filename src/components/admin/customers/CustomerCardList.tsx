@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { customerTier } from "@/modules/customers/customer-tier";
+import { customerTier, type TierThresholds } from "@/modules/customers/customer-tier";
 import { css } from "styled-system/css";
 import { customerHeading, formatJoined, formatRupees, type CustomerRow } from "./customer-display";
 
@@ -38,14 +38,22 @@ const footStyle = css({ display: "flex", justifyContent: "space-between", alignI
 const savedStyle = css({ color: "success", fontWeight: "medium" });
 const emptyStyle = css({ display: { base: "block", md: "none" }, textAlign: "center", paddingBlock: "8", color: "fg.muted" });
 
-export function CustomerCardList({ customers }: { customers: CustomerRow[] }) {
-  if (customers.length === 0) return <p className={emptyStyle}>No customers found</p>;
+export function CustomerCardList({
+  customers,
+  thresholds,
+  emptyMessage,
+}: {
+  customers: CustomerRow[];
+  thresholds: TierThresholds;
+  emptyMessage: string;
+}) {
+  if (customers.length === 0) return <p className={emptyStyle}>{emptyMessage}</p>;
 
   return (
     <div className={listStyle}>
       {customers.map((customer) => {
         const { title, details } = customerHeading(customer);
-        const tier = customerTier(customer.totalSpent);
+        const tier = customerTier(customer.totalSpent, thresholds);
         return (
           <div key={customer.id} className={cardStyle}>
             <div className={topRowStyle}>

@@ -122,9 +122,15 @@ model SiteSettings {
   /// What each delivery speed costs the customer, in paise. Settings rather
   /// than code, so a courier's new rate never waits for a deploy. A
   /// free-delivery offer (Admin → Offers) waives it.
-  standardShippingCents Int @default(9900)
-  expressShippingCents  Int @default(19900)
+  standardShippingCents  Int     @default(9900)
+  expressShippingCents   Int     @default(19900)
   storePricesIncludeGst  Boolean @default(false)
+  /// Lifetime spend (what a client actually paid, in paise) that puts them
+  /// in each client tier. Settings rather than code, so the shop decides
+  /// what "VIP" means for its own clientele.
+  tierVipCents           Int     @default(5000000)
+  tierGoldCents          Int     @default(2000000)
+  tierSilverCents        Int     @default(500000)
 
   // Trust Badges
   codAvailable      Boolean @default(true)

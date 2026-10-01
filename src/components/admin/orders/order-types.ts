@@ -60,12 +60,28 @@ export interface OrderRow {
    * What the money actually came in on. `Order.paymentMethod` only says which
    * route was chosen ("razorpay"); this says which instrument carried it.
    */
-  payment: { method: string | null; instrumentDetail: string | null } | null;
+  payment: {
+    method: string | null;
+    instrumentDetail: string | null;
+    /** What was paid — the most a refund can be. */
+    amountCents: number;
+    /** A refund staff sent back by hand, once recorded. */
+    refundedCents: number | null;
+    refundedAt: Date | null;
+    refundMethod: string | null;
+    refundReference: string | null;
+    /** Carries the "paid after cancellation" mark (orders/refund-state). */
+    metadata: unknown;
+  } | null;
   /**
    * Present once a bill has been raised. A COD order has none until it is
    * settled, so the row links to the invoice only when there is one.
    */
-  invoice: { invoiceNumber: string } | null;
+  invoice: {
+    invoiceNumber: string;
+    /** The credit note that cancelled the invoice, once the order was closed. */
+    creditNoteNumber: string | null;
+  } | null;
 }
 
 /** The category options offered by the filter bar. */
@@ -77,7 +93,10 @@ export interface CategoryOption {
 /** Totals for the current filter, so the numbers describe what is on screen. */
 export interface OrdersSummary {
   orderCount: number;
-  revenueCents: number;
+  /** Of those, the orders that are sales — not cancelled, refunded or unpaid. */
+  saleCount: number;
+  /** What clients paid on those sales, GST counted once. */
+  paidCents: number;
   storeCount: number;
   onlineCount: number;
 }

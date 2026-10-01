@@ -39,6 +39,23 @@ export function istDaysAgo(at: Date, days: number): Date {
   return new Date(istStartOfDay(at).getTime() - days * DAY_MS);
 }
 
+/** Midnight India time on the 1st of the month `at` falls in. */
+export function istStartOfMonth(at: Date): Date {
+  const { year, month } = istParts(at);
+  return istMidnight(year, month, 1);
+}
+
+/**
+ * Midnight India time on 1 April of the financial year `at` falls in.
+ *
+ * India's financial year runs April–March, so 31 March 23:59 belongs to the
+ * year that began the April before, and 1 April 00:00 starts a new one.
+ */
+export function istFinancialYearStart(at: Date): Date {
+  const { year, month } = istParts(at);
+  return istMidnight(month >= 3 ? year : year - 1, 3, 1);
+}
+
 /** `YYYY-MM-DD` of an instant in India time. */
 export function istDateKey(at: Date): string {
   return new Date(at.getTime() + OFFSET_MS).toISOString().slice(0, 10);

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { resolvePeriod, type InsightsPeriod } from "./insight-periods";
+import { IST_OFFSET_MINUTES } from "./ist-calendar";
 import { IS_SALE_SQL, PAID_CENTS_SQL, chargedLinesCte } from "./paid-amount-sql";
 import { paymentMethodLabel } from "@/modules/orders/order-labels";
 
@@ -174,8 +175,10 @@ export async function getSalesInsights(periodValue: string): Promise<SalesInsigh
         GROUP BY COALESCE(pay."method", o."paymentMethod", 'Unknown')
         ORDER BY revenue DESC`,
 
-      prisma.$queryRaw<Array<{ day: Date; store: bigint; online: bigint }>>`
-        SELECT DATE_TRUNC('day', o."createdAt")                                        AS day,
+      // Grouped by the India-time calendar day, whatever the server's zone.
+      prisma.$queryRaw<Array<{ day: string; store: bigint; online: bigint }>>`
+        SELECT TO_CHAR(o."createdAt" + make_interval(mins => ${IST_OFFSET_MINUTES}::int),
+                       'YYYY-MM-DD')                                                   AS day,
                SUM(CASE WHEN o."source" = 'STORE'  THEN ${PAID_CENTS_SQL} ELSE 0 END)  AS store,
                SUM(CASE WHEN o."source" = 'ONLINE' THEN ${PAID_CENTS_SQL} ELSE 0 END)  AS online
         FROM "orders" o
@@ -263,7 +266,7 @@ export async function getSalesInsights(periodValue: string): Promise<SalesInsigh
     categories: named(categories),
     paymentMix: byInstrument(named(paymentMix)),
     daily: daily.map((row) => ({
-      day: new Date(row.day).toISOString().slice(0, 10),
+      day: row.day,
       storeRevenueCents: toNumber(row.store),
       onlineRevenueCents: toNumber(row.online),
     })),

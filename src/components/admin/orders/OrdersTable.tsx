@@ -29,10 +29,13 @@ import {
 import { ORDER_STATUSES } from "@/modules/orders/order-filters";
 import { OrderCardList } from "./OrderCardList";
 import { OrderDetailSheet } from "./OrderDetailSheet";
+import { CloseOrderDialog, needsCloseDialog, type CloseIntent } from "./CloseOrderDialog";
+import { patchOrder } from "./patch-order";
 import {
   ChannelBadge,
   OrderStatusBadge,
   PaymentStatusBadge,
+  RefundOwedBadge,
   formatOrderDate,
   formatRupees,
   itemSummary,
@@ -75,23 +78,29 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<OrderRow | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [closing, setClosing] = useState<CloseIntent | null>(null);
 
-  const updateStatus = async (orderId: string, status: OrderStatus) => {
-    setUpdatingId(orderId);
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      toast.success("Order updated");
-      router.refresh();
-    } catch {
-      toast.error("Could not update the order");
-    } finally {
-      setUpdatingId(null);
+  const updateStatus = async (order: OrderRow, status: OrderStatus) => {
+    // Closing a paid or billed order asks first: it credits the invoice and
+    // may record the refund — see CloseOrderDialog.
+    if (needsCloseDialog(order, status)) {
+      setClosing({ order, mode: "change", status: status as CloseIntent["status"] });
+      return;
     }
+    setUpdatingId(order.id);
+    const result = await patchOrder(order.id, status);
+    setUpdatingId(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Order updated");
+    router.refresh();
+  };
+
+  const recordRefund = (order: OrderRow) => {
+    setSelected(null);
+    setClosing({ order, mode: "record", status: "REFUNDED" });
   };
 
   return (
@@ -129,6 +138,9 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
                       {order.invoice && (
                         <span className={subStyle}>{order.invoice.invoiceNumber}</span>
                       )}
+                      {order.invoice?.creditNoteNumber && (
+                        <span className={subStyle}>Credited · {order.invoice.creditNoteNumber}</span>
+                      )}
                     </span>
                   </TableCell>
 
@@ -165,6 +177,7 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
                     <span className={stackStyle}>
                       <PaymentStatusBadge status={order.paymentStatus} />
                       <span className={subStyle}>{paymentDescription(order)}</span>
+                      <RefundOwedBadge order={order} />
                     </span>
                   </TableCell>
 
@@ -177,7 +190,7 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
                     ) : (
                       <Select
                         value={order.status}
-                        onValueChange={(value) => updateStatus(order.id, value as OrderStatus)}
+                        onValueChange={(value) => updateStatus(order, value as OrderStatus)}
                         disabled={updatingId === order.id}
                       >
                         <SelectTrigger className={css({ width: "44" })} aria-label="Order stage">
@@ -240,7 +253,19 @@ export function OrdersTable({ orders }: { orders: OrderRow[] }) {
         </Table>
       </div>
 
-      <OrderDetailSheet order={selected} onClose={() => setSelected(null)} />
+      <OrderDetailSheet
+        order={selected}
+        onClose={() => setSelected(null)}
+        onRecordRefund={recordRefund}
+      />
+      <CloseOrderDialog
+        intent={closing}
+        onClose={() => setClosing(null)}
+        onDone={() => {
+          setClosing(null);
+          router.refresh();
+        }}
+      />
     </>
   );
 }

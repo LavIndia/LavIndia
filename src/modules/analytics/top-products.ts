@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { chargedLinesCte } from "./paid-amount-sql";
 
@@ -18,7 +19,9 @@ export interface TopProductRow {
  * are kept together under the name they were sold as; a product that has
  * been renamed stays one row, shown under its most recent name.
  */
-export async function getTopProducts(limit = 10): Promise<TopProductRow[]> {
+export async function getTopProducts(limit: number | null = 10): Promise<TopProductRow[]> {
+  // Null is every product that sold, for the export.
+  const cap = limit === null ? Prisma.empty : Prisma.sql`LIMIT ${limit}`;
   const rows = await prisma.$queryRaw<
     Array<{ productId: string | null; name: string; quantity: bigint; revenue: bigint }>
   >`
@@ -30,7 +33,7 @@ export async function getTopProducts(limit = 10): Promise<TopProductRow[]> {
     FROM charged_lines
     GROUP BY "productId", CASE WHEN "productId" IS NULL THEN "name" END
     ORDER BY quantity DESC, revenue DESC
-    LIMIT ${limit}`;
+    ${cap}`;
 
   return rows.map((row) => ({
     productId: row.productId,

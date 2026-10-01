@@ -82,8 +82,14 @@ const supportLinkStyle = css({ color: "accent.pressed", "&:hover": { textDecorat
 function OrderFailedContent() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get("order");
-  const reason =
-    searchParams.get("reason") || "Payment was cancelled or failed";
+  // Set when the payment went through but the order had been cancelled
+  // before it arrived (api/payment/verify): the money was taken, so "no
+  // charges have been made" would be untrue — the client is told a refund
+  // is on its way instead.
+  const refundDue = searchParams.get("state") === "refund-due";
+  const reason = refundDue
+    ? "Your payment arrived after this order had been cancelled"
+    : searchParams.get("reason") || "Payment was cancelled or failed";
 
   return (
     <div className={pageStyle}>
@@ -103,10 +109,13 @@ function OrderFailedContent() {
                 <XCircle className={iconStyle} />
               </motion.div>
             </div>
-            <h1 className={heroTitleStyle}>Order Not Completed</h1>
+            <h1 className={heroTitleStyle}>
+              {refundDue ? "This Order Was Cancelled" : "Order Not Completed"}
+            </h1>
             <p className={heroSubStyle}>
-              We couldn&apos;t complete your order. Don&apos;t worry, no charges
-              have been made to your account.
+              {refundDue
+                ? "We received your payment, but this order had already been cancelled, so it will not be shipped. The full amount will be refunded to you — there is nothing you need to do."
+                : "We couldn’t complete your order. Don’t worry, no charges have been made to your account."}
             </p>
           </div>
 
@@ -123,7 +132,11 @@ function OrderFailedContent() {
                 </div>
                 <div className={rowStyle}>
                   <span className={rowLabelStyle}>Status:</span>
-                  <Badge variant="destructive">Payment Failed</Badge>
+                  {refundDue ? (
+                    <Badge>Refund on its way</Badge>
+                  ) : (
+                    <Badge variant="destructive">Payment Failed</Badge>
+                  )}
                 </div>
                 <div className={reasonBoxStyle}>
                   <AlertTriangle className={reasonIconStyle} />

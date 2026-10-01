@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { istDaysAgo, istFinancialYearStart, istStartOfDay } from "@/modules/analytics/ist-calendar";
 import { CHANNEL_LABELS, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "./order-labels";
 
 /**
@@ -161,27 +162,25 @@ export function filtersToQuery(filters: OrderFilters): string {
 }
 
 /**
- * The start of a preset range.
+ * The start of a preset range, in India time.
  *
- * The financial year runs April–March in India, which is the year an invoice
+ * "Today" begins at midnight in India whatever the server's clock zone. The
+ * financial year runs April–March in India, which is the year an invoice
  * number is scoped to — so "this financial year" here means the same span as
  * the invoice sequence, and the two always agree.
  */
 function startOfPreset(preset: string, now: Date): Date | null {
-  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   switch (preset) {
     case "today":
-      return midnight;
+      return istStartOfDay(now);
     case "7d":
-      return new Date(midnight.getTime() - 6 * 86_400_000);
+      return istDaysAgo(now, 6);
     case "30d":
-      return new Date(midnight.getTime() - 29 * 86_400_000);
+      return istDaysAgo(now, 29);
     case "90d":
-      return new Date(midnight.getTime() - 89 * 86_400_000);
-    case "fy": {
-      const year = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-      return new Date(year, 3, 1);
-    }
+      return istDaysAgo(now, 89);
+    case "fy":
+      return istFinancialYearStart(now);
     default:
       return null;
   }

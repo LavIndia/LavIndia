@@ -586,6 +586,9 @@ export default function CheckoutPage() {
           onFailure={() => {
             router.push(`/order-failed?order=${razorpayData.orderNumber}`);
           }}
+          onPaidAfterCancellation={() => {
+            router.push(`/order-failed?order=${razorpayData.orderNumber}&state=refund-due`);
+          }}
           onCancel={() => {
             setShowRazorpay(false);
             setIsProcessing(false);

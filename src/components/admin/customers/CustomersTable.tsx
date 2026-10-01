@@ -11,14 +11,24 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AdminPagination } from "@/components/admin/shared/AdminPagination";
-import { customerTier } from "@/modules/customers/customer-tier";
+import { customerTier, type TierThresholds } from "@/modules/customers/customer-tier";
+import { customersQuery, type CustomerFilters } from "@/modules/customers/customer-filters";
 import { css } from "styled-system/css";
 import { CustomerCardList } from "./CustomerCardList";
-import { customerHeading, formatJoined, formatRupees, type CustomerRow } from "./customer-display";
+import {
+  customerHeading,
+  emptyCustomersMessage,
+  formatJoined,
+  formatRupees,
+  type CustomerRow,
+} from "./customer-display";
 
 interface CustomersTableProps {
   customers: CustomerRow[];
   pagination: { page: number; pageSize: number; totalCount: number; totalPages: number };
+  /** The applied search and tier, kept as the list is paged. */
+  filters: CustomerFilters;
+  thresholds: TierThresholds;
 }
 
 const tableWrapStyle = css({
@@ -48,12 +58,13 @@ const successBadgeStyle = css({
 const zeroTextStyle = css({ fontSize: "sm", color: "fg.muted" });
 const discountTextStyle = css({ color: "success", fontWeight: "medium" });
 
-export function CustomersTable({ customers, pagination }: CustomersTableProps) {
+export function CustomersTable({ customers, pagination, filters, thresholds }: CustomersTableProps) {
   const router = useRouter();
+  const emptyMessage = emptyCustomersMessage(filters);
 
   return (
     <div>
-      <CustomerCardList customers={customers} />
+      <CustomerCardList customers={customers} thresholds={thresholds} emptyMessage={emptyMessage} />
       <div className={tableWrapStyle}>
         <Table>
           <TableHeader>
@@ -73,12 +84,12 @@ export function CustomersTable({ customers, pagination }: CustomersTableProps) {
             {customers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className={emptyCellStyle}>
-                  No customers found
+                  {emptyMessage}
                 </TableCell>
               </TableRow>
             ) : (
               customers.map((customer) => {
-                const tier = customerTier(customer.totalSpent);
+                const tier = customerTier(customer.totalSpent, thresholds);
                 const { title, details } = customerHeading(customer);
                 return (
                   <TableRow key={customer.id}>
@@ -132,7 +143,10 @@ export function CustomersTable({ customers, pagination }: CustomersTableProps) {
       </div>
       <AdminPagination
         {...pagination}
-        onPageChange={(page) => router.push(`/admin/customers?page=${page}`)}
+        onPageChange={(page) => {
+          const query = customersQuery(filters, page);
+          router.push(query ? `/admin/customers?${query}` : "/admin/customers");
+        }}
       />
     </div>
   );

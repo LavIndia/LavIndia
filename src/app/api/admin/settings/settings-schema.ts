@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { isValidVpa } from "@/modules/payments/upi/upi-link";
+import {
+  MAX_TIER_THRESHOLD_CENTS,
+  tierThresholdProblem,
+  type TierThresholds,
+} from "@/modules/customers/customer-tier";
 
 /** What the settings form may change. Fields left out are left alone. */
 export const settingsSchema = z.object({
@@ -65,7 +70,42 @@ export const settingsSchema = z.object({
 
   // Footer.
   copyrightText: z.string().trim().max(300).optional(),
+
+  // Client tiers: the lifetime spend, in paise, at which each begins. Their
+  // order is checked against what is stored by `tierOrderProblem`.
+  tierVipCents: tierCents("VIP"),
+  tierGoldCents: tierCents("Gold"),
+  tierSilverCents: tierCents("Silver"),
 });
+
+function tierCents(tier: string) {
+  return z.coerce
+    .number({ invalid_type_error: `Enter the spend at which ${tier} begins` })
+    .int(`Enter ${tier} as a whole rupee amount`)
+    .min(1, `${tier} must begin above ₹0`)
+    .max(MAX_TIER_THRESHOLD_CENTS, `${tier} can begin at no more than ₹2,00,00,000`)
+    .optional();
+}
+
+/**
+ * Whether the tiers would still be in order once saved — VIP above Gold above
+ * Silver — taking any tier not being changed from what is stored. Null when
+ * they are, or when no tier is being changed.
+ */
+export function tierOrderProblem(
+  changes: Partial<Record<"tierVipCents" | "tierGoldCents" | "tierSilverCents", number>>,
+  stored: TierThresholds,
+): string | null {
+  const { tierVipCents, tierGoldCents, tierSilverCents } = changes;
+  if (tierVipCents === undefined && tierGoldCents === undefined && tierSilverCents === undefined) {
+    return null;
+  }
+  return tierThresholdProblem({
+    vipCents: tierVipCents ?? stored.vipCents,
+    goldCents: tierGoldCents ?? stored.goldCents,
+    silverCents: tierSilverCents ?? stored.silverCents,
+  });
+}
 
 /**
  * The first problem in words the form can show as it is. Zod's own wording

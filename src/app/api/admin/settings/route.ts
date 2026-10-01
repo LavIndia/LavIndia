@@ -3,7 +3,8 @@ import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { settingsSchema, settingsErrorMessage } from "./settings-schema";
+import { settingsSchema, settingsErrorMessage, tierOrderProblem } from "./settings-schema";
+import { DEFAULT_TIER_THRESHOLDS, tierThresholdsFrom } from "@/modules/customers/customer-tier";
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -32,6 +33,16 @@ export async function PATCH(req: NextRequest) {
 
     // Get first settings record or create if doesn't exist
     const existingSettings = await prisma.siteSettings.findFirst();
+
+    // Tiers out of order would leave one empty; a tier not being changed is
+    // checked as it is stored.
+    const tierProblem = tierOrderProblem(
+      validatedData,
+      existingSettings ? tierThresholdsFrom(existingSettings) : DEFAULT_TIER_THRESHOLDS,
+    );
+    if (tierProblem) {
+      return NextResponse.json({ error: tierProblem }, { status: 400 });
+    }
 
     let settings;
     if (existingSettings) {

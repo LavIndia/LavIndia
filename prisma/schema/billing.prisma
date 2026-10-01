@@ -37,11 +37,53 @@ model Invoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  creditNotes CreditNote[]
 
   @@unique([financialYear, sequence])
   @@index([issuedAt])
   @@map("invoices")
+}
+
+// A credit note cancels all or part of an issued invoice when an order is
+// cancelled or refunded after billing. GST rules forbid deleting or editing
+// an issued invoice, so the correction is a document of its own, with its
+// own unbroken financial-year sequence, e.g. CN/26-27/000001.
+model CreditNote {
+  id               String   @id @default(cuid())
+  creditNoteNumber String   @unique
+  invoiceId        String
+  orderId          String
+  financialYear    String
+  sequence         Int
+  reason           String
+  issuedAt         DateTime @default(now())
+
+  subtotalCents Int
+  discountCents Int @default(0)
+  taxCents      Int @default(0)
+  totalCents    Int
+
+  // Frozen at issue time, like the invoice snapshot.
+  snapshot  Json
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([financialYear, sequence])
+  @@index([invoiceId])
+  @@index([orderId])
+  @@index([issuedAt])
+  @@map("credit_notes")
+}
+
+model CreditNoteSequence {
+  financialYear String   @id
+  lastNumber    Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@map("credit_note_sequences")
 }
 
 // Single-row-per-financial-year counter. Incremented inside the same

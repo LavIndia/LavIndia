@@ -22,19 +22,37 @@ export interface PartialTotal {
 }
 
 export interface AccountingSummary {
-  /** Net of discounts, before tax. What the shop actually charged for goods. */
-  revenueCents: number;
-  /** GST charged on those sales. Collected on behalf of the government. */
-  taxCollectedCents: number;
-  /** Delivery charged to customers. */
-  shippingCents: number;
-  /** Discounts given away across the period. */
+  /**
+   * The goods at list price, before any discount. Where GST was inside the
+   * prices it is inside this figure too; `gstInsidePricesCents` takes it out.
+   */
+  grossSalesCents: number;
+  /** Taken off by offers and coupons. */
+  offerDiscountsCents: number;
+  /** Taken off by hand — a price override or a discount at the counter. */
+  manualDiscountsCents: number;
+  /** Offers and manual discounts together. */
   discountsCents: number;
+  /** GST that was inside the prices, moved out of sales into GST. */
+  gstInsidePricesCents: number;
+  /** What was charged for the goods, after discounts and before GST. */
+  netSalesCents: number;
+  /** GST on those sales, inside the prices or added on top — counted once. */
+  taxCollectedCents: number;
+  /** Delivery charged to clients. */
+  shippingCents: number;
+  /** Cash-on-delivery charges. */
+  codFeeCents: number;
+  /**
+   * What clients paid: net sales + GST + delivery + cash-on-delivery charges.
+   * The same figure the Dashboard calls sales, over the same orders.
+   */
+  collectedCents: number;
   /** What the goods sold had cost, from the cost frozen on each line. */
   costOfGoodsSold: PartialTotal;
-  /** Revenue minus cost of goods sold, over the lines that had a cost. */
+  /** Net sales minus cost of goods sold, over the lines that had a cost. */
   grossProfitCents: number;
-  /** Gross profit as a percentage of the revenue it was earned on. */
+  /** Gross profit as a percentage of the net sales it was earned on. */
   grossMarginPercent: number | null;
   /** Orders counted. */
   orderCount: number;
@@ -59,8 +77,8 @@ export interface ProductMargin {
   productId: string | null;
   name: string;
   unitsSold: number;
-  /** Everything this product took, across every line. */
-  revenueCents: number;
+  /** Net sales of this product — after discounts, before GST. */
+  netSalesCents: number;
   /** What the sold units cost, over the lines that recorded a cost. */
   costCents: number;
   /**

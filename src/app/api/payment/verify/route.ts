@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
-import { checkoutService } from "@/modules/ecommerce";
-import { countOrderRedemption } from "@/modules/promotions";
+import { checkoutService, settleGatewayPayment } from "@/modules/ecommerce";
 import { revalidateStockViews } from "@/lib/catalog-cache";
-import { billingService } from "@/modules/billing";
 import { OrderId } from "@/modules/_shared/ids";
 import { prisma as db } from "@/lib/prisma";
 import { fetchPaymentInstrument } from "@/modules/payments/razorpay/payment-details";
@@ -72,77 +70,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Signature verified. Settling the hold, recording the payment and
-    // issuing the invoice happen together — a paid order must never exist
-    // without its stock consumed and its bill raised.
-    const paidItems = await db.orderItem.findMany({
-      where: { orderId, variantId: { not: null } },
-      select: { variantId: true, quantity: true },
-    });
-
-    // Which instrument actually carried the payment. Asked for OUTSIDE the
-    // transaction — it is a call to a third party, and holding a database
-    // transaction open across the public internet is how a busy evening turns
-    // into a pile of lock timeouts. It never throws, so a slow or unavailable
-    // Razorpay leaves these fields null and the sale still completes.
+    // Signature verified. Which instrument actually carried the payment is
+    // asked for OUTSIDE the transaction — it is a call to a third party, and
+    // holding a database transaction open across the public internet is how
+    // a busy evening turns into a pile of lock timeouts. It never throws, so
+    // a slow or unavailable gateway leaves these fields null and the sale
+    // still completes.
     const instrument = await fetchPaymentInstrument(razorpay_payment_id);
 
-    await prisma.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { orderId },
-        data: {
-          razorpayOrderId: razorpay_order_id,
-          razorpayPaymentId: razorpay_payment_id,
-          razorpaySignature: razorpay_signature,
-          status: "COMPLETED",
-          // Recorded only when known, so a failed lookup never overwrites a
-          // detail that some other path (a webhook, say) already captured.
-          ...(instrument.method ? { method: instrument.method } : {}),
-          ...(instrument.instrumentDetail
-            ? { instrumentDetail: instrument.instrumentDetail }
-            : {}),
-          ...(instrument.payerVpa ? { payerVpa: instrument.payerVpa } : {}),
-          ...(instrument.utr ? { utr: instrument.utr } : {}),
-        },
-      });
-      await tx.order.update({
-        where: { id: orderId },
-        data: {
-          paymentStatus: "COMPLETED",
-          paymentId: razorpay_payment_id,
-          status: "PROCESSING",
-        },
-      });
-      await tx.orderTracking.create({
-        data: {
-          orderId,
-          status: "Payment confirmed",
-          description: instrument.instrumentDetail
-            ? `Payment received via ${instrument.instrumentDetail}`
-            : "Payment successfully received via Razorpay",
-          updatedBy: "system",
-        },
-      });
+    // Settling the hold, recording the payment and issuing the invoice happen
+    // together — a paid order must never exist without its stock consumed
+    // and its bill raised. An order cancelled before the money landed is not
+    // revived: the payment is recorded and a refund is owed instead.
+    const outcome = await settleGatewayPayment({
+      orderId,
+      razorpayOrderId: razorpay_order_id,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+      instrument,
+    });
 
-      // Converts the units already set aside rather than taking fresh stock,
-      // so the reservation is not double-counted.
-      if (paidItems.length > 0) {
-        await checkoutService.commitPaidOrder(
-          OrderId(orderId),
-          paidItems.map((item) => ({ variantId: item.variantId!, quantity: item.quantity })),
-          tx,
-        );
-      }
-
-      // The order is real now, so its offers count against their limits.
-      await countOrderRedemption(tx, orderId);
-
-      await billingService.issueInvoiceForOrder(OrderId(orderId), undefined, tx);
-    }, { timeout: 20_000 });
-
-    // Stock left the shelf with this payment; listings showing it as
-    // available — or a retired piece that has now sold out — must refresh.
+    // Stock left the shelf with this payment (or a lapsed hold was let go);
+    // listings showing it as available must refresh.
     revalidateStockViews();
+
+    if (outcome === "CLOSED") {
+      // Not an error: the payment went through and is on record. The client
+      // is told plainly that the order had been cancelled and the money will
+      // come back to them.
+      return NextResponse.json({
+        success: true,
+        verified: true,
+        orderCancelled: true,
+        message:
+          "Your payment was received, but this order had already been cancelled. A full refund will follow.",
+      });
+    }
 
     return NextResponse.json({
       success: true,

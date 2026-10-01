@@ -3,11 +3,11 @@ import {
   Boxes,
   IndianRupee,
   Percent,
-  ReceiptIndianRupee,
   Handshake,
   Tag,
   TrendingUp,
   Truck,
+  Wallet,
 } from "lucide-react";
 import { css } from "styled-system/css";
 import { formatPaisa } from "@/modules/_shared/money";
@@ -21,14 +21,16 @@ import {
   ProductMarginTable,
   SupplierSpendTable,
 } from "@/components/admin/accounting/AccountingTables";
+import { SalesStatement } from "@/components/admin/accounting/SalesStatement";
 
 /**
  * The accounting screen.
  *
  * Sales Insights answers "how is the shop trading". This answers "what did
  * the shop make", which is a different question with different rules: only
- * settled money counts, cost is measured against what each piece cost when
- * it sold, and any figure built from incomplete data says so on its face.
+ * sales count (the same orders as the Dashboard), cost is measured against
+ * what each piece cost when it sold, and any figure built from incomplete
+ * data says so on its face. Periods are India time.
  */
 
 export const metadata = { title: "Accounting" };
@@ -105,11 +107,32 @@ export default async function AccountingPage({
 
       <InsightCardGrid>
         <InsightCard
-          icon={IndianRupee}
-          label="Revenue"
-          value={formatPaisa(summary.revenueCents)}
-          caption={`${summary.orderCount} settled order${summary.orderCount === 1 ? "" : "s"} · ${period.label.toLowerCase()}`}
+          icon={Wallet}
+          label="Total collected"
+          value={formatPaisa(summary.collectedCents)}
+          caption={`What clients paid · ${summary.orderCount} sale${summary.orderCount === 1 ? "" : "s"}, ${period.label.toLowerCase()}`}
         />
+        <InsightCard
+          icon={IndianRupee}
+          label="Net sales"
+          value={formatPaisa(summary.netSalesCents)}
+          caption="After discounts, before GST and delivery"
+        />
+        <InsightCard
+          icon={TrendingUp}
+          label="Gross profit"
+          value={formatPaisa(summary.grossProfitCents)}
+          caption="Net sales less cost, on the lines that have a cost"
+        />
+        <InsightCard
+          icon={Percent}
+          label="Gross margin"
+          value={summary.grossMarginPercent === null ? "—" : `${summary.grossMarginPercent}%`}
+          caption="Share of net sales kept as profit"
+        />
+      </InsightCardGrid>
+
+      <InsightCardGrid>
         <InsightCard
           icon={Boxes}
           label="Cost of goods sold"
@@ -117,31 +140,10 @@ export default async function AccountingPage({
           caption={cogsCoverage ?? `${summary.unitsSold} units sold`}
         />
         <InsightCard
-          icon={TrendingUp}
-          label="Gross profit"
-          value={formatPaisa(summary.grossProfitCents)}
-          caption="Revenue less cost, on the lines that have a cost"
-        />
-        <InsightCard
-          icon={Percent}
-          label="Gross margin"
-          value={summary.grossMarginPercent === null ? "—" : `${summary.grossMarginPercent}%`}
-          caption="Share of revenue kept as profit"
-        />
-      </InsightCardGrid>
-
-      <InsightCardGrid>
-        <InsightCard
-          icon={ReceiptIndianRupee}
-          label="GST collected"
-          value={formatPaisa(summary.taxCollectedCents)}
-          caption="Held on behalf of the government, not income"
-        />
-        <InsightCard
           icon={Tag}
           label="Discounts given"
           value={formatPaisa(summary.discountsCents)}
-          caption="Across every settled order in the period"
+          caption="Offers and manual discounts, off list price"
         />
         <InsightCard
           icon={Truck}
@@ -185,10 +187,10 @@ export default async function AccountingPage({
 
       <div className={twoUpStyle}>
         <InsightPanel
-          title="Where the profit came from"
-          hint="Each product over the period, measured against what it cost when it sold."
+          title="From list price to what clients paid"
+          hint="Sales only — cancelled, refunded and unpaid orders are left out."
         >
-          <ProductMarginTable rows={margins} />
+          <SalesStatement summary={summary} />
         </InsightPanel>
 
         <InsightPanel
@@ -198,6 +200,13 @@ export default async function AccountingPage({
           <SupplierSpendTable rows={supplierSpend} />
         </InsightPanel>
       </div>
+
+      <InsightPanel
+        title="Where the profit came from"
+        hint="Each product's net sales over the period, against what it cost when it sold."
+      >
+        <ProductMarginTable rows={margins} />
+      </InsightPanel>
     </div>
   );
 }

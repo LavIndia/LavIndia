@@ -1,12 +1,12 @@
 /**
  * The books, derived rather than stored.
  *
- * Only settled money is counted. A cancelled order and one still waiting to
- * be paid are not revenue, and counting them would flatter every figure on
- * the page — so the filter that decides what "sold" means lives here, once,
- * and every total on the accounting screen inherits it.
+ * Only sales are counted — the same orders the Dashboard and Sales Insights
+ * count (see `paid-amount.ts`): never cancelled, refunded or still-unpaid
+ * orders. Money is taken from list price down to what clients paid in one
+ * statement, so every figure on the accounting screen reconciles with the
+ * others and with the Dashboard. The SQL lives in `accounting-sql.ts`.
  */
-import { Prisma } from "@prisma/client";
 import { prisma } from "../_shared/db";
 import type {
   AccountingSummary,
@@ -14,33 +14,23 @@ import type {
   ProductMargin,
   StockValuation,
 } from "./contracts";
+import {
+  lineCostSql,
+  orderMoneySql,
+  productLinesSql,
+  type AccountingRange,
+} from "./accounting-sql";
 
-export interface AccountingRange {
-  /** Inclusive lower bound, or null for all time. */
-  from: Date | null;
-  to?: Date;
-}
+export type { AccountingRange };
 
 /** The window as a Prisma filter, or nothing at all for "all time". */
 function createdWithin(range: AccountingRange) {
-  if (!range.from) return {};
-  return { createdAt: { gte: range.from, ...(range.to ? { lte: range.to } : {}) } };
-}
-
-/**
- * What counts as a sale.
- *
- * Cancelled and refunded orders are excluded outright: the money went back.
- * Of what remains, an order counts once it has actually been paid for, which
- * is either a completed payment or a cash-on-delivery order that reached the
- * customer. A pending online order is somebody's abandoned checkout, and
- * counting it would flatter every figure on the page.
- */
-function soldWhere(range: AccountingRange): Prisma.OrderWhereInput {
+  if (!range.from && !range.to) return {};
   return {
-    status: { notIn: ["CANCELLED", "REFUNDED"] },
-    OR: [{ paymentStatus: "COMPLETED" }, { status: "DELIVERED" }],
-    ...createdWithin(range),
+    createdAt: {
+      ...(range.from ? { gte: range.from } : {}),
+      ...(range.to ? { lte: range.to } : {}),
+    },
   };
 }
 
@@ -48,52 +38,79 @@ function emptyTotal(): PartialTotal {
   return { cents: 0, countedLines: 0, missingLines: 0 };
 }
 
+/** Margin as a percentage to one decimal, or null when there is nothing to divide by. */
+function marginPercent(profitCents: number, earnedCents: number): number | null {
+  return earnedCents > 0 ? Math.round((profitCents / earnedCents) * 1000) / 10 : null;
+}
+
+interface OrderMoneyRow {
+  orders: bigint;
+  gross: bigint;
+  discounts: bigint;
+  manual: bigint;
+  gst: bigint;
+  gstInside: bigint;
+  delivery: bigint;
+  cod: bigint;
+  paid: bigint;
+}
+
+interface LineCostRow {
+  units: bigint;
+  costedLines: bigint;
+  uncostedLines: bigint;
+  cogs: bigint;
+  costedNet: bigint;
+}
+
+interface ProductLineRow {
+  productId: string | null;
+  name: string;
+  units: bigint;
+  net: bigint;
+  costedNet: bigint;
+  cost: bigint;
+  costedLines: bigint;
+  partial: boolean;
+}
+
 class AccountingService {
   /**
    * The headline figures for a period.
    *
-   * Three queries: the order totals, the sold lines, and the purchases. Not
-   * one per tile — the same rows answer several questions, so they are
-   * fetched once and reduced in memory.
+   * Three queries, each a single aggregate in the database: the order money,
+   * the sold lines' cost, and the purchases.
    */
   async summary(range: AccountingRange): Promise<AccountingSummary> {
-    const where = soldWhere(range);
-
-    const [orderTotals, lines, purchases] = await Promise.all([
-      prisma.order.aggregate({
-        where,
-        _sum: {
-          totalCents: true,
-          taxCents: true,
-          shippingCents: true,
-          discountCents: true,
-        },
-        _count: { _all: true },
-      }),
-      prisma.orderItem.findMany({
-        where: { order: where },
-        select: { quantity: true, priceCents: true, unitCostCents: true },
-      }),
+    const [moneyRows, costRows, purchases] = await Promise.all([
+      prisma.$queryRaw<OrderMoneyRow[]>(orderMoneySql(range)),
+      prisma.$queryRaw<LineCostRow[]>(lineCostSql(range)),
       prisma.inventoryMovement.findMany({
         where: { type: "RECEIVE", ...createdWithin(range) },
         select: { quantity: true, unitCostCents: true, listUnitCostCents: true },
       }),
     ]);
 
-    const costOfGoodsSold = emptyTotal();
-    let unitsSold = 0;
-    let revenueOnCostedLines = 0;
+    const money = moneyRows[0];
+    const cost = costRows[0];
+    const n = (value: bigint | undefined) => Number(value ?? 0);
 
-    for (const line of lines) {
-      unitsSold += line.quantity;
-      if (line.unitCostCents === null) {
-        costOfGoodsSold.missingLines += 1;
-        continue;
-      }
-      costOfGoodsSold.countedLines += 1;
-      costOfGoodsSold.cents += line.unitCostCents * line.quantity;
-      revenueOnCostedLines += line.priceCents * line.quantity;
-    }
+    const grossSalesCents = n(money?.gross);
+    const discountsCents = n(money?.discounts);
+    const manualDiscountsCents = n(money?.manual);
+    const gstInsidePricesCents = n(money?.gstInside);
+
+    const costOfGoodsSold: PartialTotal = {
+      cents: n(cost?.cogs),
+      countedLines: n(cost?.costedLines),
+      missingLines: n(cost?.uncostedLines),
+    };
+
+    // Margin is stated against the net sales of the lines that actually had
+    // a cost. Dividing by all net sales instead would understate the margin
+    // by exactly as much of the catalogue as has no cost entered yet.
+    const costedNet = n(cost?.costedNet);
+    const grossProfitCents = costedNet - costOfGoodsSold.cents;
 
     const purchasesCents = emptyTotal();
     const bargainSavedCents = emptyTotal();
@@ -116,89 +133,52 @@ class AccountingService {
       }
     }
 
-    // Margin is stated against the revenue of the lines that actually had a
-    // cost. Dividing by total revenue instead would understate the margin by
-    // exactly as much of the catalogue as has no cost entered yet.
-    const grossProfitCents = revenueOnCostedLines - costOfGoodsSold.cents;
-    const grossMarginPercent =
-      revenueOnCostedLines > 0
-        ? Math.round((grossProfitCents / revenueOnCostedLines) * 1000) / 10
-        : null;
-
     return {
-      revenueCents: orderTotals._sum?.totalCents ?? 0,
-      taxCollectedCents: orderTotals._sum?.taxCents ?? 0,
-      shippingCents: orderTotals._sum?.shippingCents ?? 0,
-      discountsCents: orderTotals._sum?.discountCents ?? 0,
+      grossSalesCents,
+      offerDiscountsCents: discountsCents - manualDiscountsCents,
+      manualDiscountsCents,
+      discountsCents,
+      gstInsidePricesCents,
+      netSalesCents: grossSalesCents - discountsCents - gstInsidePricesCents,
+      taxCollectedCents: n(money?.gst),
+      shippingCents: n(money?.delivery),
+      codFeeCents: n(money?.cod),
+      collectedCents: n(money?.paid),
       costOfGoodsSold,
       grossProfitCents,
-      grossMarginPercent,
-      orderCount: orderTotals._count._all,
-      unitsSold,
+      grossMarginPercent: marginPercent(grossProfitCents, costedNet),
+      orderCount: n(money?.orders),
+      unitsSold: n(cost?.units),
       purchasesCents,
       bargainSavedCents,
     };
   }
 
-  /** The most and least profitable products over the period. */
+  /** The most and least profitable products over the period, one grouped query. */
   async productMargins(range: AccountingRange, limit = 10): Promise<ProductMargin[]> {
-    const lines = await prisma.orderItem.findMany({
-      where: { order: soldWhere(range) },
-      select: {
-        productId: true,
-        name: true,
-        quantity: true,
-        priceCents: true,
-        unitCostCents: true,
-      },
-    });
+    const rows = await prisma.$queryRaw<ProductLineRow[]>(productLinesSql(range));
 
-    const byProduct = new Map<string, ProductMargin>();
-    const costedRevenue = new Map<string, number>();
-
-    for (const line of lines) {
-      // A deleted product's lines carry no id; they are grouped under the
-      // name they were sold as, so their margin still counts.
-      const key = line.productId ?? `deleted:${line.name}`;
-      const entry = byProduct.get(key) ?? {
-        productId: line.productId,
-        name: line.name,
-        unitsSold: 0,
-        revenueCents: 0,
-        costCents: 0,
-        profitCents: null,
-        marginPercent: null,
-        partial: false,
+    const margins = rows.map((row): ProductMargin => {
+      const earned = Number(row.costedNet);
+      const costCents = Number(row.cost);
+      // Profit is over the lines that had a cost; with none, it is unknown —
+      // not a hundred percent margin.
+      const profitCents = Number(row.costedLines) > 0 ? earned - costCents : null;
+      return {
+        productId: row.productId,
+        name: row.name,
+        unitsSold: Number(row.units),
+        netSalesCents: Number(row.net),
+        costCents,
+        profitCents,
+        marginPercent: profitCents === null ? null : marginPercent(profitCents, earned),
+        partial: row.partial,
       };
-
-      entry.unitsSold += line.quantity;
-      entry.revenueCents += line.priceCents * line.quantity;
-      if (line.unitCostCents === null) {
-        entry.partial = true;
-      } else {
-        entry.costCents += line.unitCostCents * line.quantity;
-        // Tracked alongside the cost so margin is stated against the revenue
-        // it was actually earned on, not against lines with no cost.
-        costedRevenue.set(key, (costedRevenue.get(key) ?? 0) + line.priceCents * line.quantity);
-      }
-
-      byProduct.set(key, entry);
-    }
-
-    for (const [key, entry] of byProduct) {
-      const earned = costedRevenue.get(key) ?? 0;
-      if (earned === 0) {
-        entry.profitCents = null;
-        entry.marginPercent = null;
-        continue;
-      }
-      entry.profitCents = earned - entry.costCents;
-      entry.marginPercent = Math.round((entry.profitCents / earned) * 1000) / 10;
-    }
+    });
 
     // Products whose margin is unknown sort last: the table is read to find
     // what earns, and an unknown is not an answer to that.
-    return [...byProduct.values()]
+    return margins
       .sort((a, b) => (b.profitCents ?? -Infinity) - (a.profitCents ?? -Infinity))
       .slice(0, limit);
   }

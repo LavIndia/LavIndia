@@ -1,6 +1,6 @@
 import { formatPaisa } from "@/modules/_shared/money";
 import { paymentMethodLabel } from "@/modules/orders/order-labels";
-import type { InvoiceSnapshot } from "@/modules/billing";
+import type { InvoiceLine, InvoiceSnapshot } from "@/modules/billing";
 import { INVOICE_THEME as T } from "@/modules/billing/invoices/invoice-theme";
 import { InvoiceMasthead, InvoiceParties } from "./InvoiceHeader";
 import { InvoiceFooter } from "./InvoiceFooter";
@@ -60,7 +60,8 @@ export function InvoiceTemplate({ invoice }: { invoice: InvoiceSnapshot }) {
   );
 }
 
-function LineItems({ invoice }: { invoice: InvoiceSnapshot }) {
+/** The line items table — shared with the credit note, which lists the same lines. */
+export function LineItems({ invoice }: { invoice: { lines: InvoiceLine[] } }) {
   const cell = { padding: "2.2mm 1.5mm", fontSize: "3mm" } as const;
   const headCell = {
     ...cell,

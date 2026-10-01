@@ -1,12 +1,24 @@
+import { tierThresholdProblem, tierThresholdsFrom } from "@/modules/customers/customer-tier";
+
 /**
  * Sends the settings form to the API.
  *
  * The logo is left out: it saves itself through LogoSection, and the copy the
  * form holds was taken when the page loaded — sending it would put the old
  * mark back over one just uploaded or chosen. A blank email goes as null
- * ("none"). Throws with the server's own wording when a field is refused.
+ * ("none"). Client tiers out of order are refused here, before sending, in
+ * the same words the server would use. Throws with the server's own wording
+ * when a field is refused.
  */
-export async function saveSettings(settings: { logoUrl?: unknown; email?: string | null }) {
+export async function saveSettings(settings: {
+  logoUrl?: unknown;
+  email?: string | null;
+  tierVipCents: number;
+  tierGoldCents: number;
+  tierSilverCents: number;
+}) {
+  const tierProblem = tierThresholdProblem(tierThresholdsFrom(settings));
+  if (tierProblem) throw new Error(tierProblem);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { logoUrl, ...fields } = settings;
   const response = await fetch("/api/admin/settings", {

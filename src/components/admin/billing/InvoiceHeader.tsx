@@ -3,13 +3,13 @@ import { INVOICE_THEME as T } from "@/modules/billing/invoices/invoice-theme";
 
 /**
  * The masthead: a solid brown square carrying the lotus mark and wordmark at
- * top-left, with INVOICE set large in letterspaced serif caps at top-right,
+ * top-left, with INVOICE (or CREDIT NOTE) set large in letterspaced serif caps at top-right,
  * underlined by a rule that stops short of the page edge.
  *
  * The lotus is inline SVG rather than an image file so it prints at the
  * printer's own resolution and never depends on an asset loading.
  */
-export function InvoiceMasthead() {
+export function InvoiceMasthead({ title = "INVOICE" }: { title?: string }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
       <div
@@ -52,13 +52,15 @@ export function InvoiceMasthead() {
         <div
           style={{
             fontFamily: T.serif,
-            fontSize: "13mm",
-            letterSpacing: "2.2mm",
+            // A longer title ("CREDIT NOTE") is set smaller so it still
+            // clears the logo block on the same line.
+            fontSize: title.length > 8 ? "9mm" : "13mm",
+            letterSpacing: title.length > 8 ? "1.4mm" : "2.2mm",
             color: T.ink,
             lineHeight: 1,
           }}
         >
-          INVOICE
+          {title}
         </div>
         <div
           style={{

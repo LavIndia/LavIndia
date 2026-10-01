@@ -16,9 +16,10 @@ import { LogoSection } from "./LogoSection";
 import { SocialLinksSection } from "./SocialLinksSection";
 import { MarketplaceLinksSection } from "./MarketplaceLinksSection";
 import { TrustBadgesSection } from "./TrustBadgesSection";
+import { ClientTiersSection, type ClientTierValues } from "./ClientTiersSection";
 import { saveSettings } from "./save-settings";
 
-interface SiteSettings {
+interface SiteSettings extends ClientTierValues {
   id: string;
   businessName: string;
   logoUrl: string | null;
@@ -102,7 +103,6 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           of the shop, and it saves itself rather than waiting for the form. */}
       <LogoSection initialLogoUrl={settings.logoUrl} />
 
-      {/* Business Information */}
       <Card>
         <CardHeader>
           <CardTitle>Business Information</CardTitle>
@@ -246,6 +246,8 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         onChange={(field, value) => handleChange(field, value as SiteSettings[typeof field])}
       />
 
+      <ClientTiersSection values={settings} onChange={handleChange} />
+
       <SocialLinksSection
         values={{
           facebook: settings.facebook,
@@ -278,7 +280,6 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         onChange={(field, value) => setSettings((prev) => ({ ...prev, [field]: value }))}
       />
 
-      {/* SEO Settings */}
       <Card>
         <CardHeader>
           <CardTitle>SEO Settings</CardTitle>
@@ -318,7 +319,6 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
         </CardContent>
       </Card>
 
-      {/* Footer Settings */}
       <Card>
         <CardHeader>
           <CardTitle>Footer Settings</CardTitle>

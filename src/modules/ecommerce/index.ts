@@ -6,3 +6,5 @@
  */
 export { checkoutService } from "./checkout-service";
 export type { CheckoutLineInput, CheckoutValidation } from "./checkout-service";
+export { settleGatewayPayment } from "./settle-gateway-payment";
+export type { GatewayPayment, SettleOutcome } from "./settle-gateway-payment";

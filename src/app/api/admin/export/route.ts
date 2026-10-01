@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { unparse } from "papaparse";
-import { listCustomers } from "@/modules/customers/customer-list";
+import { exportCustomersCsv } from "./customers-csv";
+import { getTopProducts } from "@/modules/analytics/top-products";
 import { exportOrdersCsv, orderFiltersFrom } from "./orders-csv";
 
 export async function GET(req: NextRequest) {
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest) {
         break;
 
       case "customers":
-        csvData = await exportCustomers();
+        csvData = await exportCustomersCsv(searchParams);
         filename = `customers-${Date.now()}.csv`;
         break;
 
@@ -87,66 +88,26 @@ async function exportProducts() {
   return unparse(data);
 }
 
-async function exportCustomers() {
-  // The same figures as the Customers screen: both channels, and spend as
-  // what was actually paid on orders that are sales.
-  const customers = await listCustomers();
-
-  const data = customers.map((c) => ({
-    Name: c.name || "",
-    Email: c.email || "",
-    Mobile: c.mobile || "",
-    OrderCount: c.orderCount,
-    TotalSpent: (c.totalSpent / 100).toFixed(2),
-    JoinedAt: c.createdAt.toISOString(),
-  }));
-
-  return unparse(data);
-}
-
+/**
+ * Sales by product, all time — the Analytics screen's best sellers, uncapped.
+ *
+ * The same orders and the same money as the screen and the Dashboard: sales
+ * only (never cancelled, refunded or unpaid orders), and each line at what
+ * the client actually paid for it, discounts off and GST counted once —
+ * never the list price. Delivery and cash-on-delivery charges belong to no
+ * product, so the column adds up to the Dashboard's sales less those.
+ */
 async function exportAnalytics() {
-  const orders = await prisma.order.findMany({
-    where: {
-      paymentStatus: "COMPLETED",
-    },
-    include: {
-      items: {
-        include: {
-          product: true,
-        },
-      },
-    },
-  });
+  const products = await getTopProducts(null);
 
-  // Group by product
-  const productSales: Record<
-    string,
-    { name: string; quantity: number; revenue: number }
-  > = {};
-
-  orders.forEach((order) => {
-    order.items.forEach((item) => {
-      // Lines of a deleted product have no id any more; group them by the
-      // name they were sold under instead.
-      const key = item.productId ?? `deleted:${item.name}`;
-      if (!productSales[key]) {
-        productSales[key] = {
-          name: item.name,
-          quantity: 0,
-          revenue: 0,
-        };
-      }
-      productSales[key].quantity += item.quantity;
-      productSales[key].revenue += item.priceCents * item.quantity;
-    });
-  });
-
-  const data = Object.entries(productSales).map(([id, stats]) => ({
-    ProductID: id,
-    ProductName: stats.name,
-    UnitsSold: stats.quantity,
-    Revenue: (stats.revenue / 100).toFixed(2),
+  const data = products.map((product) => ({
+    ProductID: product.productId ?? "",
+    ProductName: product.name,
+    UnitsSold: product.quantitySold,
+    "Amount paid (₹)": (product.revenueCents / 100).toFixed(2),
   }));
 
-  return unparse(data);
+  return data.length > 0
+    ? unparse(data)
+    : unparse({ fields: ["ProductID", "ProductName", "UnitsSold", "Amount paid (₹)"], data: [] });
 }

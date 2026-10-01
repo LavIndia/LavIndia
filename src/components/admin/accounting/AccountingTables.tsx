@@ -85,7 +85,7 @@ export function ProductMarginTable({ rows }: { rows: ProductMargin[] }) {
           <tr>
             <th className={thStyle}>Product</th>
             <th className={thRightStyle}>Sold</th>
-            <th className={thRightStyle}>Revenue</th>
+            <th className={thRightStyle}>Net sales</th>
             <th className={thRightStyle}>Cost</th>
             <th className={thRightStyle}>Profit</th>
             <th className={thRightStyle}>Margin</th>
@@ -113,7 +113,7 @@ export function ProductMarginTable({ rows }: { rows: ProductMargin[] }) {
                 )}
               </td>
               <td className={tdRightStyle}>{row.unitsSold}</td>
-              <td className={tdRightStyle}>{formatPaisa(row.revenueCents)}</td>
+              <td className={tdRightStyle}>{formatPaisa(row.netSalesCents)}</td>
               <td className={tdRightStyle}>
                 {row.costCents > 0 ? formatPaisa(row.costCents) : "—"}
               </td>
@@ -179,6 +179,7 @@ export function SupplierSpendTable({ rows }: { rows: SupplierSpend[] }) {
                   ? row.lastReceivedAt.toLocaleDateString("en-IN", {
                       day: "numeric",
                       month: "short",
+                      timeZone: "Asia/Kolkata",
                     })
                   : "—"}
               </td>

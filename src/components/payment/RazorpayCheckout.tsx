@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useSiteSettings } from "@/components/providers/SiteSettingsProvider";
 import { css } from "styled-system/css";
 import { motion } from "motion/react";
+import { verifyPayment } from "./verify-payment";
 
 const overlayStyle = css({
   position: "fixed",
@@ -105,6 +106,11 @@ interface RazorpayCheckoutProps {
   onSuccess: () => void;
   onFailure: () => void;
   onCancel: () => void;
+  /**
+   * The payment went through, but the order had been cancelled before it
+   * arrived — nothing is shipped and the money is refunded.
+   */
+  onPaidAfterCancellation?: () => void;
 }
 
 export default function RazorpayCheckout({
@@ -119,6 +125,7 @@ export default function RazorpayCheckout({
   onSuccess,
   onFailure,
   onCancel,
+  onPaidAfterCancellation,
 }: RazorpayCheckoutProps) {
   const { businessName } = useSiteSettings();
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
@@ -223,20 +230,11 @@ export default function RazorpayCheckout({
         handler: async (response: RazorpayResponse) => {
           console.log("Payment successful, verifying...");
           try {
-            // Verify payment
-            const verifyResponse = await fetch("/api/payment/verify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                orderId: orderId,
-              }),
-            });
-
-            if (!verifyResponse.ok) {
-              throw new Error("Payment verification failed");
+            const outcome = await verifyPayment(response, orderId);
+            if (outcome === "order-cancelled") {
+              toast.info("This order had been cancelled. Your payment will be refunded.");
+              (onPaidAfterCancellation ?? onFailure)();
+              return;
             }
 
             console.log("Payment verified successfully");

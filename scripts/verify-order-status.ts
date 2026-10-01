@@ -48,6 +48,8 @@ async function main(): Promise<void> {
     where: { variantId_locationId: { variantId, locationId } },
   });
   const sequences = await prisma.invoiceSequence.findMany();
+  // Refunding the billed COD order below issues a credit note too.
+  const noteSequences = await prisma.creditNoteSequence.findMany();
   const orderIds: string[] = [];
 
   const stock = async () => {
@@ -201,6 +203,15 @@ async function main(): Promise<void> {
     });
     for (const s of sequences) {
       await prisma.invoiceSequence.update({
+        where: { financialYear: s.financialYear },
+        data: { lastNumber: s.lastNumber },
+      });
+    }
+    await prisma.creditNoteSequence.deleteMany({
+      where: { financialYear: { notIn: noteSequences.map((s) => s.financialYear) } },
+    });
+    for (const s of noteSequences) {
+      await prisma.creditNoteSequence.update({
         where: { financialYear: s.financialYear },
         data: { lastNumber: s.lastNumber },
       });

@@ -10,7 +10,8 @@ import { OrdersHeader } from "@/components/admin/orders/OrdersHeader";
 import { OrdersFilters } from "@/components/admin/orders/OrdersFilters";
 import { OrdersSummaryCards } from "@/components/admin/orders/OrdersSummaryCards";
 import { OrdersTable } from "@/components/admin/orders/OrdersTable";
-import type { OrderRow, OrdersSummary } from "@/components/admin/orders/order-types";
+import type { OrderRow } from "@/components/admin/orders/order-types";
+import { summarise } from "@/components/admin/orders/orders-summary";
 
 const pageStyle = css({ display: "flex", flexDirection: "column", gap: "5" });
 
@@ -27,7 +28,8 @@ const PAGE_SIZE = 100;
  *
  * Three database calls, whatever the filters: the rows, the totals, and the
  * category list. The totals come from a grouped aggregate rather than from
- * summing the rows, so they stay correct when the list is capped.
+ * summing the rows, so they stay correct when the list is capped, and count
+ * what clients paid on the orders that are sales — the Dashboard's figure.
  */
 async function loadOrders(params: OrderFilterParams) {
   const filters = parseOrderFilters(params);
@@ -73,20 +75,46 @@ async function loadOrders(params: OrderFilterParams) {
             product: { select: { category: { select: { name: true } } } },
           },
         },
-        // The instrument the money arrived on, captured at verification.
-        payment: { select: { method: true, instrumentDetail: true } },
-        // Present once a bill has been raised. Only the number is needed for
-        // the row — the invoice page reads its own frozen snapshot.
-        invoice: { select: { invoiceNumber: true } },
+        // The instrument the money arrived on, and any refund sent back.
+        payment: {
+          select: {
+            method: true,
+            instrumentDetail: true,
+            amountCents: true,
+            refundedCents: true,
+            refundedAt: true,
+            refundMethod: true,
+            refundReference: true,
+            metadata: true,
+          },
+        },
+        // Present once a bill has been raised. Only the numbers are needed
+        // for the row — the invoice and credit note pages read their own
+        // frozen snapshots.
+        invoice: {
+          select: {
+            invoiceNumber: true,
+            creditNotes: { select: { creditNoteNumber: true }, take: 1 },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: PAGE_SIZE,
     }),
+    // Grouped by what decides the money — channel, whether it is a sale, and
+    // whether GST was inside the prices — so what clients paid can be added up
+    // exactly as `orderPaidCents` does, without loading every order.
     prisma.order.groupBy({
-      by: ["source"],
+      by: ["source", "status", "taxIncluded"],
       where,
       _count: { _all: true },
-      _sum: { totalCents: true },
+      _sum: {
+        totalCents: true,
+        discountCents: true,
+        shippingCents: true,
+        codFeeCents: true,
+        taxCents: true,
+      },
     }),
     prisma.category.findMany({
       select: { id: true, name: true },
@@ -94,20 +122,19 @@ async function loadOrders(params: OrderFilterParams) {
     }),
   ]);
 
-  const orders: OrderRow[] = rows.map((row) => ({
+  const orders: OrderRow[] = rows.map(({ invoice, ...row }) => ({
     ...row,
+    invoice: invoice && {
+      invoiceNumber: invoice.invoiceNumber,
+      creditNoteNumber: invoice.creditNotes[0]?.creditNoteNumber ?? null,
+    },
     items: row.items.map(({ product, ...item }) => ({
       ...item,
       categoryName: product?.category?.name ?? null,
     })),
   }));
 
-  const summary: OrdersSummary = {
-    orderCount: grouped.reduce((total, group) => total + group._count._all, 0),
-    revenueCents: grouped.reduce((total, group) => total + (group._sum.totalCents ?? 0), 0),
-    storeCount: grouped.find((group) => group.source === "STORE")?._count._all ?? 0,
-    onlineCount: grouped.find((group) => group.source === "ONLINE")?._count._all ?? 0,
-  };
+  const summary = summarise(grouped);
 
   return { filters, orders, summary, categories };
 }

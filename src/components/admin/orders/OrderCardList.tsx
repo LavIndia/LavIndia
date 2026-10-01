@@ -10,6 +10,7 @@ import {
   ChannelBadge,
   OrderStatusBadge,
   PaymentStatusBadge,
+  RefundOwedBadge,
   formatOrderDate,
   formatRupees,
   itemSummary,
@@ -107,6 +108,7 @@ export function OrderCardList({
                   formatOrderDate(order.createdAt),
                   itemSummary(order.items).pieces,
                   order.invoice?.invoiceNumber,
+                  order.invoice?.creditNoteNumber && `Credited · ${order.invoice.creditNoteNumber}`,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -127,6 +129,7 @@ export function OrderCardList({
               <ChannelBadge channel={order.source} />
               <PaymentStatusBadge status={order.paymentStatus} />
               <OrderStatusBadge status={order.status} />
+              <RefundOwedBadge order={order} />
             </span>
             <ChevronRight className={css({ height: "4", width: "4", color: "fg.muted" })} />
           </div>

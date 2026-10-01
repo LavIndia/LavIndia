@@ -25,9 +25,10 @@ const subtitleStyle = css({
   color: "fg.muted",
 });
 
-export function CustomersHeader() {
+/** `exportQuery` carries the applied search and tier, so the file holds the list on screen. */
+export function CustomersHeader({ exportQuery }: { exportQuery: string }) {
   const handleExport = () => {
-    window.location.href = "/api/admin/export?type=customers";
+    window.location.href = `/api/admin/export?type=customers${exportQuery ? `&${exportQuery}` : ""}`;
   };
 
   return (

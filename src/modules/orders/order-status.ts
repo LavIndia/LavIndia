@@ -3,8 +3,8 @@
  * move with it.
  *
  * A status is not just a label. Cancelling or refunding an order puts its
- * pieces back on the shelf, gives its offer uses back and says what became of
- * the payment; bringing it back takes all of that again. Dispatching a
+ * pieces back on the shelf, gives its offer uses back, credits its invoice and
+ * says what became of the payment; bringing it back takes all of that again. Dispatching a
  * cash-on-delivery order raises its invoice, and delivering it records the
  * cash as collected. All of it happens in the caller's transaction, under a
  * lock on the order, so two people pressing the button at once cannot apply
@@ -15,9 +15,11 @@ import type { Tx } from "../_shared/db";
 import { DomainError } from "../_shared/errors";
 import { OrderId } from "../_shared/ids";
 import { billingService } from "../billing/billing-service";
+import { issueCreditNoteForOrder } from "../billing/credit-notes/credit-note-service";
 import { withdrawSoldOutRetiredProducts } from "../catalog";
 import { retakeOrderStock, returnOrderStock } from "../inventory";
 import { countOrderRedemption, releaseOrderRedemption } from "../promotions/repository";
+import { assertReinstatable } from "./order-closure";
 
 const CLOSED: readonly OrderStatus[] = ["CANCELLED", "REFUNDED"];
 /** The moment a cash-on-delivery parcel leaves the shop — when its invoice is raised. */
@@ -68,6 +70,11 @@ export async function changeOrderStatus(
       FROM "orders" WHERE "id" = ${orderId} FOR UPDATE
   `);
   if (!current) throw new DomainError("ORDER_NOT_FOUND", "That order no longer exists");
+  // A credited invoice, or a payment that arrived after the order was
+  // cancelled, means the order cannot simply be brought back.
+  if (CLOSED.includes(current.status) && !CLOSED.includes(status)) {
+    await assertReinstatable(tx, orderId);
+  }
 
   const paymentStatus = paymentStatusAfter(current, status);
   const updated = await tx.order.update({
@@ -81,12 +88,13 @@ export async function changeOrderStatus(
 
   if (CLOSED.includes(status)) {
     // A cancelled or refunded order gives its offer uses and its pieces
-    // back. Both are once-only, so cancel-then-refund returns nothing twice.
+    // back, and a billed one has its invoice credited. All three are
+    // once-only, so cancel-then-refund returns nothing twice and issues one
+    // credit note.
+    const reason = status === "REFUNDED" ? "Order refunded" : "Order cancelled";
     await releaseOrderRedemption(tx, orderId);
-    const returned = await returnOrderStock(tx, orderId, {
-      actorId,
-      reason: status === "REFUNDED" ? "Order refunded" : "Order cancelled",
-    });
+    const returned = await returnOrderStock(tx, orderId, { actorId, reason });
+    await issueCreditNoteForOrder(tx, orderId, reason, actorId);
     return { order: updated, stockMoved: returned > 0 };
   }
 
