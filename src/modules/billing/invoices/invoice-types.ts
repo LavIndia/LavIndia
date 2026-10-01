@@ -55,6 +55,8 @@ export interface InvoiceTotals {
   /** The offers behind the discount, as the client was told them. */
   offers?: Array<{ label: string; savingCents: number }>;
   shippingCents: number;
+  /** The cash-on-delivery fee charged. Absent on invoices that carried none. */
+  codFeeCents?: number;
   grandTotalCents: number;
 }
 

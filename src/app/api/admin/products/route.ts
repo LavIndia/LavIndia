@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { listAdminProducts } from "@/lib/admin-product-list";
 import { z } from "zod";
-import { enforceVariantInvariants } from "@/modules/catalog";
+import { createProductInTx } from "@/modules/catalog";
 
 const PRODUCTS_PAGE_SIZE = 20;
 
@@ -79,41 +79,25 @@ export async function GET(req: NextRequest) {
     const sort = searchParams.get("sort");
     const pageParam = searchParams.get("page");
 
-    const where: Prisma.ProductWhereInput = {};
-    if (categoryId) where.categoryId = categoryId;
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { sku: { contains: search, mode: "insensitive" } },
-      ];
-    }
-
-    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: "desc" };
-    if (sort === "name_asc") orderBy = { name: "asc" };
-    if (sort === "name_desc") orderBy = { name: "desc" };
-    if (sort === "price_asc") orderBy = { priceCents: "asc" };
-    if (sort === "price_desc") orderBy = { priceCents: "desc" };
-    if (sort === "stock_asc") orderBy = { stock: "asc" };
-    if (sort === "stock_desc") orderBy = { stock: "desc" };
-
     // Pagination only kicks in when a page is explicitly requested, so this
     // endpoint's default (no params) response shape is unchanged for any
     // existing caller.
     const page = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : null;
 
-    const [products, totalCount] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        orderBy,
-        include: {
-          category: true,
-          images: page ? { where: { isPrimary: true }, take: 1 } : true,
-          variants: true,
-        },
-        ...(page ? { skip: (page - 1) * PRODUCTS_PAGE_SIZE, take: PRODUCTS_PAGE_SIZE } : {}),
-      }),
-      prisma.product.count({ where }),
-    ]);
+    // Same search (variant SKUs included), sort (stock ranked before paging)
+    // and stock figures (from Inventory) as Admin › Products.
+    const { products, totalCount } = await listAdminProducts(
+      { search, categoryId, sort, page, pageSize: PRODUCTS_PAGE_SIZE },
+      (args) =>
+        prisma.product.findMany({
+          ...args,
+          include: {
+            category: true,
+            images: page ? { where: { isPrimary: true }, take: 1 } : true,
+            variants: true,
+          },
+        }),
+    );
 
     if (!page) {
       return NextResponse.json(products);
@@ -151,40 +135,13 @@ export async function POST(req: NextRequest) {
 
     const product = await prisma.$transaction(
       async (tx) => {
-        const created = await tx.product.create({ data: validatedData });
-
-        // One INSERT for the whole set rather than one per row. A product
-        // with a dozen variants used to cost a dozen round trips, which is
-        // what pushed this transaction past its deadline against a database
-        // in another region.
-        if (variants?.length) {
-          await tx.productVariant.createMany({
-            data: variants.map((v) => {
-              const { id: _id, clientId: _clientId, ...rest } = v;
-              return { ...rest, productId: created.id };
-            }),
-          });
-        }
-
-        if (images?.length) {
-          await tx.productImage.createMany({
-            data: images.map((img) => {
-              const { id: _id, optionDimension, optionValue, ...rest } = img;
-              // A group needs both halves; anything less is a general image.
-              const grouped = optionDimension && optionValue;
-              return {
-                ...rest,
-                productId: created.id,
-                optionDimension: grouped ? optionDimension : null,
-                optionValue: grouped ? optionValue : null,
-              };
-            }),
-          });
-        }
-
-        // Last, so a product with no options gets its implicit Default
-        // variant and every variant leaves here with a SKU and barcode.
-        await enforceVariantInvariants(tx, created.id);
+        // The one creation path the bulk upload shares: product, variants,
+        // images and the variant invariants, in this transaction.
+        const created = await createProductInTx(tx, {
+          product: validatedData,
+          variants,
+          images,
+        });
 
         return tx.product.findUniqueOrThrow({
           where: { id: created.id },

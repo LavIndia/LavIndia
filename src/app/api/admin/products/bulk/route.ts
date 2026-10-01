@@ -3,6 +3,8 @@ import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { inventoryService } from "@/modules/inventory";
+import { importProductRow } from "@/lib/product-import";
 
 const bulkProductSchema = z.object({
   products: z.array(
@@ -37,12 +39,15 @@ export async function POST(req: NextRequest) {
     let failedCount = 0;
     const errors: Array<{ row: number; error: string }> = [];
 
-    // Process products in transaction
+    // Resolved once for the whole file rather than once per row.
+    const locationId = await inventoryService.getDefaultLocationId();
+
+    // Each row is its own transaction: one bad row is reported, not fatal to
+    // the rest. Within a row, the product, its Default variant (with SKU and
+    // barcode) and its opening stock commit together — see product-import.
     for (let i = 0; i < products.length; i++) {
       try {
-        await prisma.product.create({
-          data: products[i],
-        });
+        await importProductRow(products[i], { actorId: session.user.id, locationId });
         successCount++;
       } catch (error) {
         failedCount++;

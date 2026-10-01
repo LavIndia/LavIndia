@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { parseAdminDate } from "@/lib/ist-dates";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 
@@ -35,8 +36,8 @@ export async function PUT(
         ...(body.maxDiscount !== undefined && {
           maxDiscount: body.maxDiscount,
         }),
-        ...(body.startDate && { startDate: new Date(body.startDate) }),
-        ...(body.endDate && { endDate: new Date(body.endDate) }),
+        ...(body.startDate && { startDate: parseAdminDate(body.startDate, "start")! }),
+        ...(body.endDate && { endDate: parseAdminDate(body.endDate, "end")! }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
         ...(body.usageLimit !== undefined && { usageLimit: body.usageLimit }),
         ...(body.isRecurring !== undefined && { isRecurring: body.isRecurring }),
@@ -69,6 +70,9 @@ export async function PUT(
 
     return NextResponse.json({ discount });
   } catch (error) {
+    if (error instanceof RangeError) {
+      return NextResponse.json({ error: "Enter a valid date" }, { status: 400 });
+    }
     console.error("Error updating discount:", error);
     return NextResponse.json(
       { error: "Failed to update discount" },

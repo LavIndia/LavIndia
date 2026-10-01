@@ -9,10 +9,10 @@ export const SYSTEM_HELP: HelpEntry[] = [
     purpose:
       "The shop's own details in one place: logo, business details, UPI for the counter QR, delivery charges and GST, links, the reassurances shown to clients, and how the shop appears on Google.",
     steps: [
-      "To change the logo, pick one of the house marks or press Upload your own. The logo saves on its own, straight away.",
+      "To change the logo, pick one of the house marks or press Upload your own. The logo saves on its own, straight away, and saving the rest of the page never changes it.",
       "For everything else, change the fields you need in any of the cards.",
       "Press Save Changes at the bottom of the page. One press saves every card.",
-      "Wait for “Settings updated successfully”. If you see “Failed to update settings”, check the UPI ID, the email, the links and the delivery charges, then save again.",
+      "Wait for “Settings updated successfully”. If a field is refused, the message names it — correct it and save again.",
     ],
     sections: [
       {
@@ -46,7 +46,7 @@ export const SYSTEM_HELP: HelpEntry[] = [
           { term: "Address", text: "The shop's address, shown in the website footer, on the contact page and on bills." },
           {
             term: "Email",
-            text: "The shop's contact email, shown on the website and on bills. It must be a complete address, such as care@yourshop.in. Once filled in it cannot be left empty — the save will fail — so replace it rather than clearing it.",
+            text: "Optional. The shop's contact email, shown on the website and on bills. Leave it empty if you prefer none; if filled in it must be a complete address, such as care@yourshop.in.",
           },
           { term: "Contact Number", text: "The phone number clients should call, shown in the footer, on the contact page and on bills." },
           { term: "GST Number", text: "The shop's GSTIN, printed on invoices and in the website footer." },
@@ -193,7 +193,7 @@ export const SYSTEM_HELP: HelpEntry[] = [
           { term: "Admin", text: "The person who made it, by name — or a reference code when no name was recorded." },
           {
             term: "Action",
-            text: "What was done. CREATE (added), UPDATE (changed) and DELETE (removed) are the most common. Others include POS_SALE (a counter sale), RECEIVE_STOCK, stock adjustments, DUPLICATE, GENERATE_CODES, BULK_TAG, and PROMOTION_ACTIVATE, _PAUSE, _RESUME, _END, _ARCHIVE or _RESTORE for offers.",
+            text: "What was done, in words: Created, Updated and Deleted are the most common. Others include Counter sale, Stock received, stock adjustments, Duplicated, Codes generated, Bulk tagged, and Offer made live / paused / resumed / ended / archived / restored. Hover an action to see its system code.",
           },
           {
             term: "Entity",

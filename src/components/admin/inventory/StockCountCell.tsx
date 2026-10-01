@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { css } from "styled-system/css";
+import { usePopoverDismiss } from "./usePopoverDismiss";
+import {
+  chipRowStyle,
+  chipStyle,
+  labelStyle,
+  popoverStyle,
+  triggerStyle,
+  wrapStyle,
+} from "./stock-cell.styles";
 import { reasonsForDirection, type CountReasonCode } from "@/modules/inventory/count-reasons";
 
 /**
@@ -18,51 +27,8 @@ import { reasonsForDirection, type CountReasonCode } from "@/modules/inventory/c
  * The ledger still gets a full, reasoned entry; the ceremony is what was
  * removed, not the record.
  */
-const triggerStyle = css({
-  fontVariantNumeric: "tabular-nums",
-  fontWeight: "semibold",
-  paddingInline: "2",
-  paddingBlock: "1",
-  borderRadius: "sm",
-  border: "1px solid transparent",
-  cursor: "pointer",
-  transition: "border-color 0.15s ease, background 0.15s ease",
-  "&:hover": { borderColor: "border.subtle", background: "bg.canvas" },
-});
-
-const popoverStyle = css({
-  position: "absolute",
-  right: "0",
-  top: "calc(100% + 6px)",
-  zIndex: "50",
-  width: "16rem",
-  padding: "3",
-  borderRadius: "md",
-  border: "1px solid",
-  borderColor: "border.subtle",
-  background: "bg.surface",
-  boxShadow: "lg",
-  display: "flex",
-  flexDirection: "column",
-  gap: "2.5",
-});
-
-const wrapStyle = css({ position: "relative", display: "inline-block" });
-const labelStyle = css({ fontSize: "xs", color: "fg.muted" });
 const deltaStyle = (up: boolean) =>
   css({ fontSize: "xs", fontWeight: "medium", color: up ? "emerald.500" : "red.600" });
-const chipRowStyle = css({ display: "flex", flexWrap: "wrap", gap: "1.5" });
-const chipStyle = css({
-  fontSize: "xs",
-  paddingInline: "2",
-  paddingBlock: "1",
-  borderRadius: "full",
-  border: "1px solid",
-  borderColor: "border.subtle",
-  cursor: "pointer",
-  transition: "background 0.15s ease, border-color 0.15s ease",
-  "&:hover": { borderColor: "accent.pressed", background: "gold.50" },
-});
 
 export function StockCountCell({
   variantId,
@@ -79,22 +45,11 @@ export function StockCountCell({
   const [counted, setCounted] = useState(String(quantity));
   const [saving, setSaving] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
+  const closePopover = useCallback(() => setOpen(false), []);
 
   useEffect(() => setCounted(String(quantity)), [quantity]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onAway = (event: PointerEvent) => {
-      if (!wrapRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
-    document.addEventListener("pointerdown", onAway);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onAway);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  usePopoverDismiss(open, wrapRef, closePopover);
 
   const parsed = parseInt(counted, 10);
   const target = Number.isFinite(parsed) && parsed >= 0 ? parsed : quantity;

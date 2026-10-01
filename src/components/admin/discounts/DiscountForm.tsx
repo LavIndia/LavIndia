@@ -25,6 +25,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { css } from "styled-system/css";
+import { toIstDateInput } from "@/lib/ist-dates";
 import { RecurrenceScheduleFields } from "@/components/admin/shared/RecurrenceScheduleFields";
 
 type Discount = {
@@ -68,12 +69,8 @@ export function DiscountForm({ discount }: { discount?: Discount }) {
     discountValue: discount?.discountValue || 0,
     minPurchase: discount?.minPurchase || 0,
     maxDiscount: discount?.maxDiscount || 0,
-    startDate: discount?.startDate
-      ? new Date(discount.startDate).toISOString().split("T")[0]
-      : "",
-    endDate: discount?.endDate
-      ? new Date(discount.endDate).toISOString().split("T")[0]
-      : "",
+    startDate: toIstDateInput(discount?.startDate),
+    endDate: toIstDateInput(discount?.endDate),
     isActive: discount?.isActive ?? true,
     usageLimit: discount?.usageLimit || 0,
     isRecurring: discount?.isRecurring ?? false,
@@ -342,7 +339,7 @@ export function DiscountForm({ discount }: { discount?: Discount }) {
           <CardHeader>
             <CardTitle>Validity &amp; Limits</CardTitle>
             <CardDescription>
-              When the coupon is redeemable and how often.
+              When the coupon is redeemable and how often. Dates are India time (IST), and the end date is included.
             </CardDescription>
           </CardHeader>
           <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>

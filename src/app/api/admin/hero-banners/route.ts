@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { parseAdminDate } from "@/lib/ist-dates";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { removePublicAsset } from "@/lib/imagekit-admin";
@@ -63,8 +64,8 @@ export async function POST(request: NextRequest) {
         linkUrl,
         order: order ?? 0,
         active: active ?? true,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
+        startDate: parseAdminDate(startDate, "start"),
+        endDate: parseAdminDate(endDate, "end"),
         isRecurring: isRecurring ?? false,
         recurrenceType: isRecurring ? recurrenceType : null,
         recurrenceDaysOfWeek: isRecurring ? recurrenceDaysOfWeek ?? [] : [],
@@ -87,6 +88,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ banner });
   } catch (error) {
+    if (error instanceof RangeError) {
+      return NextResponse.json({ error: "Enter a valid date" }, { status: 400 });
+    }
     console.error("Error creating hero banner:", error);
     return NextResponse.json(
       { error: "Failed to create hero banner" },

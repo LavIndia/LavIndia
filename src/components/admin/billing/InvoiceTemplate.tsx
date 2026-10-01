@@ -1,4 +1,5 @@
 import { formatPaisa } from "@/modules/_shared/money";
+import { paymentMethodLabel } from "@/modules/orders/order-labels";
 import type { InvoiceSnapshot } from "@/modules/billing";
 import { INVOICE_THEME as T } from "@/modules/billing/invoices/invoice-theme";
 import { InvoiceMasthead, InvoiceParties } from "./InvoiceHeader";
@@ -163,7 +164,10 @@ function PaymentAndTotals({ invoice }: { invoice: InvoiceSnapshot }) {
         >
           Payment Details :
         </div>
-        <div style={label}>Method : {payment.method}</div>
+        {/* The instrument's name, never the stored code ("CASH", "razorpay"). */}
+        {paymentMethodLabel(payment.method) && (
+          <div style={label}>Method : {paymentMethodLabel(payment.method)}</div>
+        )}
         {/* Who paid and the bank's reference — the fields that make this
             reconcilable against a statement. Omitted when not known. */}
         {payment.payerVpa && <div style={label}>Paid from : {payment.payerVpa}</div>}
@@ -195,6 +199,12 @@ function PaymentAndTotals({ invoice }: { invoice: InvoiceSnapshot }) {
           <div style={row}>
             <span style={{ color: T.textMuted }}>Shipping</span>
             <span>{formatPaisa(totals.shippingCents)}</span>
+          </div>
+        )}
+        {(totals.codFeeCents ?? 0) > 0 && (
+          <div style={row}>
+            <span style={{ color: T.textMuted }}>Cash on delivery fee</span>
+            <span>{formatPaisa(totals.codFeeCents ?? 0)}</span>
           </div>
         )}
         <div style={row}>

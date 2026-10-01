@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { CHANNEL_LABELS, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "./order-labels";
 
 /**
  * Everything the Orders screen can be narrowed by, in one place.
@@ -23,27 +24,27 @@ export interface FilterOption<T extends string = string> {
 
 export const ORDER_CHANNELS = [
   { value: "all", label: "All channels", hint: "Counter and web together" },
-  { value: "STORE", label: "Walk-in", hint: "Sold at the counter" },
-  { value: "ONLINE", label: "Online", hint: "Placed on the website" },
+  { value: "STORE", label: CHANNEL_LABELS.STORE, hint: "Sold at the counter" },
+  { value: "ONLINE", label: CHANNEL_LABELS.ONLINE, hint: "Placed on the website" },
 ] as const satisfies readonly FilterOption[];
 
 export const ORDER_STATUSES = [
   { value: "all", label: "Any stage" },
-  { value: "PENDING", label: "Pending" },
-  { value: "PROCESSING", label: "Processing" },
-  { value: "SHIPPED", label: "Shipped" },
-  { value: "OUT_FOR_DELIVERY", label: "Out for delivery" },
-  { value: "DELIVERED", label: "Delivered" },
-  { value: "CANCELLED", label: "Cancelled" },
-  { value: "REFUNDED", label: "Refunded" },
+  { value: "PENDING", label: ORDER_STATUS_LABELS.PENDING },
+  { value: "PROCESSING", label: ORDER_STATUS_LABELS.PROCESSING },
+  { value: "SHIPPED", label: ORDER_STATUS_LABELS.SHIPPED },
+  { value: "OUT_FOR_DELIVERY", label: ORDER_STATUS_LABELS.OUT_FOR_DELIVERY },
+  { value: "DELIVERED", label: ORDER_STATUS_LABELS.DELIVERED },
+  { value: "CANCELLED", label: ORDER_STATUS_LABELS.CANCELLED },
+  { value: "REFUNDED", label: ORDER_STATUS_LABELS.REFUNDED },
 ] as const satisfies readonly FilterOption[];
 
 export const PAYMENT_STATUSES = [
   { value: "all", label: "Any payment state" },
-  { value: "COMPLETED", label: "Paid" },
-  { value: "PENDING", label: "Awaiting payment" },
-  { value: "FAILED", label: "Failed" },
-  { value: "REFUNDED", label: "Refunded" },
+  { value: "COMPLETED", label: PAYMENT_STATUS_LABELS.COMPLETED },
+  { value: "PENDING", label: PAYMENT_STATUS_LABELS.PENDING },
+  { value: "FAILED", label: PAYMENT_STATUS_LABELS.FAILED },
+  { value: "REFUNDED", label: PAYMENT_STATUS_LABELS.REFUNDED },
 ] as const satisfies readonly FilterOption[];
 
 /**

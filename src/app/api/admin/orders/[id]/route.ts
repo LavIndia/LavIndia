@@ -5,7 +5,9 @@ import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { BESTSELLERS_TAG } from "@/lib/bestseller-ranking";
 import { revalidatePromotions } from "@/lib/promotions-cache";
-import { countOrderRedemption, releaseOrderRedemption } from "@/modules/promotions";
+import { changeOrderStatus } from "@/modules/orders";
+import { isDomainError, toErrorResponse } from "@/modules/_shared/errors";
+import { revalidateStockViews } from "@/lib/catalog-cache";
 
 const orderUpdateSchema = z.object({
   status: z.enum([
@@ -35,25 +37,12 @@ export async function PATCH(
     const body = await req.json();
     const { status } = orderUpdateSchema.parse(body);
 
-    // A cancelled or refunded order gives its offer uses back; one brought
-    // back from cancellation takes them again. Both are once-only.
-    const order = await prisma.$transaction(async (tx) => {
-      const updated = await tx.order.update({
-        where: { id },
-        data: { status },
-        include: { user: true, items: true },
-      });
-      if (status === "CANCELLED" || status === "REFUNDED") {
-        await releaseOrderRedemption(tx, id);
-      } else if (
-        updated.paymentStatus === "COMPLETED" ||
-        updated.paymentMethod === "cod" ||
-        updated.source === "STORE"
-      ) {
-        await countOrderRedemption(tx, id);
-      }
-      return updated;
-    });
+    // Stock, offer uses, payment status and a cash-on-delivery invoice all
+    // follow the status, once only — see src/modules/orders/order-status.ts.
+    const { order, stockMoved } = await prisma.$transaction(
+      (tx) => changeOrderStatus(tx, id, status, session.user.id),
+      { timeout: 20_000 },
+    );
     revalidatePromotions();
 
     // Create order tracking entry
@@ -84,6 +73,9 @@ export async function PATCH(
     // Cancelling an order removes its units from the bestseller ranking, so
     // the cached aggregate is dropped whenever a status changes.
     revalidateTag(BESTSELLERS_TAG);
+    // Pieces went back on the shelf (or were taken again), so listings and
+    // product pages showing their availability are refreshed.
+    if (stockMoved) revalidateStockViews();
 
     return NextResponse.json(order);
   } catch (error) {
@@ -92,6 +84,11 @@ export async function PATCH(
         { error: "Validation failed", details: error.errors },
         { status: 400 }
       );
+    }
+    // Reinstating an order whose pieces have since sold, for example.
+    if (isDomainError(error)) {
+      const { body, status } = toErrorResponse(error);
+      return NextResponse.json(body, { status });
     }
 
     console.error("Error updating order:", error);

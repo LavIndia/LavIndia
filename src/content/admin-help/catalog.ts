@@ -11,7 +11,7 @@ const PIECE_FORM_SECTIONS: HelpSection[] = [
   { heading: "Product", items: [
     { term: "Product Name *", text: "The name clients see, e.g. “Kundan Choker Necklace”." },
     { term: "Category *", text: "Where the piece sits in the shop. Choose it before adding images — photographs are filed under the category." },
-    { term: "Address on the site", text: "The piece's web address, /product/…, made from the name as you type. Press Edit to write your own." },
+    { term: "Address on the site", text: "The piece's web address, /product/…. On a new piece it is made from the name as you type; once saved, renaming the piece never changes it, so old links keep working. Press Edit to change it yourself." },
     { term: "Material", text: "What the piece is made of, e.g. Sterling Silver. Pick from your list or type. Material belongs to the piece, not to its variants: the same design in another material is a separate piece, because the price is different." },
     { term: "Tags", text: "Your own labels — festive edit, bridal, gift under 1k. Pick one already in use or type a new one and press Enter. They are tidied automatically (“Festive Edit” becomes festive edit). Offers reach tagged pieces through Offers → Piece Sets." },
     { term: "Description", text: "The words shown on the piece's page." },
@@ -98,9 +98,9 @@ export const CATALOG_HELP: HelpEntry[] = [
         { term: "Add Product", text: "Opens a blank piece form." },
         { term: "Export CSV", text: "Downloads the catalog as a spreadsheet file." },
         { term: "Bulk Upload", text: "Adds many pieces at once from a spreadsheet file." },
-        { term: "Search products…", text: "Finds pieces by name. Press Enter or Search." },
+        { term: "Search by name or SKU…", text: "Finds pieces by name, or by the SKU of the piece or any of its variants. Press Enter or Search." },
         { term: "All Categories", text: "Shows only one category." },
-        { term: "Sort by", text: "Newest First, Name, Price or Stock, either way round." },
+        { term: "Sort by", text: "Newest First, Name, Price or Stock, either way round. Sorting by Stock orders every matching piece, not just this page." },
         { term: "Group by category", text: "Shows every matching piece under a heading per category, on one page. Click a heading to fold it away." },
       ] },
       { heading: "The list", items: [
@@ -195,7 +195,7 @@ export const CATALOG_HELP: HelpEntry[] = [
     ],
     sections: [
       { heading: "The columns", items: [
-        { term: "name · slug · price · stock · category", text: "Required. Slug is the web address, e.g. gold-necklace, and must not be used by another piece. Price is in rupees, e.g. 15999.00 for ₹15,999." },
+        { term: "name · slug · price · stock · category", text: "Required. Slug is the web address, e.g. gold-necklace, and must not be used by another piece. Price is in rupees, e.g. 15999.00 for ₹15,999. Stock is booked into Inventory as an adjustment, “Opening stock — bulk upload”, at the main location." },
         { term: "category", text: "Must match an existing category name (capitals don't matter)." },
         { term: "description · compareAtPrice · sku", text: "Optional." },
         { term: "isPublished", text: "true to put the piece online straight away; anything else makes it a draft." },
@@ -209,7 +209,7 @@ export const CATALOG_HELP: HelpEntry[] = [
     notes: [
       "Only the first 50 rows are shown in the preview, but every valid row is imported.",
       "A message at the end says how many were imported and how many failed — usually because a slug is already taken.",
-      "Imported pieces have no photographs, variants, material or tags. Open each one, add them and save.",
+      "Each imported piece gets its single Default variant with its own SKU and barcode, ready to sell and print labels for. It has no photographs, colour or size variants, material or tags — open it, add them and save.",
       "The stock column is not added to Inventory. After importing, open and save each piece, then receive its stock in Inventory → Receive stock.",
       "The file has to be chosen by clicking; dropping it on the box doesn't work.",
     ],

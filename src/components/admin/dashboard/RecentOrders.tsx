@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { OrderStatusBadge } from "@/components/admin/orders/OrderBadges";
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import {
   orderCustomerContact,
   orderCustomerName,
 } from "@/modules/orders/customer-display";
+import { orderPaidCents } from "@/modules/analytics/paid-amount";
 import { css } from "styled-system/css";
 
 async function getRecentOrders() {
@@ -29,28 +30,6 @@ async function getRecentOrders() {
 
   return orders;
 }
-
-type OrderStatus =
-  | "PENDING"
-  | "PROCESSING"
-  | "SHIPPED"
-  | "OUT_FOR_DELIVERY"
-  | "DELIVERED"
-  | "CANCELLED"
-  | "REFUNDED";
-
-const statusVariant: Record<
-  OrderStatus,
-  "default" | "secondary" | "destructive" | "outline"
-> = {
-  PENDING: "outline",
-  PROCESSING: "secondary",
-  SHIPPED: "default",
-  OUT_FOR_DELIVERY: "default",
-  DELIVERED: "default",
-  CANCELLED: "destructive",
-  REFUNDED: "destructive",
-};
 
 const emptyCellStyle = css({ textAlign: "center", paddingBlock: "8", color: "fg.muted" });
 const customerSubStyle = css({ fontSize: "xs", color: "fg.muted" });
@@ -100,12 +79,10 @@ export async function RecentOrders() {
                     </div>
                   </TableCell>
                   <TableCell className={css({ fontWeight: "medium" })}>
-                    ₹{(order.totalCents / 100).toLocaleString("en-IN")}
+                    ₹{(orderPaidCents(order) / 100).toLocaleString("en-IN")}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant[order.status as OrderStatus]}>
-                      {order.status}
-                    </Badge>
+                    <OrderStatusBadge status={order.status} />
                   </TableCell>
                   <TableCell className={customerSubStyle}>
                     {formatDistanceToNow(new Date(order.createdAt), { addSuffix: true })}

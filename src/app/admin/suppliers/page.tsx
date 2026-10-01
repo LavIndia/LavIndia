@@ -15,7 +15,11 @@ export const metadata = { title: "Suppliers" };
 const pageStyle = css({ display: "flex", flexDirection: "column", gap: "5" });
 
 export default async function SuppliersPage() {
-  const suppliers = await supplierService.list();
+  // One query for both lists; retired suppliers are shown apart so they can
+  // be reinstated.
+  const all = await supplierService.list({ includeInactive: true });
+  const suppliers = all.filter((s) => s.isActive);
+  const retired = all.filter((s) => !s.isActive);
 
   return (
     <div className={pageStyle}>
@@ -23,7 +27,7 @@ export default async function SuppliersPage() {
         title="Suppliers"
         subtitle="The workshops and wholesalers stock is bought from. Choose one when receiving a delivery and the spend is totalled in Accounting."
       />
-      <SuppliersManager initial={suppliers} />
+      <SuppliersManager initial={suppliers} retired={retired} />
     </div>
   );
 }

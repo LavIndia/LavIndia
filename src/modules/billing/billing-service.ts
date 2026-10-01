@@ -126,11 +126,15 @@ class BillingService implements BillingPort {
         taxIncluded: order.taxIncluded,
         offers: offersOf(order.appliedPromotions),
         shippingCents: order.shippingCents,
+        // Only a cash-on-delivery order carries one; it is part of what the
+        // client pays, so the invoice total has to include it.
+        ...(order.codFeeCents > 0 ? { codFeeCents: order.codFeeCents } : {}),
         grandTotalCents:
           order.totalCents -
           order.discountCents +
           (order.taxIncluded ? 0 : order.taxCents) +
-          order.shippingCents,
+          order.shippingCents +
+          order.codFeeCents,
       },
       payment: {
         method: order.paymentMethod ?? "—",

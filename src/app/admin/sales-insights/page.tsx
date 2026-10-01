@@ -108,9 +108,9 @@ export default async function SalesInsightsPage({
       <InsightCardGrid>
         <InsightCard
           icon={IndianRupee}
-          label="Value of goods sold"
+          label="Sales"
           value={formatPaisa(totals.revenueCents)}
-          caption="before shipping and tax"
+          caption="what clients paid, incl. GST and delivery"
         />
         <InsightCard
           icon={ShoppingBag}

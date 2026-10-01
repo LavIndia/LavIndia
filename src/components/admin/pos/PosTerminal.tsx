@@ -100,7 +100,11 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
 
   useBarcodeScanner({ onScan, enabled: !completed && !submitting });
 
-  const canSell = cart.lines.length > 0 && cart.overstocked.length === 0 && !submitting;
+  const canSell =
+    cart.lines.length > 0 &&
+    cart.overstocked.length === 0 &&
+    cart.unexplained.length === 0 &&
+    !submitting;
 
   /** Minted when the bill is raised, so the QR's reference matches the sale. */
   const saleReference =
@@ -108,7 +112,7 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
     (idempotencyKeyRef.current = `POS-${Date.now().toString(36).toUpperCase()}`);
 
   const completeSale = async () => {
-    if (cart.lines.length === 0 || cart.overstocked.length > 0) return;
+    if (!canSell) return;
     setSubmitting(true);
 
     try {
@@ -260,6 +264,12 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
           <span className={css({ fontSize: "xs", color: "red.600" })}>
             Not enough stock for {cart.overstocked.length} item
             {cart.overstocked.length === 1 ? "" : "s"}.
+          </span>
+        )}
+
+        {cart.unexplained.length > 0 && (
+          <span className={css({ fontSize: "xs", color: "red.600" })}>
+            Give a reason for each changed price before raising the bill.
           </span>
         )}
       </div>

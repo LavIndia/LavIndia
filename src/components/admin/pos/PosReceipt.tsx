@@ -5,6 +5,7 @@ import { Check, Plus, Printer } from "lucide-react";
 import Link from "next/link";
 import { css } from "styled-system/css";
 import { formatPaisa } from "@/modules/_shared/money";
+import { paymentMethodLabel } from "@/modules/orders/order-labels";
 import type { InvoiceSnapshot } from "@/modules/billing";
 
 export interface CompletedSale {
@@ -106,7 +107,7 @@ export function PosReceipt({
           <span>{formatPaisa(sale.invoice.totals.taxCents)}</span>
         </span>
         <span className={lineStyle}>
-          <span>{sale.invoice.payment.method}</span>
+          <span>{paymentMethodLabel(sale.invoice.payment.method) || "Paid"}</span>
           <span>{formatPaisa(sale.grandTotalCents)}</span>
         </span>
       </div>

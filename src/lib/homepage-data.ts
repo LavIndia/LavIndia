@@ -1,8 +1,12 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getStorefrontOffers } from "@/lib/storefront-offers";
-import { Prisma } from "@prisma/client";
-import { syncHeroBannersFromStorage } from "@/lib/hero-banners";
+import {
+  getEnabledHeroBanners,
+  getEnabledPromoBanners,
+  liveHeroBanners,
+  livePromoBanners,
+} from "@/lib/homepage-banners";
 import { availabilityByProduct } from "@/modules/inventory";
 import {
   HOMEPAGE_SECTIONS,
@@ -10,6 +14,9 @@ import {
   defaultHomePageSectionRows,
   getActiveHighlights,
 } from "@/modules/marketing";
+
+// Kept importable from here for existing callers.
+export { getPromoBanners } from "@/lib/homepage-banners";
 
 /**
  * Stock comes from the Inventory domain, never from the deprecated
@@ -48,31 +55,6 @@ async function formatProducts(
       alt: img.alt || product.name,
     })),
   }));
-}
-
-export async function getPromoBanners(type: string) {
-  const now = new Date();
-
-  const where: Prisma.PromoBannerWhereInput = {
-    isActive: true,
-    type,
-    OR: [
-      { startDate: null, endDate: null },
-      { startDate: { lte: now }, endDate: null },
-      { startDate: null, endDate: { gte: now } },
-      { startDate: { lte: now }, endDate: { gte: now } },
-    ],
-  };
-
-  return prisma.promoBanner.findMany({ where, orderBy: { order: "asc" } });
-}
-
-export async function getActiveHeroBanners() {
-  await syncHeroBannersFromStorage();
-  return prisma.heroBanner.findMany({
-    where: { active: true },
-    orderBy: { order: "asc" },
-  });
 }
 
 export async function getFeaturedCategories() {
@@ -268,20 +250,30 @@ export async function getHomePageSections() {
 // admin mutates anything this pulls together (banners, categories,
 // products, budget tiers, discounts, settings, section order), plus a 60s
 // revalidate window as a safety net in case a tag invalidation is missed.
+// Banner schedules are applied after the cache, on every request, so a
+// banner starts and stops on time however old the cached copy is.
 export async function getHomepageData() {
   const cached = unstable_cache(
     fetchHomepageData,
     ["homepage-data"],
     { tags: ["homepage"], revalidate: 60 },
   );
-  return cached();
+  const { enabledHeroBanners, enabledTopPromoBanners, enabledFreeGiftsBanners, ...data } =
+    await cached();
+  const now = new Date();
+  return {
+    ...data,
+    topPromoBanners: livePromoBanners(enabledTopPromoBanners, now),
+    freeGiftsBanner: livePromoBanners(enabledFreeGiftsBanners, now)[0] || null,
+    heroBanners: liveHeroBanners(enabledHeroBanners, now),
+  };
 }
 
 async function fetchHomepageData() {
   const [
-    topPromoBanners,
-    freeGiftsBanners,
-    heroBanners,
+    enabledTopPromoBanners,
+    enabledFreeGiftsBanners,
+    enabledHeroBanners,
     featuredCategories,
     bestsellers,
     newArrivals,
@@ -291,9 +283,9 @@ async function fetchHomepageData() {
     highlights,
     sections,
   ] = await Promise.all([
-    getPromoBanners("top_scroll"),
-    getPromoBanners("free_gifts"),
-    getActiveHeroBanners(),
+    getEnabledPromoBanners("top_scroll"),
+    getEnabledPromoBanners("free_gifts"),
+    getEnabledHeroBanners(),
     getFeaturedCategories(),
     getBestsellers(),
     getNewArrivals(),
@@ -305,9 +297,9 @@ async function fetchHomepageData() {
   ]);
 
   return {
-    topPromoBanners,
-    freeGiftsBanner: freeGiftsBanners[0] || null,
-    heroBanners,
+    enabledTopPromoBanners,
+    enabledFreeGiftsBanners,
+    enabledHeroBanners,
     featuredCategories,
     bestsellers,
     newArrivals,

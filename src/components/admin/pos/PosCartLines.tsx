@@ -6,6 +6,7 @@ import { Minus, Plus, RotateCcw, X } from "lucide-react";
 import { css } from "styled-system/css";
 import { formatPaisa } from "@/modules/_shared/money";
 import type { PosCartLine } from "./usePosCart";
+import { PosOverrideReason } from "./PosOverrideReason";
 
 const emptyStyle = css({
   padding: "10",
@@ -88,22 +89,14 @@ const lineTotalStyle = css({
   minWidth: "5rem",
   textAlign: "right",
 });
-const reasonRowStyle = css({
-  display: "flex",
-  alignItems: "center",
-  gap: "2",
-  paddingTop: "2",
-  borderTop: "1px solid",
-  borderColor: "border.subtle",
-});
 
 /**
  * The sale in progress.
  *
  * The price is edited in place — one tap and a number, rather than a button
  * that reveals a form. The catalog price stays visible, struck through, so a
- * concession is never hidden, and the reason field appears only once a price
- * has actually changed, because until then there is nothing to explain.
+ * concession is never hidden, and the reason appears only once a price has
+ * actually changed, because until then there is nothing to explain.
  */
 export function PosCartLines({
   lines,
@@ -221,18 +214,13 @@ export function PosCartLines({
             </div>
 
             {/* The reason appears only once a price has actually changed —
-                there is nothing to explain until then. */}
+                there is nothing to explain until then — and is required. */}
             {isOverridden && (
-              <div className={reasonRowStyle}>
-                <Input
-                  placeholder="Why? e.g. long-standing customer"
-                  value={line.overrideReason ?? ""}
-                  onChange={(event) =>
-                    onOverride(id, line.overridePriceCents, event.target.value)
-                  }
-                  aria-label="Reason for the price change"
-                />
-              </div>
+              <PosOverrideReason
+                productName={line.variant.productName}
+                reason={line.overrideReason}
+                onChange={(reason) => onOverride(id, line.overridePriceCents, reason)}
+              />
             )}
           </div>
         );

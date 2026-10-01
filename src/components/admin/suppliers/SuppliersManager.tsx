@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SupplierView } from "@/modules/purchasing";
+import { describeSupplier } from "./describe-supplier";
+import { RetiredSuppliers } from "./RetiredSuppliers";
 
 /**
  * The supplier list, with an inline editor.
@@ -62,6 +64,7 @@ const emptyStyle = css({
   borderRadius: "lg",
 });
 const iconStyle = css({ height: "4", width: "4" });
+const byName = (a: SupplierView, b: SupplierView) => a.name.localeCompare(b.name);
 
 type Draft = {
   id?: string;
@@ -96,20 +99,16 @@ function toDraft(supplier: SupplierView): Draft {
   };
 }
 
-/** Only the parts that were filled in, so a row never shows an empty label. */
-function describe(supplier: SupplierView): string | null {
-  const place = [supplier.city, supplier.state].filter(Boolean).join(", ");
-  const parts = [
-    supplier.contactName,
-    supplier.phone,
-    place || null,
-    supplier.gstin,
-  ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : null;
-}
-
-export function SuppliersManager({ initial }: { initial: SupplierView[] }) {
+export function SuppliersManager({
+  initial,
+  retired: initialRetired,
+}: {
+  initial: SupplierView[];
+  /** Retired suppliers, kept apart so they can be reinstated. */
+  retired: SupplierView[];
+}) {
   const [suppliers, setSuppliers] = useState(initial);
+  const [retired, setRetired] = useState(initialRetired);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -153,7 +152,7 @@ export function SuppliersManager({ initial }: { initial: SupplierView[] }) {
     setSuppliers((prev) =>
       draft.id
         ? prev.map((s) => (s.id === saved.id ? saved : s))
-        : [...prev, saved].sort((a, b) => a.name.localeCompare(b.name)),
+        : [...prev, saved].sort(byName),
     );
     setDraft(null);
     toast.success(draft.id ? "Supplier updated" : `${saved.name} added`);
@@ -165,8 +164,15 @@ export function SuppliersManager({ initial }: { initial: SupplierView[] }) {
       toast.error("Could not retire that supplier");
       return;
     }
+    const saved: SupplierView = await res.json();
     setSuppliers((prev) => prev.filter((s) => s.id !== supplier.id));
+    setRetired((prev) => [...prev, saved].sort(byName));
     toast.success(`${supplier.name} retired. Past deliveries are unchanged.`);
+  };
+
+  const reinstated = (supplier: SupplierView) => {
+    setRetired((prev) => prev.filter((s) => s.id !== supplier.id));
+    setSuppliers((prev) => [...prev, supplier].sort(byName));
   };
 
   return (
@@ -271,7 +277,7 @@ export function SuppliersManager({ initial }: { initial: SupplierView[] }) {
       {suppliers.length === 0 && !draft ? (
         <div className={emptyStyle}>
           <Truck className={css({ height: "6", width: "6" })} />
-          <p>No suppliers yet.</p>
+          <p>{retired.length ? "No suppliers in use." : "No suppliers yet."}</p>
           <p className={metaStyle}>
             Add the workshops and wholesalers you buy from, then choose one when receiving
             stock. What you spend with each is totalled in Accounting.
@@ -279,7 +285,7 @@ export function SuppliersManager({ initial }: { initial: SupplierView[] }) {
         </div>
       ) : (
         suppliers.map((supplier) => {
-          const detail = describe(supplier);
+          const detail = describeSupplier(supplier);
           return (
             <div key={supplier.id} className={rowStyle}>
               <div>
@@ -301,6 +307,8 @@ export function SuppliersManager({ initial }: { initial: SupplierView[] }) {
           );
         })
       )}
+
+      <RetiredSuppliers suppliers={retired} onReinstated={reinstated} />
     </div>
   );
 }

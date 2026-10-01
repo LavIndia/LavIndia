@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { buildProductPayload } from "@/components/admin/products/product-form-payload";
 import { useProductImages } from "@/components/admin/products/use-product-images";
+import { slugify } from "@/modules/catalog/client";
 import {
   activeDimensions,
   blankVariant,
@@ -95,18 +96,17 @@ export function useProductForm(product?: Product) {
       });
   }, []);
 
+  // The slug is the product's address. It follows the name only while a new
+  // product is being written and nobody has typed one; once saved, renaming
+  // never moves it — links and search results would break.
+  const slugLocked = useRef(Boolean(product));
   const handleChange = (field: string, value: string | boolean) => {
+    if (field === "slug") slugLocked.current = true;
     setFormData((prev) => {
       const updated = { ...prev, [field]: value };
-
-      // Auto-generate slug from name
-      if (field === "name" && typeof value === "string") {
-        updated.slug = value
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/(^-|-$)/g, "");
+      if (field === "name" && typeof value === "string" && !slugLocked.current) {
+        updated.slug = slugify(value);
       }
-
       return updated;
     });
   };

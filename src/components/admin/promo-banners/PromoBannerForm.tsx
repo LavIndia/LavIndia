@@ -25,6 +25,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { css } from "styled-system/css";
+import { toIstDateInput } from "@/lib/ist-dates";
 import {
   RecurrenceScheduleFields,
   defaultRecurrenceValue,
@@ -68,12 +69,8 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
     bgColor: banner?.bgColor || "",
     textColor: banner?.textColor || "",
     isActive: banner?.isActive ?? true,
-    startDate: banner?.startDate
-      ? new Date(banner.startDate).toISOString().split("T")[0]
-      : "",
-    endDate: banner?.endDate
-      ? new Date(banner.endDate).toISOString().split("T")[0]
-      : "",
+    startDate: toIstDateInput(banner?.startDate),
+    endDate: toIstDateInput(banner?.endDate),
     order: banner?.order ?? 0,
     ...(banner
       ? {
@@ -286,7 +283,7 @@ export function PromoBannerForm({ banner }: { banner?: PromoBanner }) {
         <Card>
           <CardHeader>
             <CardTitle>Schedule &amp; Publishing</CardTitle>
-            <CardDescription>Control when and in what order this banner shows.</CardDescription>
+            <CardDescription>Control when and in what order this banner shows. Dates are India time (IST), and the end date is included.</CardDescription>
           </CardHeader>
           <CardContent className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
             <div className={grid2}>

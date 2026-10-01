@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { css } from "styled-system/css";
+import { humaniseCode } from "@/modules/_shared/humanise-code";
 
 interface AuditLog {
   id: string;
@@ -64,6 +65,24 @@ const detailsStyle = css({
   whiteSpace: "nowrap",
 });
 
+/** What each logged action reads as; anything unlisted is turned into words. */
+const ACTION_LABELS: Record<string, string> = {
+  CREATE: "Created",
+  UPDATE: "Updated",
+  DELETE: "Deleted",
+  POS_SALE: "Counter sale",
+  RECEIVE_STOCK: "Stock received",
+  GENERATE_CODES: "Codes generated",
+  DUPLICATE: "Duplicated",
+  BULK_TAG: "Bulk tagged",
+  PROMOTION_ACTIVATE: "Offer made live",
+  PROMOTION_PAUSE: "Offer paused",
+  PROMOTION_RESUME: "Offer resumed",
+  PROMOTION_END: "Offer ended",
+  PROMOTION_ARCHIVE: "Offer archived",
+  PROMOTION_RESTORE: "Offer restored",
+};
+
 export function AuditLogsTable({ logs }: { logs: AuditLog[] }) {
   const getActionBadge = (action: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive"> = {
@@ -72,7 +91,11 @@ export function AuditLogsTable({ logs }: { logs: AuditLog[] }) {
       DELETE: "destructive",
     };
 
-    return <Badge variant={variants[action] || "outline"}>{action}</Badge>;
+    return (
+      <Badge variant={variants[action] || "outline"} title={action}>
+        {ACTION_LABELS[action] ?? humaniseCode(action)}
+      </Badge>
+    );
   };
 
   return (

@@ -24,6 +24,7 @@ import { ArrowLeft, Link2, ListOrdered } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { css } from "styled-system/css";
+import { toIstDateInput } from "@/lib/ist-dates";
 import { MediaUploadField } from "@/components/admin/shared/MediaUploadField";
 import {
   RecurrenceScheduleFields,
@@ -76,12 +77,8 @@ export function HeroBannerForm({ banner }: { banner?: HeroBanner }) {
     linkUrl: banner ? banner.linkUrl || "" : "/shop",
     order: banner?.order ?? 0,
     active: banner?.active ?? true,
-    startDate: banner?.startDate
-      ? new Date(banner.startDate).toISOString().split("T")[0]
-      : "",
-    endDate: banner?.endDate
-      ? new Date(banner.endDate).toISOString().split("T")[0]
-      : "",
+    startDate: toIstDateInput(banner?.startDate),
+    endDate: toIstDateInput(banner?.endDate),
     ...(banner
       ? {
           isRecurring: banner.isRecurring,
@@ -405,7 +402,8 @@ export function HeroBannerForm({ banner }: { banner?: HeroBanner }) {
             <CardHeader className={css({ borderBottom: "1px solid", borderColor: "border.subtle", background: "bg.surface" })}>
               <CardTitle className={css({ fontSize: "lg" })}>Scheduling</CardTitle>
               <CardDescription>
-                Optionally limit this banner to a date window, or repeat it
+                Optionally limit this banner to a date window (India time, end
+                date included), or repeat it
                 only on certain days/hours — e.g. a weekend-only promotion.
               </CardDescription>
             </CardHeader>

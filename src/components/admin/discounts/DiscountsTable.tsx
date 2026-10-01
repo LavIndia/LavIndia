@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { istCalendarDay } from "@/lib/ist-dates";
 import { css } from "styled-system/css";
 
 type Discount = {
@@ -121,10 +122,10 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
                   </TableCell>
                   <TableCell className={css({ fontSize: "sm" })}>
                     <div>
-                      {format(new Date(discount.startDate), "MMM d, yyyy")}
+                      {format(istCalendarDay(discount.startDate)!, "MMM d, yyyy")}
                     </div>
                     <div className={css({ color: "fg.muted" })}>
-                      to {format(new Date(discount.endDate), "MMM d, yyyy")}
+                      to {format(istCalendarDay(discount.endDate)!, "MMM d, yyyy")}
                     </div>
                   </TableCell>
                   <TableCell>

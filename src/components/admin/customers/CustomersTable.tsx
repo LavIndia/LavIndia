@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import {
   Table,
   TableBody,
@@ -9,26 +10,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { AdminPagination } from "@/components/admin/shared/AdminPagination";
+import { customerTier } from "@/modules/customers/customer-tier";
 import { css } from "styled-system/css";
-
-interface Customer {
-  id: string;
-  name: string | null;
-  email: string | null;
-  mobile: string | null;
-  createdAt: Date;
-  orderCount: number;
-  totalSpent: number;
-  successfulOrders: number;
-  returnedOrders: number;
-  totalDiscount: number;
-}
+import { CustomerCardList } from "./CustomerCardList";
+import { customerHeading, formatJoined, formatRupees, type CustomerRow } from "./customer-display";
 
 interface CustomersTableProps {
-  customers: Customer[];
+  customers: CustomerRow[];
+  pagination: { page: number; pageSize: number; totalCount: number; totalPages: number };
 }
 
 const tableWrapStyle = css({
+  display: { base: "none", md: "block" },
   overflow: "hidden",
   borderRadius: "xl",
   border: "1px solid",
@@ -54,99 +48,92 @@ const successBadgeStyle = css({
 const zeroTextStyle = css({ fontSize: "sm", color: "fg.muted" });
 const discountTextStyle = css({ color: "success", fontWeight: "medium" });
 
-export function CustomersTable({ customers }: CustomersTableProps) {
-  const formatPrice = (cents: number) => {
-    return `₹${(cents / 100).toLocaleString("en-IN")}`;
-  };
-
-  const getCustomerTier = (totalSpent: number) => {
-    if (totalSpent >= 50000 * 100)
-      return { label: "VIP", variant: "default" as const };
-    if (totalSpent >= 20000 * 100)
-      return { label: "Gold", variant: "secondary" as const };
-    if (totalSpent >= 5000 * 100)
-      return { label: "Silver", variant: "outline" as const };
-    return { label: "Regular", variant: "outline" as const };
-  };
+export function CustomersTable({ customers, pagination }: CustomersTableProps) {
+  const router = useRouter();
 
   return (
-    <div className={tableWrapStyle}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Contact</TableHead>
-            <TableHead>Total Orders</TableHead>
-            <TableHead>Successful</TableHead>
-            <TableHead>Returned</TableHead>
-            <TableHead>Total Spent</TableHead>
-            <TableHead>Discount Saved</TableHead>
-            <TableHead>Tier</TableHead>
-            <TableHead>Joined</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {customers.length === 0 ? (
+    <div>
+      <CustomerCardList customers={customers} />
+      <div className={tableWrapStyle}>
+        <Table>
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={9} className={emptyCellStyle}>
-                No customers found
-              </TableCell>
+              <TableHead>Name</TableHead>
+              <TableHead>Contact</TableHead>
+              <TableHead>Total Orders</TableHead>
+              <TableHead>Successful</TableHead>
+              <TableHead>Returned</TableHead>
+              <TableHead>Total Spent</TableHead>
+              <TableHead>Discount Saved</TableHead>
+              <TableHead>Tier</TableHead>
+              <TableHead>Joined</TableHead>
             </TableRow>
-          ) : (
-            customers.map((customer) => {
-              const tier = getCustomerTier(customer.totalSpent);
-              return (
-                <TableRow key={customer.id}>
-                  <TableCell className={css({ fontWeight: "medium" })}>
-                    {customer.name || "N/A"}
-                  </TableCell>
-                  <TableCell>
-                    <div className={contactColStyle}>
-                      {customer.email && <span>{customer.email}</span>}
-                      {customer.mobile && (
-                        <span className={contactSubStyle}>{customer.mobile}</span>
+          </TableHeader>
+          <TableBody>
+            {customers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className={emptyCellStyle}>
+                  No customers found
+                </TableCell>
+              </TableRow>
+            ) : (
+              customers.map((customer) => {
+                const tier = customerTier(customer.totalSpent);
+                const { title, details } = customerHeading(customer);
+                return (
+                  <TableRow key={customer.id}>
+                    <TableCell className={css({ fontWeight: "medium" })}>{title}</TableCell>
+                    <TableCell>
+                      <div className={contactColStyle}>
+                        {details.map((line, i) => (
+                          <span key={line} className={i > 0 ? contactSubStyle : undefined}>
+                            {line}
+                          </span>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{customer.orderCount}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="default" className={successBadgeStyle}>
+                        {customer.successfulOrders}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {customer.returnedOrders > 0 ? (
+                        <Badge variant="destructive">{customer.returnedOrders}</Badge>
+                      ) : (
+                        <span className={zeroTextStyle}>0</span>
                       )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{customer.orderCount}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="default" className={successBadgeStyle}>
-                      {customer.successfulOrders}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {customer.returnedOrders > 0 ? (
-                      <Badge variant="destructive">{customer.returnedOrders}</Badge>
-                    ) : (
-                      <span className={zeroTextStyle}>0</span>
-                    )}
-                  </TableCell>
-                  <TableCell className={css({ fontWeight: "medium" })}>
-                    {formatPrice(customer.totalSpent)}
-                  </TableCell>
-                  <TableCell>
-                    {customer.totalDiscount > 0 ? (
-                      <span className={discountTextStyle}>
-                        {formatPrice(customer.totalDiscount)}
-                      </span>
-                    ) : (
-                      <span className={zeroTextStyle}>₹0</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={tier.variant}>{tier.label}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(customer.createdAt).toLocaleDateString("en-IN")}
-                  </TableCell>
-                </TableRow>
-              );
-            })
-          )}
-        </TableBody>
-      </Table>
+                    </TableCell>
+                    <TableCell className={css({ fontWeight: "medium" })}>
+                      {formatRupees(customer.totalSpent)}
+                    </TableCell>
+                    <TableCell>
+                      {customer.totalDiscount > 0 ? (
+                        <span className={discountTextStyle}>
+                          {formatRupees(customer.totalDiscount)}
+                        </span>
+                      ) : (
+                        <span className={zeroTextStyle}>₹0</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={tier.variant}>{tier.label}</Badge>
+                    </TableCell>
+                    <TableCell>{formatJoined(customer.createdAt)}</TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <AdminPagination
+        {...pagination}
+        onPageChange={(page) => router.push(`/admin/customers?page=${page}`)}
+      />
     </div>
   );
 }

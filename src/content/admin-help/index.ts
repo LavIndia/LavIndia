@@ -6,6 +6,7 @@ import { OVERVIEW_HELP } from "./overview";
 import { CATALOG_HELP } from "./catalog";
 import { INVENTORY_HELP } from "./inventory";
 import { SALES_HELP } from "./sales";
+import { CUSTOMERS_HELP } from "./customers";
 import { MARKETING_HELP } from "./marketing";
 import { OFFERS_HELP } from "./offers";
 import { SYSTEM_HELP } from "./system";
@@ -18,6 +19,7 @@ export const ADMIN_HELP: HelpEntry[] = [
   ...CATALOG_HELP,
   ...INVENTORY_HELP,
   ...SALES_HELP,
+  ...CUSTOMERS_HELP,
   ...OFFERS_HELP,
   ...MARKETING_HELP,
   ...SYSTEM_HELP,

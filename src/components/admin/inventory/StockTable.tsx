@@ -16,6 +16,7 @@ import type { StockPage } from "@/modules/inventory";
 import { AdminPagination } from "@/components/admin/shared/AdminPagination";
 import { InfoHint } from "@/components/ui/info-hint";
 import { StockCountCell } from "./StockCountCell";
+import { ReorderPointCell } from "./ReorderPointCell";
 import { StockStatusBadge } from "./StockStatusBadge";
 import { StockFilters, type StockFilterValues } from "./StockFilters";
 
@@ -50,14 +51,14 @@ const cardStyle = css({
   background: "bg.surface",
 });
 const cardRowStyle = css({ display: "flex", justifyContent: "space-between", gap: "3" });
+const cardSettingRowStyle = css({ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "3" });
 
 /**
  * The stock table.
  *
- * Deliberately read-only. Every change to stock goes through Receive or
- * Adjustments so that it carries a reason and lands in the ledger — an
- * editable cell here would be exactly the silent mutation this system is
- * built to prevent.
+ * Stock itself only changes through a reasoned movement: the On hand cell
+ * opens a count correction that lands in the ledger, never a silent write.
+ * The reorder point is a setting, not stock, so it is edited in place.
  */
 export function StockTable({
   data,
@@ -126,12 +127,20 @@ export function StockTable({
                       number the storefront shows.
                     </InfoHint>
                   </TableHead>
+                  <TableHead className={numberStyle}>
+                    Reorder at
+                    <InfoHint label="About the reorder point" below>
+                      When available falls to this number or below, the
+                      piece is flagged Low stock. Set per piece — tap it to
+                      change. Retired pieces are never flagged.
+                    </InfoHint>
+                  </TableHead>
                   <TableHead>
                     Status
                     <InfoHint label="About status" below>
-                      Derived from availability, not set by hand. Three or
-                      fewer available is flagged Low stock; zero is Out of
-                      stock.
+                      Derived from availability, not set by hand. At or below
+                      the piece&apos;s reorder point is Low stock; zero is Out
+                      of stock.
                     </InfoHint>
                   </TableHead>
                 </TableRow>
@@ -178,6 +187,13 @@ export function StockTable({
                       {row.reservedQuantity > 0 ? row.reservedQuantity : ""}
                     </TableCell>
                     <TableCell className={availableStyle}>{row.available}</TableCell>
+                    <TableCell className={numberStyle}>
+                      <ReorderPointCell
+                        variantId={row.variantId}
+                        reorderPoint={row.reorderPoint}
+                        isRetired={row.isRetired}
+                      />
+                    </TableCell>
                     <TableCell>
                       <StockStatusBadge status={row.status} />
                     </TableCell>
@@ -209,6 +225,14 @@ export function StockTable({
                     {row.available} available
                     {row.reservedQuantity > 0 && ` · ${row.reservedQuantity} held`}
                   </span>
+                </div>
+                <div className={cardSettingRowStyle}>
+                  <span className={metaStyle}>Reorder at</span>
+                  <ReorderPointCell
+                    variantId={row.variantId}
+                    reorderPoint={row.reorderPoint}
+                    isRetired={row.isRetired}
+                  />
                 </div>
               </div>
             ))}

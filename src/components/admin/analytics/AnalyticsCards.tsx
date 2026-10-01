@@ -28,7 +28,7 @@ export function AnalyticsCards({
   customersCount,
 }: AnalyticsCardsProps) {
   const formatPrice = (cents: number) => {
-    return `₹${(cents / 100).toLocaleString("en-IN")}`;
+    return `₹${Math.round(cents / 100).toLocaleString("en-IN")}`;
   };
 
   return (
@@ -40,7 +40,7 @@ export function AnalyticsCards({
         </CardHeader>
         <CardContent>
           <div className={statValue}>{formatPrice(totalRevenue)}</div>
-          <p className={statCaption}>All time</p>
+          <p className={statCaption}>All time · what clients paid, incl. GST and delivery</p>
         </CardContent>
       </Card>
 

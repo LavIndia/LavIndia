@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { parseAdminDate } from "@/lib/ist-dates";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 
@@ -76,8 +77,8 @@ export async function POST(request: NextRequest) {
         discountValue,
         minPurchase,
         maxDiscount,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: parseAdminDate(startDate, "start")!,
+        endDate: parseAdminDate(endDate, "end")!,
         isActive: isActive ?? true,
         usageLimit,
         isRecurring: isRecurring ?? false,
@@ -102,6 +103,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ discount });
   } catch (error: unknown) {
+    if (error instanceof RangeError) {
+      return NextResponse.json({ error: "Enter a valid date" }, { status: 400 });
+    }
     console.error("Error creating discount:", error);
     if (
       error &&

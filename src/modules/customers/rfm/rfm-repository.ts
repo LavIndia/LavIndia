@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { IS_SALE_SQL, PAID_CENTS_SQL } from "@/modules/analytics/paid-amount-sql";
 import type { RfmFacts } from "./rfm-types";
 
 /**
@@ -46,17 +47,16 @@ export async function loadRfmFacts(options?: {
         NULLIF(TRIM(COALESCE(u."mobile", o."customerMobile")), '') AS mobile,
         o."createdAt" AS created_at,
         o."source" AS source,
-        -- What the customer actually paid, which is what "monetary" means.
-        -- GST is added only when it was not already inside the prices.
-        (o."totalCents" + o."shippingCents" + o."codFeeCents"
-          + CASE WHEN o."taxIncluded" THEN 0 ELSE o."taxCents" END
-          - o."discountCents") AS paid_cents
+        -- What the customer actually paid, which is what "monetary" means;
+        -- the shared definition, so GST is counted once.
+        ${PAID_CENTS_SQL} AS paid_cents
       FROM "orders" o
       LEFT JOIN "users" u ON u."id" = o."userId"
       WHERE o."createdAt" >= ${since}
-        -- A cancelled or refunded order is not custom; counting it would
-        -- make a customer who returned everything look like a good one.
-        AND o."status" NOT IN ('CANCELLED', 'REFUNDED')
+        -- Only sales count. A cancelled or refunded order is not custom —
+        -- counting it would make a customer who returned everything look
+        -- like a good one — and a Pending online order was never paid.
+        AND ${IS_SALE_SQL}
     )
     SELECT
       customer_key            AS "customerKey",
@@ -64,7 +64,7 @@ export async function loadRfmFacts(options?: {
       MAX(mobile)             AS "mobile",
       MAX(created_at)         AS "lastOrderAt",
       COUNT(*)                AS "orderCount",
-      SUM(GREATEST(paid_cents, 0)) AS "totalSpendCents",
+      SUM(paid_cents)         AS "totalSpendCents",
       ARRAY_AGG(DISTINCT source::text) AS "channels"
     FROM identified
     WHERE customer_key IS NOT NULL

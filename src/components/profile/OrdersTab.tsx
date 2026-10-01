@@ -16,6 +16,7 @@ import {
   statusToneStyle,
 } from "@/components/profile/profile.styles";
 import { css } from "styled-system/css";
+import { orderStatusLabel } from "@/modules/orders/order-labels";
 
 const headerRowStyle = css({
   display: "flex",
@@ -59,7 +60,7 @@ export function OrdersTab({ orders, onStartShopping }: OrdersTabProps) {
                     </CardDescription>
                   </div>
                   <span className={statusToneStyle({ tone: statusTone(order.status) })}>
-                    {order.status}
+                    {orderStatusLabel(order.status)}
                   </span>
                 </div>
               </CardHeader>

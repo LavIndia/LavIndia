@@ -1,5 +1,7 @@
 "use client";
 import { HeroSlideImage } from "@/components/home/HeroSlideImage";
+import { HeroSlideCaption } from "@/components/home/HeroSlideCaption";
+import { heroCaptionText } from "@/lib/hero-caption";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -164,28 +166,9 @@ export function HeroBanner({
 
   const composedClassName = cx(sectionStyle, className);
 
-  // Empty state
-  if (banners.length === 0) {
-    return (
-      <section className={composedClassName}>
-        <div
-          className={cx(
-            frameStyle,
-            css({
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              background: "onyx.800",
-            }),
-          )}
-        >
-          <p className={css({ color: "ivory.50", fontSize: "lg" })}>
-            No banners available
-          </p>
-        </div>
-      </section>
-    );
-  }
+  // Nothing scheduled to show right now: leave the hero out rather than
+  // putting an empty dark frame at the top of the shop.
+  if (banners.length === 0) return null;
 
   return (
     <section className={composedClassName}>
@@ -212,6 +195,7 @@ export function HeroBanner({
                     alt={slide.title}
                     priority={index === 0}
                   />
+                  <HeroSlideCaption {...heroCaptionText(slide)} />
                 </Link>
               </CarouselItem>
             ))}

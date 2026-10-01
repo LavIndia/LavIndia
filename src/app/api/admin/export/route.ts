@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { unparse } from "papaparse";
-import { orderCustomerName } from "@/modules/orders/customer-display";
+import { listCustomers } from "@/modules/customers/customer-list";
+import { exportOrdersCsv, orderFiltersFrom } from "./orders-csv";
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,7 +26,8 @@ export async function GET(req: NextRequest) {
         break;
 
       case "orders":
-        csvData = await exportOrders();
+        // Exactly the orders the screen shows: the same filters, the same query.
+        csvData = await exportOrdersCsv(orderFiltersFrom(searchParams));
         filename = `orders-${Date.now()}.csv`;
         break;
 
@@ -85,56 +87,19 @@ async function exportProducts() {
   return unparse(data);
 }
 
-async function exportOrders() {
-  const orders = await prisma.order.findMany({
-    include: {
-      user: true,
-      items: {
-        include: {
-          product: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const data = orders.map((o) => ({
-    OrderNumber: o.orderNumber,
-    CustomerName: orderCustomerName(o),
-    CustomerEmail: o.user?.email || "",
-    Total: (o.totalCents / 100).toFixed(2),
-    Status: o.status,
-    PaymentStatus: o.paymentStatus,
-    PaymentMethod: o.paymentMethod || "",
-    ItemCount: o.items.length,
-    CreatedAt: o.createdAt.toISOString(),
-  }));
-
-  return unparse(data);
-}
-
 async function exportCustomers() {
-  const customers = await prisma.user.findMany({
-    where: { role: "CUSTOMER" },
-    include: {
-      orders: true,
-      _count: {
-        select: { orders: true },
-      },
-    },
-  });
+  // The same figures as the Customers screen: both channels, and spend as
+  // what was actually paid on orders that are sales.
+  const customers = await listCustomers();
 
-  const data = customers.map((c) => {
-    const totalSpent = c.orders.reduce((sum, o) => sum + o.totalCents, 0);
-    return {
-      Name: c.name || "",
-      Email: c.email || "",
-      Mobile: c.mobile || "",
-      OrderCount: c._count.orders,
-      TotalSpent: (totalSpent / 100).toFixed(2),
-      JoinedAt: c.createdAt.toISOString(),
-    };
-  });
+  const data = customers.map((c) => ({
+    Name: c.name || "",
+    Email: c.email || "",
+    Mobile: c.mobile || "",
+    OrderCount: c.orderCount,
+    TotalSpent: (c.totalSpent / 100).toFixed(2),
+    JoinedAt: c.createdAt.toISOString(),
+  }));
 
   return unparse(data);
 }

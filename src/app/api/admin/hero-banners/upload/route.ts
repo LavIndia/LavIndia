@@ -5,11 +5,9 @@ import { uploadPublicAsset } from "@/lib/imagekit-admin";
 
 const publicDirectory = "/assets/pictures/herobanner";
 /**
- * Phone artwork goes in a subfolder, and deliberately so: the banner list is
- * kept in step with the contents of `publicDirectory` by
- * syncHeroBannersFromStorage, which turns every file it finds there into a
- * banner of its own. A mobile crop dropped alongside its desktop image would
- * therefore appear as a second, half-broken banner on the homepage.
+ * Phone artwork goes in a subfolder so the two sizes stay easy to tell apart
+ * in storage. Uploading creates no banner: a banner exists only once the
+ * admin saves the form.
  */
 const mobileDirectory = `${publicDirectory}/mobile`;
 const allowedTypes = new Map([

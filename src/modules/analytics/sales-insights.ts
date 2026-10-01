@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { resolvePeriod, type InsightsPeriod } from "./insight-periods";
-import { PAYMENT_METHODS } from "@/modules/orders/order-filters";
+import { IS_SALE_SQL, PAID_CENTS_SQL, chargedLinesCte } from "./paid-amount-sql";
+import { paymentMethodLabel } from "@/modules/orders/order-labels";
 
 export {
   INSIGHT_PERIODS,
@@ -83,17 +84,34 @@ export interface SalesInsights {
  * website writes `cod` and `razorpay` — and a dashboard that prints those
  * verbatim reads like a database dump rather than a summary of the day.
  */
-function paymentLabel(raw: string): string {
-  const option = PAYMENT_METHODS.find((entry) =>
-    (entry.matches as readonly string[]).includes(raw),
-  );
-  if (option) return option.label;
-  if (raw.length <= 4) return raw.toUpperCase();
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
+function byInstrument(rows: NamedTotals[]): NamedTotals[] {
+  // Labelled by the shared map, then merged: a counter "UPI" and a gateway
+  // "upi" are the same instrument and belong on one row.
+  const merged = new Map<string, NamedTotals>();
+  for (const row of rows) {
+    const name = paymentMethodLabel(row.name) || "Unknown";
+    const seen = merged.get(name);
+    merged.set(
+      name,
+      seen
+        ? {
+            name,
+            orders: seen.orders + row.orders,
+            pieces: seen.pieces + row.pieces,
+            revenueCents: seen.revenueCents + row.revenueCents,
+          }
+        : { ...row, name },
+    );
+  }
+  return [...merged.values()].sort((x, y) => y.revenueCents - x.revenueCents);
 }
 
-/** Cancelled and refunded orders are not sales and never count towards these. */
-const COUNTED_STATUSES = Prisma.sql`o."status" NOT IN ('CANCELLED', 'REFUNDED')`;
+/**
+ * Only sales count: cancelled, refunded and still-unpaid (Pending) orders
+ * never do. Every revenue figure is what clients actually paid, GST counted
+ * once — see `paid-amount.ts` — so these agree with the Dashboard.
+ */
+const COUNTED_STATUSES = IS_SALE_SQL;
 
 function since(from: Date | null) {
   return from ? Prisma.sql`AND o."createdAt" >= ${from}` : Prisma.empty;
@@ -108,41 +126,38 @@ export async function getSalesInsights(periodValue: string): Promise<SalesInsigh
     await Promise.all([
       prisma.$queryRaw<Array<{ source: "STORE" | "ONLINE"; orders: bigint; revenue: bigint | null; pieces: bigint | null }>>`
         SELECT o."source" AS source,
-               COUNT(DISTINCT o."id") AS orders,
-               SUM(oi."priceCents" * oi."quantity") AS revenue,
-               SUM(oi."quantity") AS pieces
+               COUNT(*) AS orders,
+               SUM(${PAID_CENTS_SQL}) AS revenue,
+               SUM((SELECT SUM(oi."quantity") FROM "order_items" oi WHERE oi."orderId" = o."id")) AS pieces
         FROM "orders" o
-        JOIN "order_items" oi ON oi."orderId" = o."id"
         WHERE ${COUNTED_STATUSES} ${window}
         GROUP BY o."source"`,
 
       prisma.$queryRaw<Array<{ productId: string; name: string; categoryName: string | null; pieces: bigint; revenue: bigint; storePieces: bigint; onlinePieces: bigint }>>`
+        WITH ${chargedLinesCte(window)}
         SELECT oi."productId"                     AS "productId",
                MIN(oi."name")                     AS name,
                MIN(c."name")                      AS "categoryName",
                SUM(oi."quantity")                 AS pieces,
-               SUM(oi."priceCents" * oi."quantity") AS revenue,
-               SUM(CASE WHEN o."source" = 'STORE'  THEN oi."quantity" ELSE 0 END) AS "storePieces",
-               SUM(CASE WHEN o."source" = 'ONLINE' THEN oi."quantity" ELSE 0 END) AS "onlinePieces"
-        FROM "order_items" oi
-        JOIN "orders" o    ON o."id" = oi."orderId"
+               ROUND(SUM(oi.charged_cents))::bigint AS revenue,
+               SUM(CASE WHEN oi."source" = 'STORE'  THEN oi."quantity" ELSE 0 END) AS "storePieces",
+               SUM(CASE WHEN oi."source" = 'ONLINE' THEN oi."quantity" ELSE 0 END) AS "onlinePieces"
+        FROM charged_lines oi
         LEFT JOIN "products"   p ON p."id" = oi."productId"
         LEFT JOIN "categories" c ON c."id" = p."categoryId"
-        WHERE ${COUNTED_STATUSES} ${window}
         GROUP BY oi."productId"
         ORDER BY pieces DESC, revenue DESC
         LIMIT 10`,
 
       prisma.$queryRaw<Array<{ name: string; orders: bigint; pieces: bigint; revenue: bigint }>>`
+        WITH ${chargedLinesCte(window)}
         SELECT COALESCE(c."name", 'Uncategorised') AS name,
-               COUNT(DISTINCT o."id")              AS orders,
+               COUNT(DISTINCT oi."orderId")        AS orders,
                SUM(oi."quantity")                  AS pieces,
-               SUM(oi."priceCents" * oi."quantity") AS revenue
-        FROM "order_items" oi
-        JOIN "orders" o    ON o."id" = oi."orderId"
+               ROUND(SUM(oi.charged_cents))::bigint AS revenue
+        FROM charged_lines oi
         LEFT JOIN "products"   p ON p."id" = oi."productId"
         LEFT JOIN "categories" c ON c."id" = p."categoryId"
-        WHERE ${COUNTED_STATUSES} ${window}
         GROUP BY c."name"
         ORDER BY revenue DESC`,
 
@@ -152,7 +167,7 @@ export async function getSalesInsights(periodValue: string): Promise<SalesInsigh
         SELECT COALESCE(pay."method", o."paymentMethod", 'Unknown') AS name,
                COUNT(DISTINCT o."id")                               AS orders,
                0::bigint                                            AS pieces,
-               SUM(o."totalCents")                                  AS revenue
+               SUM(${PAID_CENTS_SQL})                               AS revenue
         FROM "orders" o
         LEFT JOIN "payments" pay ON pay."orderId" = o."id"
         WHERE ${COUNTED_STATUSES} ${window}
@@ -161,8 +176,8 @@ export async function getSalesInsights(periodValue: string): Promise<SalesInsigh
 
       prisma.$queryRaw<Array<{ day: Date; store: bigint; online: bigint }>>`
         SELECT DATE_TRUNC('day', o."createdAt")                                        AS day,
-               SUM(CASE WHEN o."source" = 'STORE'  THEN o."totalCents" ELSE 0 END)     AS store,
-               SUM(CASE WHEN o."source" = 'ONLINE' THEN o."totalCents" ELSE 0 END)     AS online
+               SUM(CASE WHEN o."source" = 'STORE'  THEN ${PAID_CENTS_SQL} ELSE 0 END)  AS store,
+               SUM(CASE WHEN o."source" = 'ONLINE' THEN ${PAID_CENTS_SQL} ELSE 0 END)  AS online
         FROM "orders" o
         WHERE ${COUNTED_STATUSES} ${window}
         GROUP BY 1
@@ -174,7 +189,7 @@ export async function getSalesInsights(periodValue: string): Promise<SalesInsigh
         SELECT COALESCE(u."name", o."customerName", 'Walk-in customer') AS name,
                COUNT(DISTINCT o."id")                                   AS orders,
                0::bigint                                                AS pieces,
-               SUM(o."totalCents")                                      AS revenue
+               SUM(${PAID_CENTS_SQL})                                   AS revenue
         FROM "orders" o
         LEFT JOIN "users" u ON u."id" = o."userId"
         WHERE ${COUNTED_STATUSES} ${window}
@@ -246,7 +261,7 @@ export async function getSalesInsights(periodValue: string): Promise<SalesInsigh
       onlinePieces: toNumber(row.onlinePieces),
     })),
     categories: named(categories),
-    paymentMix: named(paymentMix).map((row) => ({ ...row, name: paymentLabel(row.name) })),
+    paymentMix: byInstrument(named(paymentMix)),
     daily: daily.map((row) => ({
       day: new Date(row.day).toISOString().slice(0, 10),
       storeRevenueCents: toNumber(row.store),

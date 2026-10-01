@@ -1,5 +1,5 @@
 /**
- * One supplier: read, amend, retire.
+ * One supplier: read, amend, retire. Reinstating is `./reinstate`.
  *
  * There is no delete. Past deliveries point here and the accounts are built
  * from them, so a supplier that is no longer used is retired and drops out

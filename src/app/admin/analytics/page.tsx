@@ -1,5 +1,7 @@
 import { css } from "styled-system/css";
 import { prisma } from "@/lib/prisma";
+import { getTopProducts } from "@/modules/analytics/top-products";
+import { IS_SALE_SQL, PAID_CENTS_SQL } from "@/modules/analytics/paid-amount-sql";
 import { AnalyticsHeader } from "@/components/admin/analytics/AnalyticsHeader";
 import { AnalyticsCards } from "@/components/admin/analytics/AnalyticsCards";
 import { TopProducts } from "@/components/admin/analytics/TopProducts";
@@ -51,14 +53,12 @@ async function getAnalytics() {
 
   const [totalRevenue, ordersCount, customersCount, topProducts] =
     await Promise.all([
-      // Total revenue (same definition as Dashboard: orders past PENDING that
-      // weren't cancelled/refunded, regardless of COD vs. online payment status)
-      prisma.order.aggregate({
-        where: {
-          status: { in: ["PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
-        },
-        _sum: { totalCents: true },
-      }),
+      // Total revenue, the same definition as the Dashboard: what clients
+      // actually paid on sale orders, both channels, GST counted once.
+      prisma.$queryRaw<Array<{ paid: bigint }>>`
+        SELECT COALESCE(SUM(${PAID_CENTS_SQL}), 0)::bigint AS paid
+        FROM "orders" o
+        WHERE ${IS_SALE_SQL}`,
 
       // Orders count last 30 days
       prisma.order.count({
@@ -75,20 +75,8 @@ async function getAnalytics() {
         },
       }),
 
-      // Top selling products
-      prisma.orderItem.groupBy({
-        by: ["productId", "name"],
-        _sum: {
-          quantity: true,
-          priceCents: true,
-        },
-        orderBy: {
-          _sum: {
-            quantity: "desc",
-          },
-        },
-        take: 10,
-      }),
+      // Top selling products, revenue counting every unit sold.
+      getTopProducts(10),
     ]);
 
   // A line whose product has since been deleted has no product id; it still
@@ -107,14 +95,14 @@ async function getAnalytics() {
   }
 
   return {
-    totalRevenue: totalRevenue._sum.totalCents || 0,
+    totalRevenue: Number(totalRevenue[0]?.paid ?? 0),
     ordersCount,
     customersCount,
     topProducts: topProducts.map((item) => ({
       productId: item.productId,
       name: item.name,
-      quantitySold: item._sum.quantity || 0,
-      revenue: item._sum.priceCents || 0,
+      quantitySold: item.quantitySold,
+      revenue: item.revenueCents,
       image: item.productId ? (imageByProductId.get(item.productId) ?? null) : null,
     })),
   };

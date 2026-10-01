@@ -16,6 +16,10 @@ import { createAuditLog } from "@/lib/audit";
 import { posService } from "@/modules/pos";
 import { VariantId } from "@/modules/_shared/ids";
 import { pricingContext } from "@/lib/promotions-cache";
+import {
+  OVERRIDE_REASON_MAX,
+  isCompleteOverrideReason,
+} from "@/modules/pos/override-reasons";
 
 const schema = z.object({
   lines: z
@@ -26,8 +30,15 @@ const schema = z.object({
         // Prices are resolved from the catalog; only an explicit override is
         // accepted from the client, and it is recorded as an override.
         overridePriceCents: z.number().int().min(0).optional(),
-        overrideReason: z.string().trim().max(200).optional(),
-      }),
+        overrideReason: z.string().trim().max(OVERRIDE_REASON_MAX).optional(),
+      })
+      // A hand-changed price is a concession, and a concession without a
+      // reason cannot be audited. Same rule the counter screen applies.
+      .refine(
+        (line) =>
+          line.overridePriceCents === undefined || isCompleteOverrideReason(line.overrideReason),
+        { message: "Say why the price was changed", path: ["overrideReason"] },
+      ),
     )
     .min(1, "Add something to the sale first"),
   payment: z.object({

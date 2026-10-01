@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { parseAdminDate } from "@/lib/ist-dates";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 
@@ -27,10 +28,10 @@ export async function PUT(
         ...(body.textColor !== undefined && { textColor: body.textColor }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
         ...(body.startDate !== undefined && {
-          startDate: body.startDate ? new Date(body.startDate) : null,
+          startDate: parseAdminDate(body.startDate, "start"),
         }),
         ...(body.endDate !== undefined && {
-          endDate: body.endDate ? new Date(body.endDate) : null,
+          endDate: parseAdminDate(body.endDate, "end"),
         }),
         ...(body.order !== undefined && { order: body.order }),
         ...(body.isRecurring !== undefined && { isRecurring: body.isRecurring }),
@@ -65,6 +66,9 @@ export async function PUT(
 
     return NextResponse.json({ banner });
   } catch (error) {
+    if (error instanceof RangeError) {
+      return NextResponse.json({ error: "Enter a valid date" }, { status: 400 });
+    }
     console.error("Error updating promo banner:", error);
     return NextResponse.json(
       { error: "Failed to update promo banner" },

@@ -16,6 +16,7 @@ export type {
   StockLine,
 } from "./contracts";
 export { inventoryService } from "./inventory-service";
+export { returnOrderStock, retakeOrderStock } from "./stock/order-stock";
 
 // Read models for the admin screens. Read-only by construction.
 export {
@@ -41,3 +42,7 @@ export {
   type ProductAvailability,
 } from "./read/availability-read-model";
 export { onHandByVariant, type OnHand } from "./read/on-hand-read-model";
+export {
+  rankProductsByAvailability,
+  type RankedAvailability,
+} from "./read/availability-ranking";

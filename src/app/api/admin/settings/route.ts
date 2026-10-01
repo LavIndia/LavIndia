@@ -3,66 +3,7 @@ import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
-import { isValidVpa } from "@/modules/payments/upi/upi-link";
-
-const settingsSchema = z.object({
-  businessName: z.string().min(1),
-  logoUrl: z.string().trim().max(500).optional().nullable(),
-  address: z.string().optional().nullable(),
-  contactNumber: z.string().optional().nullable(),
-  email: z.string().email().optional().nullable(),
-  gstNumber: z.string().optional().nullable(),
-  // UPI collection details. Validated as a VPA rather than free text, because
-  // a malformed one silently produces a QR that pays nobody.
-  upiVpa: z
-    .string()
-    .trim()
-    .optional()
-    .nullable()
-    .refine((value) => !value || isValidVpa(value), {
-      message: "That does not look like a valid UPI ID, e.g. yourname@okhdfcbank",
-    }),
-  upiPayeeName: z.string().trim().max(120).optional().nullable(),
-  // Paise, so the fee is stored in the same unit as every other amount and
-  // never accumulates rounding. Capped at a figure no delivery fee should
-  // ever reach, which catches a rupees-entered-as-paise slip.
-  codFeeCents: z.coerce.number().int().min(0).max(1_000_000).optional(),
-  standardShippingCents: z.coerce.number().int().min(0).max(1_000_000).optional(),
-  expressShippingCents: z.coerce.number().int().min(0).max(1_000_000).optional(),
-  // Whether each channel's prices already include GST — decides whether the
-  // tax is taken from the price or added on top.
-  onlinePricesIncludeGst: z.boolean().optional(),
-  storePricesIncludeGst: z.boolean().optional(),
-  facebook: z.string().url().optional().nullable().or(z.literal("")),
-  instagram: z.string().url().optional().nullable().or(z.literal("")),
-  twitter: z.string().url().optional().nullable().or(z.literal("")),
-  linkedin: z.string().url().optional().nullable().or(z.literal("")),
-  amazonLink: z.string().url().optional().nullable().or(z.literal("")),
-  flipkartLink: z.string().url().optional().nullable().or(z.literal("")),
-  myntraLink: z.string().url().optional().nullable().or(z.literal("")),
-  blinkitLink: z.string().url().optional().nullable().or(z.literal("")),
-  zeptoLink: z.string().url().optional().nullable().or(z.literal("")),
-
-  // The trust badges shown to a shopper. These were edited by the settings
-  // screen but were absent here, and an object schema drops what it does not
-  // declare — so every one of them was silently discarded on save and the
-  // screen appeared to do nothing.
-  codAvailable: z.boolean().optional(),
-  customerCount: z.string().trim().max(40).optional(),
-  rating: z.string().trim().max(10).optional(),
-  // Not nullable: both carry a default in the database, so null would be
-  // rejected on write where an omitted value is simply left alone.
-  supportHoursStart: z.string().trim().max(10).optional(),
-  supportHoursEnd: z.string().trim().max(10).optional(),
-
-  // Search engine listing.
-  metaTitle: z.string().trim().max(200).optional().nullable(),
-  metaDescription: z.string().trim().max(500).optional().nullable(),
-  metaKeywords: z.string().trim().max(500).optional().nullable(),
-
-  // Footer.
-  copyrightText: z.string().trim().max(300).optional(),
-});
+import { settingsSchema, settingsErrorMessage } from "./settings-schema";
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -123,8 +64,8 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
+        { error: settingsErrorMessage(error), details: error.errors },
+        { status: 400 },
       );
     }
 

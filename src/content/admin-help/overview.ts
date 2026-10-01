@@ -27,16 +27,16 @@ export const OVERVIEW_HELP: HelpEntry[] = [
         heading: "The four figures",
         items: [
           {
-            term: "Total Revenue",
-            text: "The value of pieces sold since the shop opened, on the website and at the counter, at their list prices. It counts orders that are Processing, Shipped, Out for Delivery or Delivered; Pending, Cancelled and Refunded orders are left out. It is taken before offers and discounts, and leaves out delivery and cash on delivery charges. GST is inside the figure only where prices included GST. Accounting shows the discounts and delivery charges for a chosen period.",
+            term: "Sales this month",
+            text: "What clients actually paid this month so far, in India time, on the website and at the counter. Counts Processing, Shipped, Out for delivery and Delivered orders; Pending, Cancelled and Refunded are left out. Discounts are taken off; delivery and cash on delivery charges are included; GST is counted once, whether or not prices included it. The line beneath gives the all-time figure, counted the same way.",
           },
           {
-            term: "… from last month",
-            text: "The small percentage under Total Revenue. It sets the all-time figure against part of last month's sales, so it is usually large and is not a like-for-like comparison. For a true month-on-month view, use Sales Insights.",
+            term: "… vs 1–N <last month>",
+            text: "This month so far against the same days of last month (e.g. 1–14 Oct against 1–14 Sep), so the comparison is like for like. When last month had no sales in that stretch, it says so instead of showing a percentage.",
           },
           {
             term: "Orders",
-            text: "Every order ever placed, on the website and at the counter, whatever its status — including cancelled ones and website orders never paid for. The line below, “orders today”, counts those placed since midnight.",
+            text: "Every order ever placed, on the website and at the counter, whatever its status — including cancelled ones and website orders never paid for. The line below, “orders today”, counts those placed since midnight India time.",
           },
           {
             term: "Active Products",
@@ -53,11 +53,11 @@ export const OVERVIEW_HELP: HelpEntry[] = [
         items: [
           {
             term: "Sales Overview",
-            text: "A line showing sales for each of the last seven days, today included, labelled by weekday. Counted the same way as Total Revenue, by the day the order was placed. Hover over a day to see the exact figure in ₹.",
+            text: "A line showing sales for each of the last seven days, today included, labelled by weekday. Counted the same way as Sales this month, by the India-time day the order was placed. Hover over a day to see the exact figure in ₹.",
           },
           {
             term: "Orders by Status",
-            text: "How many orders are at each stage: Pending, Processing, Shipped, Out for Delivery, Delivered, Cancelled and Refunded. It covers every order since the shop opened, not only recent ones.",
+            text: "How many orders are at each stage: Pending, Processing, Shipped, Out for delivery, Delivered, Cancelled and Refunded. It covers every order since the shop opened, not only recent ones.",
           },
         ],
       },
@@ -75,11 +75,11 @@ export const OVERVIEW_HELP: HelpEntry[] = [
           },
           {
             term: "Total",
-            text: "The pieces on the order at their list prices, in ₹ — before offers and discounts, and without delivery charges. Open the order in Orders to see what the client paid.",
+            text: "What the client paid for the order — after offers and discounts, with delivery and GST.",
           },
           {
             term: "Status",
-            text: "Where the order stands, shown in capitals — for example PROCESSING or OUT_FOR_DELIVERY.",
+            text: "Where the order stands — for example Processing or Out for delivery.",
           },
           { term: "Date", text: "How long ago the order was placed, such as “3 hours ago”." },
         ],
@@ -87,9 +87,9 @@ export const OVERVIEW_HELP: HelpEntry[] = [
     ],
     notes: [
       "The dashboard is read-only, and the rows in Recent Orders cannot be clicked. To change an order, open it from Orders.",
-      "Counter sales are recorded as Delivered the moment the bill is taken, so they count in Total Revenue straight away.",
+      "Counter sales are recorded as Delivered the moment the bill is taken, so they count in Sales this month straight away.",
       "Website orders paid by UPI or Card count once payment is confirmed and they move to Processing. Cash on delivery orders go straight to Processing, so they count before the cash is collected.",
-      "“Today” and the days on the chart follow the server's clock. If that clock runs on UTC, a day starts at 5:30 am India time, so a sale just after midnight can show under the day before.",
+      "“Today”, “this month” and the days on the chart follow India time, whatever the server's clock, so a sale just after midnight counts towards the new day.",
       "The figures are worked out fresh each time you open the page. Refresh it to see the latest.",
     ],
     related: [
@@ -117,7 +117,7 @@ export const OVERVIEW_HELP: HelpEntry[] = [
         items: [
           {
             term: "Total Revenue",
-            text: "The value of pieces sold since the shop opened (“All time”), counted exactly as on the Dashboard: Processing, Shipped, Out for Delivery and Delivered orders, at list prices before offers and discounts, without delivery charges.",
+            text: "What clients actually paid since the shop opened, counted exactly as on the Dashboard: Processing to Delivered orders, after offers and discounts, with delivery and GST (counted once).",
           },
           {
             term: "Orders (30 days)",
@@ -137,10 +137,10 @@ export const OVERVIEW_HELP: HelpEntry[] = [
             term: "Product",
             text: "The piece's picture and name. A piece that has since been deleted still appears under the name it was sold with, without a picture, and cannot be opened.",
           },
-          { term: "Units Sold", text: "How many of that piece have been sold, across every order since the shop opened." },
+          { term: "Units Sold", text: "Pieces sold on orders that count as sales (Processing to Delivered), since the shop opened." },
           {
-            term: "Revenue",
-            text: "The price actually charged for the piece (after offers and discounts), added up across its orders, in ₹. Where one order held two or more of the same piece, the price is counted once for that order, so for pieces sold in multiples this reads low — the exported report counts every unit.",
+            term: "Revenue (incl. GST)",
+            text: "What clients paid for every unit of the piece, after offers and discounts, GST included (delivery is not shared out to pieces).",
           },
           { term: "Clicking a row", text: "Opens that piece's edit page in Products." },
         ],
@@ -178,9 +178,9 @@ export const OVERVIEW_HELP: HelpEntry[] = [
       },
     ],
     notes: [
-      "Top Selling Products counts every order ever placed, including ones later cancelled or refunded. The exported spreadsheet counts paid orders only, so the two can differ.",
+      "Top Selling Products counts only sales (Processing to Delivered); cancelled, refunded and unpaid orders are left out. The exported spreadsheet counts paid orders only, so the two can differ.",
       "Product Engagement fills in as people browse the website — including your own staff when they look at pieces there. Counter sales do not add views.",
-      "A piece renamed after it sold can appear twice in Top Selling Products, once under each name.",
+      "A piece renamed after it sold stays one row in Top Selling Products, under its newest name.",
       "The figures here cover all time or the last 30 days. For a chosen period, day by day, use Sales Insights.",
     ],
     related: [

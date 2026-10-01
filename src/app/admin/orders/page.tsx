@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { css } from "styled-system/css";
 import {
+  filtersToQuery,
   orderWhere,
   parseOrderFilters,
   type OrderFilterParams,
@@ -121,7 +122,11 @@ export default async function AdminOrdersPage({
 
   return (
     <div className={pageStyle}>
-      <OrdersHeader shownCount={orders.length} totalCount={summary.orderCount} />
+      <OrdersHeader
+        shownCount={orders.length}
+        totalCount={summary.orderCount}
+        filterQuery={filtersToQuery(filters)}
+      />
       <OrdersSummaryCards summary={summary} />
       <OrdersFilters initial={filters} categories={categories} />
       <OrdersTable orders={orders} />

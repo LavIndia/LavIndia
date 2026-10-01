@@ -114,7 +114,7 @@ export function ProductsFilterBar({
         <div className={searchWrapStyle}>
           <Search className={searchIconStyle} />
           <Input
-            placeholder="Search products..."
+            placeholder="Search by name or SKU…"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && onSubmit()}

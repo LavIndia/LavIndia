@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { istCalendarDay } from "@/lib/ist-dates";
 import { css } from "styled-system/css";
 
 type PromoBanner = {
@@ -126,10 +127,10 @@ export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
                 {banner.startDate || banner.endDate ? (
                   <div>
                     {banner.startDate &&
-                      format(new Date(banner.startDate), "MMM d")}{" "}
+                      format(istCalendarDay(banner.startDate)!, "MMM d")}{" "}
                     -{" "}
                     {banner.endDate &&
-                      format(new Date(banner.endDate), "MMM d")}
+                      format(istCalendarDay(banner.endDate)!, "MMM d")}
                   </div>
                 ) : (
                   "Always"

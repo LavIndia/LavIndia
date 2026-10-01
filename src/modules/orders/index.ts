@@ -18,6 +18,7 @@ export type {
   PosPaymentMethod,
 } from "./contracts";
 export { orderService } from "./order-service";
+export { changeOrderStatus, paymentStatusAfter } from "./order-status";
 export { GST_RATE_BPS } from "./pricing";
 export { quoteCart } from "./quote";
 export type { Quote, QuoteInput } from "./quote";

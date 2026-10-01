@@ -116,6 +116,20 @@ class SupplierService {
   }
 
   /**
+   * Brings a retired supplier back into the pickers — the vendor is in use
+   * again. The exact reverse of `deactivate`; history was never touched, so
+   * nothing else needs restoring. Also the only way back to a name that is
+   * taken: names are unique, retired or not.
+   */
+  async reactivate(id: string): Promise<SupplierView> {
+    return prisma.supplier.update({
+      where: { id },
+      data: { isActive: true },
+      select: SELECT,
+    });
+  }
+
+  /**
    * What was received from each supplier in a window.
    *
    * One grouped query over the ledger rather than a query per supplier.

@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { GST_RATE_BPS } from "@/modules/orders";
 import { taxFromBps } from "@/modules/_shared/money";
 import type { LookupResult } from "@/components/admin/inventory/useVariantLookup";
+import { isCompleteOverrideReason } from "@/modules/pos/override-reasons";
 
 export interface PosCartLine {
   variant: LookupResult;
@@ -93,6 +94,16 @@ export function usePosCart() {
     [lines],
   );
 
+  /** A hand-changed price without a reason blocks the sale, as the server would. */
+  const unexplained = useMemo(
+    () =>
+      lines.filter(
+        (line) =>
+          line.overridePriceCents !== undefined && !isCompleteOverrideReason(line.overrideReason),
+      ),
+    [lines],
+  );
+
   const toPayload = useCallback(
     () =>
       lines.map((line) => ({
@@ -113,6 +124,7 @@ export function usePosCart() {
     clear,
     totals,
     overstocked,
+    unexplained,
     toPayload,
   };
 }

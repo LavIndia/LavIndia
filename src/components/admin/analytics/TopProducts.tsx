@@ -60,7 +60,7 @@ const productCell = css({
 export function TopProducts({ products }: { products: Product[] }) {
   const router = useRouter();
   const formatPrice = (cents: number) => {
-    return `₹${(cents / 100).toLocaleString("en-IN")}`;
+    return `₹${Math.round(cents / 100).toLocaleString("en-IN")}`;
   };
 
   return (
@@ -68,7 +68,8 @@ export function TopProducts({ products }: { products: Product[] }) {
       <CardHeader>
         <CardTitle>Top Selling Products</CardTitle>
         <CardDescription>
-          Best performing products by quantity sold
+          Best sellers by pieces sold, on the website and at the counter. Revenue is what
+          clients paid for them, GST included.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -79,7 +80,7 @@ export function TopProducts({ products }: { products: Product[] }) {
                 <TableHead>Rank</TableHead>
                 <TableHead>Product</TableHead>
                 <TableHead>Units Sold</TableHead>
-                <TableHead className={css({ textAlign: "right" })}>Revenue</TableHead>
+                <TableHead className={css({ textAlign: "right" })}>Revenue (incl. GST)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -7,13 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { InfoHint } from "@/components/ui/info-hint";
@@ -22,6 +16,7 @@ import { LogoSection } from "./LogoSection";
 import { SocialLinksSection } from "./SocialLinksSection";
 import { MarketplaceLinksSection } from "./MarketplaceLinksSection";
 import { TrustBadgesSection } from "./TrustBadgesSection";
+import { saveSettings } from "./save-settings";
 
 interface SiteSettings {
   id: string;
@@ -84,18 +79,11 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/admin/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      });
-
-      if (!res.ok) throw new Error("Failed to update");
-
+      await saveSettings(settings);
       toast.success("Settings updated successfully");
       router.refresh();
-    } catch {
-      toast.error("Failed to update settings");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update settings");
     } finally {
       setLoading(false);
     }

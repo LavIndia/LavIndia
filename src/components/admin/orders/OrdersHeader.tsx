@@ -32,9 +32,12 @@ const iconStyle = css({ height: "4", width: "4" });
 export function OrdersHeader({
   shownCount,
   totalCount,
+  filterQuery,
 }: {
   shownCount: number;
   totalCount: number;
+  /** The filters applied on screen, as a query string — the export honours them. */
+  filterQuery: string;
 }) {
   return (
     <div className={headerRowStyle}>
@@ -58,8 +61,11 @@ export function OrdersHeader({
         </Button>
         <Button
           variant="outline"
+          title={filterQuery ? "Exports the orders matching the filters below" : "Exports every order"}
           onClick={() => {
-            window.location.href = "/api/admin/export?type=orders";
+            window.location.href = `/api/admin/export?type=orders${
+              filterQuery ? `&${filterQuery}` : ""
+            }`;
           }}
         >
           <Download className={iconStyle} />

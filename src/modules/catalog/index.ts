@@ -63,3 +63,12 @@ export {
   DEFAULT_PRODUCT_STRATEGIES,
 } from "@/modules/catalog/recommendations/recommendation-types";
 export { getRecommendations } from "@/modules/catalog/recommendations/recommendation-service";
+export type { NewImageInput, NewProductInput, NewVariantInput } from "./products/create-product";
+export { createProductInTx } from "./products/create-product";
+export { slugify } from "./products/slug";
+export { setReorderPoint } from "./variants/reorder-point";
+export {
+  MAX_REORDER_POINT,
+  SUGGESTED_REORDER_POINTS,
+  isValidReorderPoint,
+} from "./variants/reorder-point-rules";

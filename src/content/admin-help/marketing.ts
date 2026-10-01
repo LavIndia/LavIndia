@@ -27,8 +27,7 @@ export const MARKETING_HELP: HelpEntry[] = [
       "Deleting removes the banner and its artwork permanently. It cannot be undone — switch it to Draft if you may want it back.",
       "Slides change on their own every 5 seconds and loop round. Arrows and dots appear when there is more than one.",
       "Changes can take up to a minute to show on the website.",
-      "If you upload a desktop image and then press Cancel, or replace a banner's desktop image, the unused picture turns up here as a new Active banner the next time this list opens. Check the list afterwards and delete any stray one.",
-      "If a banner's desktop image is removed from the image library, the banner disappears from this list too.",
+      "Banners shown on the homepage follow their dates and repeat schedule in India time. If no banner is live, the homepage starts with the next section.",
     ],
     related: [
       { label: "Homepage Layout", href: "/admin/homepage-layout" },
@@ -54,20 +53,18 @@ export const MARKETING_HELP: HelpEntry[] = [
         { term: "Replace and ✕", text: "Replace uploads a different picture; ✕ clears the slot. Nothing changes on the website until you save." },
       ] },
       { heading: "Content", items: [
-        { term: "Headline", text: "Required. Names the banner in this list and is read out to clients using screen readers. It is not printed over the picture — any words the client should see must be part of the artwork." },
-        { term: "Supporting text", text: "Optional. For your own reference in the list; it is not shown on the website." },
+        { term: "Headline", text: "Required. Printed over the picture on the homepage in ivory lettering, and read out to clients using screen readers. Keep it short; if the artwork already carries its words, you may prefer a brief headline." },
+        { term: "Supporting text", text: "Optional. Shown under the headline on the homepage; left out when empty." },
         { term: "Where should this banner go?", text: "Shop all jewellery (the default), New Arrivals, Bestsellers, Shop by Budget, any of your categories, No link, or Custom page or URL for any other page — type it as /page-name or a full web address." },
       ] },
       { heading: "Publishing and Scheduling", items: [
         { term: "Publish banner", text: "On shows the slide on the homepage; off keeps it as a draft. The badge at the top of the page shows which." },
         { term: "Display order", text: "Lower numbers come first in the slideshow. Banners with the same number sit in no fixed order." },
-        { term: "Start date and End date (optional)", text: "The days the banner is meant to run." },
+        { term: "Start date and End date (optional)", text: "The days the banner runs, in India time. It starts at midnight on the Start date and runs to the end of the End date." },
         { term: "Repeats on a schedule", text: "Limit the banner to Every day, On specific weekdays or On a day of the month, with optional Active from / Active until times in IST." },
       ] },
     ],
     notes: [
-      "The dates and repeat schedule are saved with the banner but the homepage does not yet act on them — it shows every published banner. Switch Publish banner off yourself when a campaign ends.",
-      "If you upload a desktop image and then press Cancel, that picture still appears on Hero Banners as a new published banner. Delete it there.",
       "The Create banner button stays greyed out until there is a desktop image and a headline.",
     ],
     related: [{ label: "Hero Banners", href: "/admin/hero-banners" }, { label: "Offers", href: "/admin/promotions" }],
@@ -80,7 +77,6 @@ export const MARKETING_HELP: HelpEntry[] = [
     steps: ["Make your changes.", "Press Save changes, or Cancel to leave without saving."],
     notes: [
       "To delete a banner, use the bin on the Hero Banners list — there is no delete button on this page.",
-      "Replacing the desktop image leaves the old picture behind, and it turns up on the list as a new published banner. Delete it there after saving.",
       "Changes can take up to a minute to show on the website.",
     ],
     related: [{ label: "Hero Banners", href: "/admin/hero-banners" }],
@@ -157,7 +153,7 @@ export const MARKETING_HELP: HelpEntry[] = [
         { term: "Preview", text: "Updates as you type and pick colours." },
       ] },
       { heading: "Schedule & Publishing", items: [
-        { term: "Start Date and End Date (Optional)", text: "The banner shows only within these days. Leave both empty to run it with no end." },
+        { term: "Start Date and End Date (Optional)", text: "The banner shows only within these days, in India time — from midnight on the Start Date to the end of the End Date. Leave both empty to run it with no end." },
         { term: "Repeats on a schedule", text: "Off means the banner runs the whole date window. On lets you choose Every day, On specific weekdays (tick the days under Active on) or On a day of the month." },
         { term: "Active from and Active until (optional)", text: "A time window in IST. Fill in both, or leave both empty for all day. A window may run past midnight, such as 22:00 to 02:00." },
         { term: "Display Order", text: "Lower numbers come first. Do not leave it empty — put 0 if unsure." },
@@ -165,8 +161,7 @@ export const MARKETING_HELP: HelpEntry[] = [
       ] },
     ],
     notes: [
-      "Dates change over at 5:30 am, not midnight. A banner comes down early on the morning of its End Date, so set the End Date to the day after the last full day you want it shown.",
-      "The repeat schedule is honoured on product, Bestsellers, New Arrivals, checkout and account pages. The homepage, Shop all, category and written pages — and the Free Gifts band — go by the dates alone.",
+      "The repeat schedule is honoured everywhere the banner appears, including the homepage and the Free Gifts band.",
       "With On specific weekdays and no days ticked, the banner never shows. Day 31 only comes round in months that have one.",
     ],
     related: [{ label: "Promo Banners", href: "/admin/promo-banners" }, { label: "Homepage Layout", href: "/admin/homepage-layout" }],
@@ -179,7 +174,6 @@ export const MARKETING_HELP: HelpEntry[] = [
     steps: ["Make your changes.", "Press Update, or Cancel to leave without saving."],
     notes: [
       "To delete a banner, use the bin on the Promotional Banners list — there is no delete button on this page.",
-      "Dates change over at 5:30 am, so a banner comes down on the morning of its End Date.",
       "Changes can take up to a minute to show on the website.",
     ],
     related: [{ label: "Promo Banners", href: "/admin/promo-banners" }],

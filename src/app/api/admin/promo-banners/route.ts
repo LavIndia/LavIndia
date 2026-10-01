@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { parseAdminDate } from "@/lib/ist-dates";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 
@@ -72,8 +73,8 @@ export async function POST(request: NextRequest) {
         bgColor,
         textColor,
         isActive: isActive ?? true,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
+        startDate: parseAdminDate(startDate, "start"),
+        endDate: parseAdminDate(endDate, "end"),
         order: order ?? 0,
         isRecurring: isRecurring ?? false,
         recurrenceType: isRecurring ? recurrenceType : null,
@@ -97,6 +98,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ banner });
   } catch (error) {
+    if (error instanceof RangeError) {
+      return NextResponse.json({ error: "Enter a valid date" }, { status: 400 });
+    }
     console.error("Error creating promo banner:", error);
     return NextResponse.json(
       { error: "Failed to create promo banner" },
