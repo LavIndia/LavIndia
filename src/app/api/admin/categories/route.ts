@@ -12,6 +12,20 @@ const categorySchema = z.object({
   featuredOrder: z.number().int().optional(),
 });
 
+export async function GET() {
+  const session = await auth();
+  if (!session || session.user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const categories = await prisma.category.findMany({
+    select: { id: true, name: true, slug: true },
+    orderBy: { name: "asc" },
+  });
+
+  return NextResponse.json(categories);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();

@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { isBlockedBot, getClientIp } from "@/lib/bot-protection";
 
 export default async function middleware(req: NextRequest) {
   const { nextUrl } = req;
+
+  // Block known bots early
+  const userAgent = req.headers.get("user-agent") || "";
+  if (isBlockedBot(userAgent)) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
+
   const token = await getToken({
     req,
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,

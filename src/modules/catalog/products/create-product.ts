@@ -44,13 +44,14 @@ export async function createProductInTx(tx: Tx, input: NewProductInput): Promise
   // explicitly, so a client's own ids on the input are never written.
   if (input.variants?.length) {
     await tx.productVariant.createMany({
-      data: input.variants.map((v) => ({
+      data: input.variants.map((v, index) => ({
         name: v.name,
         color: v.color ?? null,
         size: v.size ?? null,
         material: v.material ?? null,
         priceCents: v.priceCents ?? null,
         stock: v.stock ?? 0,
+        position: index,
         productId: created.id,
       })),
     });

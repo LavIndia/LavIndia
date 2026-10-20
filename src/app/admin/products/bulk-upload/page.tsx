@@ -31,17 +31,29 @@ import {
 import { toast } from "sonner";
 import { parse } from "papaparse";
 import { css } from "styled-system/css";
+import { buildBulkVariants, splitMultiValue, splitTags } from "@/lib/product-bulk";
+import { slugify } from "@/modules/catalog/products/slug";
 
 interface ProductRow {
+  id?: string;
   name: string;
   slug: string;
   description?: string;
   price: string;
   compareAtPrice?: string;
-  stock: string;
+  costPrice?: string;
+  stock?: string;
+  openingStock?: string;
   category: string;
   sku?: string;
+  material?: string;
+  tags?: string;
+  colors?: string;
+  sizes?: string;
+  imagePaths?: string;
   isPublished?: string;
+  isFeatured?: string;
+  isLimitedEdition?: string;
 }
 
 interface ValidationResult {
@@ -57,7 +69,8 @@ export default function BulkUploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ValidationResult[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [categories, setCategories] = useState<Record<string, string>>({});
+  const [categories, setCategories] = useState<Record<string, { id: string; slug: string }>>({});
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -67,15 +80,18 @@ export default function BulkUploadPage() {
 
     // Fetch categories for validation
     const res = await fetch("/api/admin/categories");
+    if (!res.ok) {
+      toast.error("Could not load categories");
+      return;
+    }
     const cats = await res.json();
     const catMap = Object.fromEntries(
-      cats.map((c: { id: string; name: string }) => [
-        c.name.toLowerCase(),
-        c.id,
+      cats.map((c: { id: string; name: string; slug: string }) => [
+        c.name.trim().toLowerCase(),
+        { id: c.id, slug: c.slug },
       ])
     );
     setCategories(catMap);
-
     // Parse CSV
     parse(selectedFile, {
       header: true,
@@ -103,13 +119,18 @@ export default function BulkUploadPage() {
       if (!row.slug?.trim()) errors.push("Slug is required");
       if (!row.price || isNaN(parseFloat(row.price)))
         errors.push("Valid price required");
-      if (!row.stock || isNaN(parseInt(row.stock)))
-        errors.push("Valid stock required");
       if (!row.category?.trim()) errors.push("Category is required");
+      if (row.name?.trim().startsWith("SAMPLE ONLY -")) {
+        errors.push("Sample row only — delete this row before importing");
+      }
 
-      // Category validation
-      if (row.category && !catMap[row.category.toLowerCase()]) {
-        errors.push(`Category "${row.category}" not found`);
+      const stock = row.openingStock ?? row.stock;
+      if (stock?.trim() && (!/^\d+$/.test(stock.trim()) || Number(stock) < 0))
+        errors.push("Opening stock must be a non-negative number");
+
+      // Unknown categories are created automatically when the row is imported.
+      if (row.category?.trim() && !catMap[row.category.trim().toLowerCase()]) {
+        warnings.push(`New category "${row.category.trim()}" will be created`);
       }
 
       // Warnings
@@ -121,6 +142,20 @@ export default function BulkUploadPage() {
       }
 
       if (!row.description) warnings.push("No description");
+
+      if (buildBulkVariants(row.colors, row.sizes).length > 0 && Number(stock || 0) > 0) {
+        warnings.push(row.id?.trim()
+          ? "Opening stock is not changed when updating; adjust stock in Inventory"
+          : "Opening stock is ignored when options are supplied; receive stock per variant");
+      }
+
+      if (row.colors && splitMultiValue(row.colors).length === 0) {
+        errors.push("Colour values must be comma-separated");
+      }
+
+      if (row.sizes && splitMultiValue(row.sizes).length === 0) {
+        errors.push("Size values must be comma-separated");
+      }
 
       return { row: index + 1, data: row, errors, warnings };
     });
@@ -137,50 +172,157 @@ export default function BulkUploadPage() {
         return;
       }
 
-      const products = validRows.map((v) => ({
-        name: v.data.name,
-        slug: v.data.slug,
-        description: v.data.description || null,
-        priceCents: Math.round(parseFloat(v.data.price) * 100),
-        compareAtCents: v.data.compareAtPrice
-          ? Math.round(parseFloat(v.data.compareAtPrice) * 100)
-          : null,
-        stock: parseInt(v.data.stock),
-        categoryId: categories[v.data.category.toLowerCase()],
-        sku: v.data.sku || null,
-        isPublished: v.data.isPublished?.toLowerCase() === "true",
-        isFeatured: false,
-        discountPercent: null,
-      }));
+      const categoryIds = new Map<string, string>();
+      const categoryMap = { ...categories };
+      for (const { data } of validRows) {
+        const name = data.category.trim();
+        const key = name.trim().toLowerCase();
+        let category = categoryMap[key];
+        if (!category) {
+          const base = slugify(name) || "category";
+          const usedSlugs = new Set(Object.values(categoryMap).map((item) => item.slug));
+          let slug = base;
+          for (let suffix = 2; usedSlugs.has(slug); suffix++) slug = `${base}-${suffix}`;
+          const createResponse = await fetch("/api/admin/categories", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, slug, isFeatured: false, featuredOrder: 0 }),
+          });
+          if (!createResponse.ok) throw new Error(`Could not create category: ${name}`);
+          const created = await createResponse.json();
+          category = { id: created.id, slug: created.slug };
+          categoryMap[key] = category;
+        }
+        categoryIds.set(key, category.id);
+      }
+      setCategories(categoryMap);
 
-      const res = await fetch("/api/admin/products/bulk", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ products }),
-      });
+      let success = 0;
+      const failures: string[] = [];
+      for (const { row, data } of validRows) {
+        try {
+          const categoryId = categoryIds.get(data.category.trim().toLowerCase());
+          if (!categoryId) throw new Error("Category could not be resolved");
 
-      if (!res.ok) throw new Error("Upload failed");
+          const imageUrls: string[] = [];
+          for (const pathOrFile of splitMultiValue(data.imagePaths)) {
+            if (pathOrFile.startsWith("/") || /^https?:\/\//i.test(pathOrFile)) {
+              imageUrls.push(pathOrFile);
+              continue;
+            }
+            const filename = pathOrFile.split(/[\\/]/).pop()?.trim().toLowerCase();
+            const matches = imageFiles.filter((image) => image.name.toLowerCase() === filename);
+            if (matches.length !== 1) {
+              throw new Error(`Select exactly one image file matching "${filename ?? pathOrFile}"`);
+            }
+            const formData = new FormData();
+            formData.set("file", matches[0]);
+            formData.set("productName", data.name);
+            formData.set("categoryId", categoryId);
+            const uploadResponse = await fetch("/api/admin/products/upload", {
+              method: "POST",
+              body: formData,
+            });
+            const uploaded = await uploadResponse.json();
+            if (!uploadResponse.ok) throw new Error(uploaded.error || "Image upload failed");
+            imageUrls.push(uploaded.url);
+          }
 
-      const result = await res.json();
+          const variants = buildBulkVariants(data.colors, data.sizes);
+          const images = imageUrls.map((url, index) => ({
+            url,
+            alt: null,
+            isPrimary: index === 0,
+            position: index,
+          }));
+          const fields = {
+            name: data.name.trim(),
+            slug: data.slug.trim(),
+            description: data.description || null,
+            priceCents: Math.round(parseFloat(data.price) * 100),
+            compareAtCents: data.compareAtPrice ? Math.round(parseFloat(data.compareAtPrice) * 100) : null,
+            costCents: data.costPrice ? Math.round(parseFloat(data.costPrice) * 100) : null,
+            categoryId,
+            sku: data.sku || null,
+            material: data.material || null,
+            tags: splitTags(data.tags),
+            isPublished: data.isPublished?.toLowerCase() === "true",
+            isFeatured: data.isFeatured?.toLowerCase() === "true",
+            isLimitedEdition: data.isLimitedEdition?.toLowerCase() === "true",
+            images,
+          };
 
-      toast.success(
-        `Successfully imported ${result.success} products. ${result.failed} failed.`
-      );
+          if (data.id?.trim()) {
+            const productResponse = await fetch(`/api/admin/products/${encodeURIComponent(data.id.trim())}`);
+            if (!productResponse.ok) throw new Error(`Product ID "${data.id}" was not found`);
+            const existing = await productResponse.json();
+            const oldVariants = existing.variants as Array<Record<string, unknown>>;
+            const oldImages = existing.images as Array<Record<string, unknown>>;
+            const variantsForUpdate = variants.length
+              ? variants.map((variant) => {
+                  const match = oldVariants.find((old) => old.color === variant.color && old.size === variant.size);
+                  return { ...variant, id: match?.id as string | undefined, priceCents: (match?.priceCents as number | null | undefined) ?? null, stock: (match?.stock as number | undefined) ?? 0 };
+                })
+              : oldVariants.filter((variant) => variant.isDefault).map((variant) => ({
+                  name: "Default", id: variant.id as string, color: null, size: null,
+                  priceCents: (variant.priceCents as number | null | undefined) ?? null,
+                  stock: (variant.stock as number | undefined) ?? 0,
+                }));
+            const imagesForUpdate = images.map((image) => {
+              const match = oldImages.find((old) => old.url === image.url);
+              return match
+                ? {
+                    ...image,
+                    id: match.id as string,
+                    optionDimension: match.optionDimension as "color" | "size" | "material" | null,
+                    optionValue: match.optionValue as string | null,
+                  }
+                : image;
+            });
+            const updateResponse = await fetch(`/api/admin/products/${encodeURIComponent(data.id.trim())}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...fields, variants: variantsForUpdate, images: imagesForUpdate }),
+            });
+            if (!updateResponse.ok) {
+              const problem = await updateResponse.json();
+              throw new Error(problem.error || "Product update failed");
+            }
+          } else {
+            const response = await fetch("/api/admin/products/bulk", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ products: [{ ...fields, stock: parseInt(data.openingStock || data.stock || "0", 10) || 0, categoryName: data.category.trim(), discountPercent: null, variants }] }),
+            });
+            const result = await response.json();
+            if (!response.ok || result.failed) throw new Error(result.errors?.[0]?.error || "Product import failed");
+          }
+          success++;
+        } catch (error) {
+          failures.push(`Row ${row}: ${error instanceof Error ? error.message : "Import failed"}`);
+        }
+      }
 
-      router.push("/admin/products");
-      router.refresh();
-    } catch {
-      toast.error("Failed to import products");
+      if (failures.length) {
+        toast.error(`${success} products saved; ${failures.length} failed. ${failures[0]}`);
+      } else {
+        toast.success(`${success} products saved`);
+      }
+      if (success > 0) {
+        router.push("/admin/products");
+        router.refresh();
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to import products");
     } finally {
       setUploading(false);
     }
   };
 
   const downloadTemplate = () => {
-    const template = `name,slug,description,price,compareAtPrice,stock,category,sku,isPublished
-"Gold Necklace","gold-necklace","Beautiful gold necklace",15999.00,17999.00,10,"Necklaces","NECK-001",true
-"Diamond Ring","diamond-ring","Elegant diamond ring",25999.00,,5,"Rings","RING-001",true
-"Pearl Earrings","pearl-earrings","Classic pearl earrings",5999.00,6999.00,15,"Earrings","EAR-001",false`;
+    const template = `id,name,slug,description,price,compareAtPrice,costPrice,openingStock,category,sku,material,tags,colors,sizes,imagePaths,isPublished,isFeatured,isLimitedEdition
+,"SAMPLE ONLY - Necklace (delete this row)",sample-necklace,"Example: lightweight gold-plated necklace",1599.00,1999.00,650.00,0,Necklaces,SAMPLE-NECK-001,"Gold Plated Brass",festive-edit|gift-under-2k,"Gold, Rose Gold","16 inch, 18 inch","front.jpg, side.jpg",false,false,false
+,"SAMPLE ONLY - Ring (delete this row)",sample-ring,"Example: adjustable silver ring",899.00,,300.00,0,Rings,SAMPLE-RING-001,"Silver plated alloy",everyday,"Silver","6, 7, 8","ring.jpg",false,true,false`;
 
     const blob = new Blob([template], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -232,12 +374,30 @@ export default function BulkUploadPage() {
           >
             <li>Download the CSV template below</li>
             <li>
-              Fill in your product data (name, slug, price, stock, category are
-              required)
+              Fill in your product data. Name, price, and category are required.
             </li>
             <li>
-              Category must exactly match an existing category name
-              (case-insensitive)
+              Product IDs are generated automatically for new products. Leave id blank; only keep the id when re-importing an exported product to update it.
+            </li>
+            <li>
+              The downloaded template includes sample rows for reference. Delete those rows before importing; they are intentionally marked invalid.
+            </li>
+            <li>
+              Existing categories match case-insensitively; new category names
+              are created automatically during import.
+            </li>
+            <li>
+              Use commas for multi-select values, such as &quot;Gold, Silver&quot;
+              or &quot;6, 7, 8&quot;. Keep the quotes in CSV cells containing commas.
+            </li>
+            <li>
+              In imagePaths, use selected image filenames (comma-separated in
+              one quoted cell) to upload local files to ImageKit. Existing
+              public paths and URLs can also be used directly.
+            </li>
+            <li>
+              Opening stock applies only to products without options. Option
+              variants start at zero and are received separately in Inventory.
             </li>
             <li>Prices should be in rupees (e.g., 15999.00 for ₹15,999)</li>
             <li>Upload your file and review the preview</li>
@@ -264,6 +424,24 @@ export default function BulkUploadPage() {
             onChange={handleFileSelect}
             className={css({ srOnly: true })}
           />
+
+          <div className={css({ marginTop: "4", display: "flex", flexDirection: "column", gap: "2" })}>
+            <label htmlFor="bulk-product-images" className={css({ fontSize: "sm", fontWeight: "medium" })}>
+              Product images (optional; selected files upload to ImageKit)
+            </label>
+            <input
+              id="bulk-product-images"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={(event) => setImageFiles(Array.from(event.target.files ?? []))}
+            />
+            {imageFiles.length > 0 && (
+              <p className={css({ fontSize: "sm", color: "fg.muted" })}>
+                {imageFiles.length} image file{imageFiles.length === 1 ? "" : "s"} selected
+              </p>
+            )}
+          </div>
 
           {!file ? (
             <div
@@ -362,7 +540,7 @@ export default function BulkUploadPage() {
                       <TableCell>
                         ₹{parseFloat(v.data.price).toLocaleString()}
                       </TableCell>
-                      <TableCell>{v.data.stock}</TableCell>
+                      <TableCell>{v.data.openingStock ?? v.data.stock ?? "0"}</TableCell>
                       <TableCell>
                         {v.errors.length > 0 ? (
                           <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>

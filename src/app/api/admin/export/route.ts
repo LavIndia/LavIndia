@@ -66,24 +66,49 @@ async function exportProducts() {
     include: {
       category: true,
       images: {
-        where: { isPrimary: true },
-        take: 1,
+        orderBy: { position: "asc" },
+      },
+      variants: {
+        where: { isActive: true },
+        orderBy: { position: "asc" },
+        include: { inventoryLevels: true },
       },
     },
+    orderBy: { createdAt: "asc" },
   });
 
-  const data = products.map((p) => ({
-    ID: p.id,
-    Name: p.name,
-    SKU: p.sku || "",
-    Category: p.category.name,
-    Price: (p.priceCents / 100).toFixed(2),
-    CompareAt: p.compareAtCents ? (p.compareAtCents / 100).toFixed(2) : "",
-    Stock: p.stock,
-    Published: p.isPublished ? "Yes" : "No",
-    Featured: p.isFeatured ? "Yes" : "No",
-    CreatedAt: p.createdAt.toISOString(),
-  }));
+  // Keep these keys in lockstep with the downloadable bulk-import template.
+  // Papa Parse quotes cells containing commas, so multi-value options and
+  // image paths remain a single cell when the CSV is opened or re-imported.
+  const data = products.map((p) => {
+    const variants = p.variants.filter((variant) => !variant.isDefault);
+    const colors = [...new Set(variants.map((variant) => variant.color).filter((value): value is string => Boolean(value)))];
+    const sizes = [...new Set(variants.map((variant) => variant.size).filter((value): value is string => Boolean(value)))];
+
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      description: p.description ?? "",
+      price: (p.priceCents / 100).toFixed(2),
+      compareAtPrice: p.compareAtCents != null ? (p.compareAtCents / 100).toFixed(2) : "",
+      costPrice: p.costCents != null ? (p.costCents / 100).toFixed(2) : "",
+      openingStock: p.variants.reduce(
+        (total, variant) => total + variant.inventoryLevels.reduce((sum, level) => sum + level.quantity, 0),
+        0,
+      ),
+      category: p.category.name,
+      sku: p.sku ?? "",
+      material: p.material ?? "",
+      tags: p.tags.join("|"),
+      colors: colors.join(", "),
+      sizes: sizes.join(", "),
+      imagePaths: p.images.map((image) => image.url).join(", "),
+      isPublished: String(p.isPublished),
+      isFeatured: String(p.isFeatured),
+      isLimitedEdition: String(p.isLimitedEdition),
+    };
+  });
 
   return unparse(data);
 }
