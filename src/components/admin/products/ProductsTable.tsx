@@ -32,6 +32,7 @@ import {
 } from "./ProductListItem";
 import { useProductStockEditor } from "./useProductStockEditor";
 import { useProductPublishToggle } from "./useProductPublishToggle";
+import { useProductBulkActions } from "./use-product-bulk-actions";
 
 type Product = ProductListItemProduct;
 
@@ -41,6 +42,7 @@ interface ProductsTableProps {
   searchParams: {
     search?: string;
     category?: string;
+    status?: string;
     sort?: string;
     page?: string;
     group?: string;
@@ -62,6 +64,7 @@ export function ProductsTable({
   const router = useRouter();
   const [search, setSearch] = useState(searchParams.search || "");
   const [category, setCategory] = useState(searchParams.category || "all");
+  const [status, setStatus] = useState(searchParams.status || "all");
   const [sort, setSort] = useState(searchParams.sort || "createdAt");
   const grouped = searchParams.group === "1";
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
@@ -79,7 +82,7 @@ export function ProductsTable({
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkTagOpen, setBulkTagOpen] = useState(false);
-  const [bulkWorking, setBulkWorking] = useState(false);
+  const bulk = useProductBulkActions(selected, () => router.refresh());
 
   const applyFilters = (
     searchValue?: string,
@@ -87,15 +90,18 @@ export function ProductsTable({
     sortValue?: string,
     pageValue?: number,
     groupValue?: boolean,
+    statusValue?: string,
   ) => {
     const params = new URLSearchParams();
     const finalSearch = searchValue ?? search;
     const finalCategory = categoryValue ?? category;
     const finalSort = sortValue ?? sort;
     const finalGrouped = groupValue ?? grouped;
+    const finalStatus = statusValue ?? status;
 
     if (finalSearch) params.set("search", finalSearch);
     if (finalCategory !== "all") params.set("category", finalCategory);
+    if (finalStatus !== "all") params.set("status", finalStatus);
     if (finalSort) params.set("sort", finalSort);
     if (pageValue && pageValue > 1) params.set("page", String(pageValue));
     if (finalGrouped) params.set("group", "1");
@@ -138,6 +144,11 @@ export function ProductsTable({
     applyFilters(undefined, value, undefined);
   };
 
+  const handleStatusChange = (value: string) => {
+    setStatus(value);
+    applyFilters(undefined, undefined, undefined, undefined, undefined, value);
+  };
+
   const handleSortChange = (value: string) => {
     setSort(value);
     applyFilters(undefined, undefined, value);
@@ -164,35 +175,6 @@ export function ProductsTable({
   const allSelected = products.length > 0 && selectedCount === products.length;
   const someSelected = selectedCount > 0 && !allSelected;
 
-  const bulkSetPublished = async (isPublished: boolean) => {
-    setBulkWorking(true);
-    try {
-      const ids = Array.from(selected);
-      const results = await Promise.allSettled(
-        ids.map((id) =>
-          fetch(`/api/admin/products/${id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ isPublished }),
-          }),
-        ),
-      );
-      const failed = results.filter((r) => r.status === "rejected").length;
-      if (failed > 0) {
-        toast.error(`${failed} of ${ids.length} products failed to update`);
-      } else {
-        toast.success(
-          `${ids.length} products ${isPublished ? "published" : "unpublished"}`,
-        );
-      }
-      router.refresh();
-    } catch {
-      toast.error("Failed to update selected products");
-    } finally {
-      setBulkWorking(false);
-    }
-  };
-
   return (
     <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
       <ProductsFilterBar
@@ -201,6 +183,8 @@ export function ProductsTable({
         onSubmit={handleSearch}
         category={category}
         onCategoryChange={handleCategoryChange}
+        status={status}
+        onStatusChange={handleStatusChange}
         sort={sort}
         onSortChange={handleSortChange}
         grouped={grouped}
@@ -230,27 +214,30 @@ export function ProductsTable({
             <Button
               variant="outline"
               size="sm"
-              disabled={bulkWorking}
-              onClick={() => bulkSetPublished(true)}
+              disabled={bulk.working}
+              onClick={() => bulk.setPublished(true)}
             >
-              {bulkWorking && <Loader2 className={css({ height: "3.5", width: "3.5", animation: "spin" })} />}
+              {bulk.working && <Loader2 className={css({ height: "3.5", width: "3.5", animation: "spin" })} />}
               Publish
             </Button>
             <Button
               variant="outline"
               size="sm"
-              disabled={bulkWorking}
-              onClick={() => bulkSetPublished(false)}
+              disabled={bulk.working}
+              onClick={() => bulk.setPublished(false)}
             >
               Unpublish
             </Button>
-            <Button variant="outline" size="sm" disabled={bulkWorking} onClick={() => setBulkTagOpen(true)}>
+            <Button variant="outline" size="sm" disabled={bulk.working} onClick={bulk.retire}>
+              Retire
+            </Button>
+            <Button variant="outline" size="sm" disabled={bulk.working} onClick={() => setBulkTagOpen(true)}>
               Tags
             </Button>
             <Button
               variant="destructive"
               size="sm"
-              disabled={bulkWorking}
+              disabled={bulk.working}
               onClick={() => setBulkDeleteOpen(true)}
             >
               <Trash2 className={css({ height: "3.5", width: "3.5" })} />

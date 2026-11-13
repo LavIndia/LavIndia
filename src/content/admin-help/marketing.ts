@@ -120,6 +120,7 @@ export const MARKETING_HELP: HelpEntry[] = [
         { term: "Preview", text: "The title and message in the banner's own colours." },
         { term: "Validity", text: "The start and end dates, or Always if none are set." },
         { term: "Status", text: "Active or Inactive. Change it on the banner's edit page." },
+        { term: "Tick boxes", text: "A tick box on each row, and one in the heading to tick them all. Once any are ticked a bar shows how many, with Delete; one confirmation deletes them all, and anything that could not be deleted is reported with the reason. Ticks stay across the tabs, so you can clear out banners of several types at once." },
         { term: "Pencil and bin", text: "Edit the banner, or delete it permanently after a confirmation." },
       ] },
     ],

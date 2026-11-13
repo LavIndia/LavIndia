@@ -11,6 +11,7 @@ const PAGE_SIZE = 20;
 async function getProducts(searchParams: {
   search?: string;
   category?: string;
+  status?: string;
   sort?: string;
   page?: string;
   group?: string;
@@ -26,6 +27,7 @@ async function getProducts(searchParams: {
     {
       search: searchParams.search,
       categoryId: searchParams.category,
+      status: searchParams.status,
       sort: searchParams.sort,
       page: grouped ? null : page,
       pageSize: PAGE_SIZE,
@@ -70,6 +72,7 @@ export default async function ProductsPage({
   searchParams: Promise<{
     search?: string;
     category?: string;
+    status?: string;
     sort?: string;
     page?: string;
     group?: string;

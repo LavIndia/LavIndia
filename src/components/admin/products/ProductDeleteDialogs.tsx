@@ -184,6 +184,13 @@ export function BulkDeleteDialog({ open, products, onClose, onDone }: BulkDelete
           <DialogDescription>This cannot be undone.</DialogDescription>
         </DialogHeader>
         {soldCount > 0 && (
+          <p className={css({ fontSize: "sm", color: "fg.muted" })}>
+            {soldCount} of these {soldCount === 1 ? "has" : "have"} been sold, so {soldCount === 1 ? "it is" : "they are"} kept
+            unless you tick the box below. To stop selling {soldCount === 1 ? "it" : "them"} without deleting, close this and use
+            Unpublish (hide from the website) or Retire (never restock).
+          </p>
+        )}
+        {soldCount > 0 && (
           <Checkbox isSelected={includeSold} onChange={setIncludeSold}>
             Also delete the {soldCount} that {soldCount === 1 ? "has" : "have"} been sold — their
             orders and invoices are kept

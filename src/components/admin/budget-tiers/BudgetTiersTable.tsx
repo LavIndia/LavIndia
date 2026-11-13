@@ -11,6 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkDeleteBar } from "@/components/admin/shared/BulkDeleteBar";
+import { useRowSelection } from "@/components/admin/shared/use-row-selection";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
@@ -50,6 +53,7 @@ const iconStyle = css({ height: "4", width: "4" });
 
 export function BudgetTiersTable({ tiers }: { tiers: BudgetTier[] }) {
   const router = useRouter();
+  const selection = useRowSelection(tiers.map((t) => t.id));
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -79,11 +83,26 @@ export function BudgetTiersTable({ tiers }: { tiers: BudgetTier[] }) {
 
   return (
     <>
+      <BulkDeleteBar
+          ids={selection.selected}
+          noun="budget tier"
+          plural="budget tiers"
+          endpointFor={(id) => `/api/admin/budget-tiers/${id}`}
+          onClear={selection.clear}
+        />
       <Card className={cardStyle}>
         <div className={scrollStyle}>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className={css({ width: "10" })}>
+                  <Checkbox
+                    aria-label="Select all budget tiers"
+                    isSelected={selection.allSelected}
+                    isIndeterminate={selection.someSelected}
+                    onChange={selection.toggleAll}
+                  />
+                </TableHead>
                 <TableHead className={css({ width: "16" })}>Order</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Max Price</TableHead>
@@ -98,13 +117,20 @@ export function BudgetTiersTable({ tiers }: { tiers: BudgetTier[] }) {
             <TableBody>
               {tiers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className={emptyCellStyle}>
+                  <TableCell colSpan={8} className={emptyCellStyle}>
                     No budget tiers found. Create one to get started.
                   </TableCell>
                 </TableRow>
               ) : (
                 tiers.map((tier) => (
                   <TableRow key={tier.id}>
+                    <TableCell>
+                    <Checkbox
+                      aria-label={`Select budget tier`}
+                      isSelected={selection.isSelected(tier.id)}
+                      onChange={(on) => selection.toggle(tier.id, on)}
+                    />
+                  </TableCell>
                     <TableCell>
                       <div className={orderCellStyle}>
                         <GripVertical className={gripIconStyle} />

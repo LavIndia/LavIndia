@@ -79,6 +79,8 @@ export interface ProductsFilterBarProps {
   onSubmit: () => void;
   category: string;
   onCategoryChange: (value: string) => void;
+  status: string;
+  onStatusChange: (value: string) => void;
   sort: string;
   onSortChange: (value: string) => void;
   grouped: boolean;
@@ -92,6 +94,8 @@ export function ProductsFilterBar({
   onSubmit,
   category,
   onCategoryChange,
+  status,
+  onStatusChange,
   sort,
   onSortChange,
   grouped,
@@ -152,8 +156,27 @@ export function ProductsFilterBar({
             </SelectContent>
           </Select>
 
-          <Select value={sort} onValueChange={onSortChange}>
+          <Select value={status} onValueChange={onStatusChange}>
             <SelectTrigger className={css({ width: "full", md: { width: "44" } })}>
+              <SelectValue placeholder="All pieces" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All pieces</SelectItem>
+              <SelectItem value="published">On the website</SelectItem>
+              <SelectItem value="hidden">Hidden (unpublished)</SelectItem>
+              <SelectItem value="retired">Retired</SelectItem>
+              <SelectItem value="sold">Has been sold</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={sort} onValueChange={onSortChange}>
+            <SelectTrigger
+              className={css({
+                width: "full",
+                gridColumn: { base: "span 2", md: "auto" },
+                md: { width: "44" },
+              })}
+            >
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>

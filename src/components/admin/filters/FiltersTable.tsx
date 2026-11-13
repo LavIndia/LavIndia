@@ -12,6 +12,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkDeleteBar } from "@/components/admin/shared/BulkDeleteBar";
+import { useRowSelection } from "@/components/admin/shared/use-row-selection";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Pencil, Trash2 } from "lucide-react";
@@ -69,6 +72,7 @@ const deleteIconStyle = css({ height: "4", width: "4", color: "danger" });
 
 export function FiltersTable({ filters }: { filters: FilterWithCount[] }) {
   const router = useRouter();
+  const selection = useRowSelection(filters.map((f) => f.id));
   const [deleting, setDeleting] = useState<string | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
 
@@ -111,11 +115,26 @@ export function FiltersTable({ filters }: { filters: FilterWithCount[] }) {
 
   return (
     <>
+      <BulkDeleteBar
+          ids={selection.selected}
+          noun="filter"
+          plural="filters"
+          endpointFor={(id) => `/api/admin/filters/${id}`}
+          onClear={selection.clear}
+        />
       <div className={containerStyle}>
         <div className={scrollStyle}>
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className={css({ width: "10" })}>
+                  <Checkbox
+                    aria-label="Select all filters"
+                    isSelected={selection.allSelected}
+                    isIndeterminate={selection.someSelected}
+                    onChange={selection.toggleAll}
+                  />
+                </TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead className={centerCellStyle}>Options</TableHead>
@@ -127,13 +146,20 @@ export function FiltersTable({ filters }: { filters: FilterWithCount[] }) {
             <TableBody>
               {filters.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className={emptyCellStyle}>
+                  <TableCell colSpan={7} className={emptyCellStyle}>
                     No filters yet. Create one to get started.
                   </TableCell>
                 </TableRow>
               ) : (
                 filters.map((filter) => (
                   <TableRow key={filter.id}>
+                    <TableCell>
+                    <Checkbox
+                      aria-label={`Select filter`}
+                      isSelected={selection.isSelected(filter.id)}
+                      onChange={(on) => selection.toggle(filter.id, on)}
+                    />
+                  </TableCell>
                     <TableCell className={nameCellStyle}>{filter.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{filter.type}</Badge>

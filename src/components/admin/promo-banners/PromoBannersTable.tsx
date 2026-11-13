@@ -11,6 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkDeleteBar } from "@/components/admin/shared/BulkDeleteBar";
+import { useRowSelection } from "@/components/admin/shared/use-row-selection";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, Trash2 } from "lucide-react";
@@ -34,6 +37,7 @@ type PromoBanner = {
 
 export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
   const router = useRouter();
+  const selection = useRowSelection(banners.map((b) => b.id));
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
@@ -64,6 +68,17 @@ export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className={css({ width: "10" })}>
+            <Checkbox
+              aria-label="Select all banners in this list"
+              isSelected={items.length > 0 && items.every((b) => selection.isSelected(b.id))}
+              isIndeterminate={
+                items.some((b) => selection.isSelected(b.id)) &&
+                !items.every((b) => selection.isSelected(b.id))
+              }
+              onChange={(on) => items.forEach((b) => selection.toggle(b.id, on))}
+            />
+          </TableHead>
           <TableHead className={css({ width: "15" })}>Order</TableHead>
           <TableHead>Preview</TableHead>
           <TableHead>Validity</TableHead>
@@ -77,7 +92,7 @@ export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
         {items.length === 0 ? (
           <TableRow>
             <TableCell
-              colSpan={5}
+              colSpan={6}
               className={css({ textAlign: "center", paddingBlock: "8", color: "fg.muted" })}
             >
               No banners found
@@ -86,6 +101,13 @@ export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
         ) : (
           items.map((banner) => (
             <TableRow key={banner.id}>
+              <TableCell>
+                    <Checkbox
+                      aria-label={`Select banner`}
+                      isSelected={selection.isSelected(banner.id)}
+                      onChange={(on) => selection.toggle(banner.id, on)}
+                    />
+                  </TableCell>
               <TableCell className={css({ fontWeight: "medium" })}>{banner.order}</TableCell>
               <TableCell>
                 <div
@@ -180,6 +202,13 @@ export function PromoBannersTable({ banners }: { banners: PromoBanner[] }) {
 
   return (
     <Tabs defaultValue="top_scroll" className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+      <BulkDeleteBar
+          ids={selection.selected}
+          noun="banner"
+          plural="banners"
+          endpointFor={(id) => `/api/admin/promo-banners/${id}`}
+          onClear={selection.clear}
+        />
       <TabsList>
         <TabsTrigger value="top_scroll">Top Scroll Messages</TabsTrigger>
         <TabsTrigger value="free_gifts">Free Gifts Banner</TabsTrigger>

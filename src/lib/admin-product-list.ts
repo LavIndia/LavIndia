@@ -20,6 +20,8 @@ import { availabilityByProduct, rankProductsByAvailability } from "@/modules/inv
 export interface AdminProductListQuery {
   search?: string | null;
   categoryId?: string | null;
+  /** See `ProductStatusFilter`; absent or "all" shows everything. */
+  status?: string | null;
   sort?: string | null;
   /** One-based. Null returns every matching product. */
   page: number | null;
@@ -40,9 +42,27 @@ const ORDER_BY: Record<string, Prisma.ProductOrderByWithRelationInput> = {
   price_desc: { priceCents: "desc" },
 };
 
+/**
+ * Narrowing the list by where a piece stands:
+ *   published — on the website
+ *   hidden    — unpublished: kept, but not shown to clients
+ *   retired   — never to be stocked again
+ *   sold      — has been on an order, so deleting it needs a deliberate confirm
+ */
+export const PRODUCT_STATUS_FILTERS = ["published", "hidden", "retired", "sold"] as const;
+export type ProductStatusFilter = (typeof PRODUCT_STATUS_FILTERS)[number];
+
+const STATUS_WHERE: Record<ProductStatusFilter, Prisma.ProductWhereInput> = {
+  published: { isPublished: true },
+  hidden: { isPublished: false },
+  retired: { retiredAt: { not: null } },
+  sold: { orderItems: { some: {} } },
+};
+
 export function adminProductWhere(
   search?: string | null,
   categoryId?: string | null,
+  status?: string | null,
 ): Prisma.ProductWhereInput {
   const where: Prisma.ProductWhereInput = {};
   const term = search?.trim();
@@ -54,14 +74,15 @@ export function adminProductWhere(
     ];
   }
   if (categoryId && categoryId !== "all") where.categoryId = categoryId;
-  return where;
+  const statusWhere = STATUS_WHERE[status as ProductStatusFilter];
+  return statusWhere ? { ...where, ...statusWhere } : where;
 }
 
 export async function listAdminProducts<T extends { id: string }>(
   query: AdminProductListQuery,
   load: (args: ProductLoadArgs) => Promise<T[]>,
 ): Promise<{ products: Array<T & { stock: number }>; totalCount: number }> {
-  const where = adminProductWhere(query.search, query.categoryId);
+  const where = adminProductWhere(query.search, query.categoryId, query.status);
   const paging = query.page
     ? { skip: (query.page - 1) * query.pageSize, take: query.pageSize }
     : null;

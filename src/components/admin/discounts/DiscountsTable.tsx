@@ -11,6 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkDeleteBar } from "@/components/admin/shared/BulkDeleteBar";
+import { useRowSelection } from "@/components/admin/shared/use-row-selection";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -34,6 +37,7 @@ type Discount = {
 
 export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
   const router = useRouter();
+  const selection = useRowSelection(discounts.map((d) => d.id));
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
@@ -60,6 +64,14 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
   const isUpcoming = (startDate: Date) => new Date(startDate) > new Date();
 
   return (
+    <div className={css({ display: "flex", flexDirection: "column", gap: "4" })}>
+    <BulkDeleteBar
+          ids={selection.selected}
+          noun="discount code"
+          plural="discount codes"
+          endpointFor={(id) => `/api/admin/discounts/${id}`}
+          onClear={selection.clear}
+        />
     <div
       className={css({
         overflow: "hidden",
@@ -74,6 +86,14 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className={css({ width: "10" })}>
+                  <Checkbox
+                    aria-label="Select all discount codes"
+                    isSelected={selection.allSelected}
+                    isIndeterminate={selection.someSelected}
+                    onChange={selection.toggleAll}
+                  />
+                </TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Discount</TableHead>
@@ -90,7 +110,7 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
             {discounts.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={8}
+                  colSpan={9}
                   className={css({
                     textAlign: "center",
                     paddingBlock: "8",
@@ -104,6 +124,13 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
             ) : (
               discounts.map((discount) => (
                 <TableRow key={discount.id}>
+                  <TableCell>
+                    <Checkbox
+                      aria-label={`Select discount code`}
+                      isSelected={selection.isSelected(discount.id)}
+                      onChange={(on) => selection.toggle(discount.id, on)}
+                    />
+                  </TableCell>
                   <TableCell
                     className={css({ fontFamily: "mono", fontWeight: "bold" })}
                   >
@@ -197,6 +224,7 @@ export function DiscountsTable({ discounts }: { discounts: Discount[] }) {
           </TableBody>
         </Table>
       </div>
+    </div>
     </div>
   );
 }
