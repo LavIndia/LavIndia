@@ -1,6 +1,5 @@
 import NextAuth, { DefaultSession } from "next-auth";
-import type { Adapter } from "next-auth/adapters";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import { lavIndiaAdapter } from "./auth-adapter";
 import { prisma } from "@/lib/prisma";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
@@ -65,7 +64,7 @@ const otpLoginSchema = z.object({
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma) as Adapter,
+  adapter: lavIndiaAdapter(),
   session: { strategy: "jwt" },
   trustHost: true,
   debug: false,
