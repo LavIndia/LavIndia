@@ -23,6 +23,8 @@ interface AuthDialogProps {
   onClose: () => void;
   /** Runs right after a successful login or signup, before onClose. */
   onAuthSuccess?: () => void;
+  /** Where Google brings the client back to; the home page when not given. */
+  returnTo?: string;
 }
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/;
@@ -180,7 +182,7 @@ const fieldHintErrorStyle = css({ color: "danger" });
 const otpRowStyle = css({ display: "flex", gap: "2" });
 const otpInputWrapStyle = css({ flex: "1" });
 
-export function AuthDialog({ isOpen, onClose, onAuthSuccess }: AuthDialogProps) {
+export function AuthDialog({ isOpen, onClose, onAuthSuccess, returnTo = "/" }: AuthDialogProps) {
   const router = useRouter();
   const { businessName } = useSiteSettings();
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
@@ -385,7 +387,7 @@ export function AuthDialog({ isOpen, onClose, onAuthSuccess }: AuthDialogProps) 
     setIsLoading(true);
     try {
       await signIn("google", {
-        callbackUrl: "/",
+        callbackUrl: returnTo,
         redirect: true,
       });
     } catch (error) {

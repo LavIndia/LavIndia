@@ -12,8 +12,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useAuthDialog } from "@/components/auth/AuthDialogProvider";
 import { useCart } from "./useCart";
-import Link from "next/link";
 import { css } from "styled-system/css";
 
 const badgeStyle = css({
@@ -77,6 +78,8 @@ export default function CartSheet() {
   const [open, setOpen] = useState(false);
   const { items, totalCount, totalPrice, updateQty, removeItem, clear } =
     useCart();
+  const router = useRouter();
+  const { requireAuth } = useAuthDialog();
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -185,12 +188,16 @@ export default function CartSheet() {
                 Clear
               </Button>
               <Button
-                asChild
                 className={css({ flex: "1" })}
                 disabled={items.length === 0}
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  // Signed in: straight to checkout. Signed out: the login
+                  // dialog opens, and checkout follows once they have signed in.
+                  requireAuth(() => router.push("/checkout"), { returnTo: "/checkout" });
+                }}
               >
-                <Link href="/checkout">Checkout</Link>
+                Checkout
               </Button>
             </div>
           </div>
