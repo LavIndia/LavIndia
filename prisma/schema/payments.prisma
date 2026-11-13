@@ -66,3 +66,49 @@ model Payment {
 
   @@map("payments")
 }
+
+// ---------------------------------------------------------
+// Payment links & QR codes
+// ---------------------------------------------------------
+enum PaymentLinkKind {
+  LINK // a hosted Razorpay payment page, sent to the client
+  QR // a single-use UPI QR, shown on a screen
+}
+
+enum PaymentLinkStatus {
+  CREATED
+  PAID
+  EXPIRED
+  CANCELLED
+}
+
+/**
+ * A way of collecting an order's payment outside the storefront checkout: a
+ * link the client opens on their phone, or a UPI QR shown at the counter.
+ * Always fixed to one order and its exact amount — the client cannot change
+ * what they pay. The gateway tells us when it is paid (see the webhook); this
+ * row is what lets staff see what was sent, cancel it, and send another.
+ */
+model PaymentLink {
+  id          String            @id @default(cuid())
+  orderId     String
+  kind        PaymentLinkKind
+  // Razorpay's id: plink_… for a link, qr_… for a QR.
+  gatewayId   String            @unique
+  // The page to open (link) or the QR image to render (QR).
+  url         String
+  amountCents Int
+  status      PaymentLinkStatus @default(CREATED)
+  expiresAt   DateTime?
+  // Who it was addressed to — a mobile number or email, for the record.
+  sentTo      String?
+  createdBy   String?
+  paidAt      DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("payment_links")
+}

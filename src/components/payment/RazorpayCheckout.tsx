@@ -57,6 +57,10 @@ interface RazorpayResponse {
   razorpay_signature: string;
 }
 
+interface RazorpayFailure {
+  error?: { description?: string; reason?: string };
+}
+
 interface RazorpayOptions {
   key: string;
   amount: number;
@@ -86,6 +90,7 @@ declare global {
   interface Window {
     Razorpay: new (options: RazorpayOptions) => {
       open: () => void;
+      on: (event: "payment.failed", handler: (response: RazorpayFailure) => void) => void;
     };
   }
 }
@@ -186,14 +191,8 @@ export default function RazorpayCheckout({
       const razorpayOrderResponse = await fetch("/api/payment/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amountCents: amount,
-          currency: currency,
-          notes: {
-            orderNumber: orderNumber,
-            orderId: orderId,
-          },
-        }),
+        // Only the order is named. What it costs is the server's to say.
+        body: JSON.stringify({ orderId }),
       });
 
       const responseData = await razorpayOrderResponse.json();
@@ -201,13 +200,13 @@ export default function RazorpayCheckout({
       if (!razorpayOrderResponse.ok) {
         console.error("Razorpay order creation failed:", responseData);
         toast.error(
-          "Payment gateway temporarily unavailable. Order placed as pending."
+          responseData?.error ?? "Payment gateway temporarily unavailable. Order placed as pending."
         );
         onFailure();
         return;
       }
 
-      const { orderId: razorpayOrderId, keyId } = responseData;
+      const { orderId: razorpayOrderId, keyId, amount: gatewayAmount } = responseData;
 
       if (!razorpayOrderId || !keyId) {
         console.error("Missing Razorpay credentials");
@@ -221,7 +220,7 @@ export default function RazorpayCheckout({
       // Configure Razorpay options
       const options: RazorpayOptions = {
         key: keyId,
-        amount: amount,
+        amount: gatewayAmount ?? amount,
         currency: currency,
         name: businessName,
         description: `Order #${orderNumber}`,
@@ -271,6 +270,11 @@ export default function RazorpayCheckout({
 
       console.log("Opening Razorpay payment modal...");
       const razorpay = new window.Razorpay(options);
+      // A declined attempt leaves the modal open so the customer can try
+      // another instrument; this just tells them why it failed.
+      razorpay.on("payment.failed", (failure) => {
+        toast.error(failure.error?.description ?? "That payment did not go through. Please try again.");
+      });
       razorpay.open();
       console.log("Razorpay modal opened");
     } catch (error) {

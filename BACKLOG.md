@@ -9,7 +9,15 @@ so a future decision is made on the same information, not rediscovered.
 
 ## 1. Automatic UPI payment confirmation
 
-**Status:** not possible with the current approach. Needs a payment gateway.
+**Status (13 Nov 2026):** built, awaiting a Razorpay account with QR Codes enabled.
+The bill step creates a gateway QR, watches it, records the sale itself and
+captures the payer's VPA and UTR; the server re-checks the payment with Razorpay
+before recording the sale, and one gateway payment can pay only one sale. Until
+the account has QR Codes switched on (the test account returns 404 for them) the
+bill falls back to the plain UPI QR and manual confirmation described below, so
+nothing blocks trading. Code: `payments/razorpay/pos-qr.ts`,
+`/api/admin/pos/qr`, `PosRazorpayQr.tsx`. The text below is the original
+reasoning, kept for context.
 
 ### The problem
 
@@ -255,3 +263,54 @@ slug matches no category.
 
 **Not urgent:** the home page, all three categories and every product page
 resolve correctly — this only affects paths that do not exist.
+
+---
+
+## 13. EMI at payment, including no-cost EMI and loan-backed financing
+
+**Added:** 13 Nov 2026, at the owner's request.
+
+**Not built:** the client pays the full amount in one go, by UPI, card or net
+banking. There is no instalment option anywhere in checkout, payment links or
+the counter.
+
+### What is wanted
+
+Let a client turn a high-value purchase into monthly instalments at payment
+time, including:
+
+- **Card EMI** — the client's bank converts the card payment into instalments.
+- **No-cost EMI** — the interest is absorbed by the shop (or the bank), so the
+  client pays no more than the price. The usual model is that the shop funds the
+  interest as a discount, so it has to be accounted for.
+- **Loan-backed / cardless EMI** — a financing partner approves a loan against
+  the purchase, with no card needed.
+
+### Why it matters
+
+Jewellery is the sort of purchase where instalments change the decision, and
+UPI and card limits make a single large payment hard for some clients.
+
+### What it would take
+
+- Confirm what the Razorpay account supports: which EMI types, which banks and
+  financing partners, the minimum order value, and whether no-cost EMI is an
+  offer configured on the dashboard or something the shop sets up with each
+  partner. Check whether it works on payment links and QR as well as checkout.
+- Checkout: show the EMI option only when the order total qualifies, with the
+  instalment plan, since a client has to see what they will pay before choosing.
+- Offers and invoices: who bears the interest in no-cost EMI must show correctly
+  on the invoice and in Accounting — a discount or a marketing cost — without
+  breaking the rule that a sale agrees across every screen.
+- Payments: record which instalment plan was used, in the client's words
+  ("EMI · 6 months · HDFC Bank"), not the gateway's.
+- Admin: a setting for whether and from what amount EMI is offered, and help
+  text for it.
+
+### Relation to other items
+
+Separate from **advance or partial payments** (client pays part now and the rest
+later), which the owner confirmed on 13 Nov 2026 is not supported and is not
+planned. With EMI the full amount is paid up front by the client's bank or the
+lender; the shop is not left waiting for a balance.
+

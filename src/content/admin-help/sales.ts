@@ -42,8 +42,11 @@ export const SALES_HELP: HelpEntry[] = [
       {
         heading: "The bill and after",
         items: [
-          { term: "UPI QR", text: "A code the client scans to pay. The amount is already filled in, and your payee name and UPI ID show beneath it. If you see “No UPI ID set yet”, add the UPI ID under Settings → Payments." },
-          { term: "Payment received", text: "Press only once the money has actually arrived, for example when the client's UPI app shows success. This records the sale." },
+          { term: "UPI QR", text: "A code the client scans to pay. The amount is already filled in, so they cannot pay the wrong figure. When online payments are set up it is a code the payment gateway watches: “Waiting for the customer to pay…” turns to “Payment received” by itself, the sale is recorded automatically, and the client's UPI ID and the bank reference are saved on the sale and its invoice — you type nothing. It works for this one bill only and stops working if you go back." },
+          { term: "Your own UPI QR", text: "If the gateway code cannot be made (online payments not set up, QR not switched on for the account, or no connection), the bill shows a plain UPI code with your payee name and UPI ID beneath it, and a note says automatic confirmation is not available. If you see “No UPI ID set yet”, add the UPI ID under Settings → Payments." },
+          { term: "Confirm by hand instead", text: "Under the gateway code. Use it only if the client says they have paid and the screen has not noticed. It shows your own UPI code and asks you to confirm yourself; the payer and bank reference are then not captured." },
+          { term: "Payment received", text: "Shown when the sale is confirmed by hand — cash, card, other, or a plain UPI code. Press only once the money has actually arrived, for example when the client's UPI app shows success. This records the sale. With the gateway code there is no such button; the sale records itself." },
+          { term: "Record the sale", text: "Appears only if the payment arrived but the sale could not be saved straight away, for example because an offer ended. The money is received, so press it to record the sale and issue the invoice." },
           { term: "Back to the sale", text: "Go back and change something. Nothing has been recorded yet." },
           { term: "Sale complete", text: "Shows the amount charged, the order number (LVI-…), the invoice number (INV/26-27/000123) and each line." },
           { term: "New sale / Invoice", text: "New sale clears the screen for the next client. Invoice opens the printable bill." },
@@ -52,6 +55,7 @@ export const SALES_HELP: HelpEntry[] = [
       },
     ],
     notes: [
+      "A payment taken through the gateway code can pay for one sale only, and only for the exact total on the bill.",
       "Nothing is saved until you press Payment received: no order, no stock movement, no invoice number. Backing out leaves no trace.",
       "Payment received does everything at once. The piece comes out of stock. The sale appears on Orders as Walk-in, Paid and Delivered. A numbered invoice is issued. None of this can be undone from this screen.",
       "The total on screen, on the bill and in the UPI QR is the amount the sale charges. GST follows Settings → Delivery charges and GST → “Counter prices include GST”: on, the tag price is what the client pays; off, 3% GST is added on top.",
@@ -121,6 +125,7 @@ export const SALES_HELP: HelpEntry[] = [
         heading: "Order details",
         items: [
           { term: "Invoice INV/…", text: "Opens the bill. Only shown once one exists." },
+          { term: "Collect payment", text: "Shown on a website order that is still Awaiting payment. Send payment link makes a payment page for exactly the order's total, valid for 24 hours; copy it or send it on WhatsApp. Show UPI QR makes a single-use code for a client standing in the shop, valid for 30 minutes. Only one can be open at a time — making a new one cancels the old. Once the client pays, the order becomes Paid and its invoice is issued by itself; this panel checks every few seconds, so a QR turns Paid without refreshing. Cancel link withdraws one that is still open. The pieces stay held while a link or QR is open." },
           { term: "Customer / Shipping to", text: "Who bought it. Shipping to appears for website orders only." },
           { term: "Items", text: "Each piece with its colour or size, SKU, category, quantity and price charged." },
           { term: "Money", text: "Items at tag value, Discount, Shipping, Tax, how it was paid, and the Total." },
@@ -136,6 +141,9 @@ export const SALES_HELP: HelpEntry[] = [
       "Orders cancelled or refunded before this change were not restocked. Saving Cancelled or Refunded on one again now puts its pieces back — skip that if you already corrected its stock by hand.",
       "Cancelled and Refunded orders drop out of Sales Insights, Accounting and Customer Segments.",
       "Invoices are issued automatically: counter sales at the till, website orders paid online when payment is confirmed, and cash on delivery orders when they are first moved to Shipped, Out for delivery or Delivered. The cash on delivery fee is shown on the invoice.",
+      "Online payments no longer depend on the client's browser. Razorpay confirms each payment to the website directly, so an order is marked Paid even if the client closed the page straight after paying. This needs the webhook set up in the Razorpay dashboard (ask your developer).",
+      "If a client pays twice for the same order — at checkout and again through a link — the order is left as it was and its tracking notes “Duplicate payment received — refund owed”. Refund the extra amount yourself.",
+      "A payment whose amount differs from the order's total is not accepted as Paid. The order stays Awaiting payment and its payment is marked with the reason, for you to look at.",
       "Every stage change is recorded in Audit Logs with who made it.",
       "On a phone the list shows as cards. Tap one for its details. Stages can only be changed on a wider screen.",
       "The export lists exactly the orders your filters match, with stage, payment and how they paid in the same words as the screen. Tag value (₹) is the pieces at tag price before discounts; Amount paid (₹) is what the client actually paid, and 0 for cancelled, refunded or unpaid orders.",

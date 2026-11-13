@@ -1,71 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
-import Razorpay from "razorpay";
+import { isDomainError, toErrorResponse } from "@/modules/_shared/errors";
+import { createCheckoutOrder } from "@/modules/payments/razorpay/checkout-order";
+import { readGatewayFailure } from "@/modules/payments/razorpay/gateway-error";
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+// The browser names the order and nothing else. What the order costs is the
+// server's to say — an amount sent from here would be an amount to forge.
+const bodySchema = z.object({ orderId: z.string().min(1) });
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "An order is required" }, { status: 400 });
+  }
+
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if Razorpay credentials are configured
-    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-      console.error("Razorpay credentials not configured");
-      return NextResponse.json(
-        { error: "Payment gateway not configured" },
-        { status: 500 }
-      );
-    }
-
-    const body = await req.json();
-    const { amountCents, currency = "INR", notes } = body;
-
-    if (!amountCents || amountCents <= 0) {
-      return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
-    }
-
-    console.log("Creating Razorpay order:", { amountCents, currency, notes });
-
-    // Create Razorpay order
-    const razorpayOrder = await razorpay.orders.create({
-      amount: amountCents, // Amount in paise
-      currency,
-      notes: {
-        userId: session.user.id,
-        ...notes,
-      },
-    });
-
-    console.log("Razorpay order created successfully:", razorpayOrder.id);
-
+    const order = await createCheckoutOrder(parsed.data.orderId, session.user.id);
     return NextResponse.json({
       success: true,
-      orderId: razorpayOrder.id,
-      amount: razorpayOrder.amount,
-      currency: razorpayOrder.currency,
-      keyId: process.env.RAZORPAY_KEY_ID,
+      orderId: order.razorpayOrderId,
+      amount: order.amountCents,
+      currency: order.currency,
+      keyId: order.keyId,
     });
   } catch (error) {
-    console.error("Razorpay order creation failed:", error);
-
-    // More detailed error logging
-    if (error instanceof Error) {
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
+    if (isDomainError(error)) {
+      const { body, status } = toErrorResponse(error);
+      return NextResponse.json(body, { status });
     }
-
-    return NextResponse.json(
-      {
-        error: "Failed to create payment order",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
+    const failure = readGatewayFailure(error);
+    console.error("Razorpay order creation failed:", failure.message);
+    return NextResponse.json({ error: failure.message }, { status: failure.status === 401 ? 401 : 500 });
   }
 }

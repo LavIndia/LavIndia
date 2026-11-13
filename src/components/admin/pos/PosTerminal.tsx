@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,8 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
       }
     : cart.totals;
   const idempotencyKeyRef = useRef<string | null>(null);
+  // The gateway QR that took this sale's payment, once it has.
+  const [paidQrId, setPaidQrId] = useState<string | null>(null);
 
   /**
    * Scanning works anywhere on the screen — a hardware scanner types wherever
@@ -121,7 +123,11 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lines: cart.toPayload(),
-          payment: { method, reference: reference.trim() || undefined },
+          // A QR paid through the gateway is proved to the server by its id;
+          // the payer and bank reference come back from the gateway itself.
+          payment: paidQrId
+            ? { method: "UPI", gatewayQrId: paidQrId }
+            : { method, reference: reference.trim() || undefined },
           codes: codes.length ? codes : undefined,
           // The total the operator told the client. The sale never charges
           // more; if an offer ended in between, the screen re-prices.
@@ -151,10 +157,21 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
     }
   };
 
+  // The moment the gateway reports the money, record the sale — once. If that
+  // fails (an offer ended, say) the bill offers "Record the sale" to retry.
+  const autoRecordedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!paidQrId || autoRecordedRef.current === paidQrId || completed) return;
+    autoRecordedRef.current = paidQrId;
+    void completeSale();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paidQrId]);
+
   const startNewSale = () => {
     cart.clear();
     setCodes([]);
     setCompleted(null);
+    setPaidQrId(null);
     setStage("CART");
     setReference("");
     setCustomerName("");
@@ -176,6 +193,8 @@ export function PosTerminal({ upiPayee }: { upiPayee: UpiPayee | null }) {
         submitting={submitting}
         onBack={() => setStage("CART")}
         onConfirm={completeSale}
+        paidQrId={paidQrId}
+        onQrPaid={setPaidQrId}
       />
     );
   }

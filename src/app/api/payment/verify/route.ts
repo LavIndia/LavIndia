@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import crypto from "crypto";
-import { checkoutService, settleGatewayPayment } from "@/modules/ecommerce";
+import { settleGatewayPayment } from "@/modules/ecommerce";
 import { revalidateStockViews } from "@/lib/catalog-cache";
-import { OrderId } from "@/modules/_shared/ids";
-import { prisma as db } from "@/lib/prisma";
+import { isValidCheckoutSignature } from "@/modules/payments/razorpay/config";
 import { fetchPaymentInstrument } from "@/modules/payments/razorpay/payment-details";
+
+const bodySchema = z.object({
+  razorpay_order_id: z.string().min(1),
+  razorpay_payment_id: z.string().min(1),
+  razorpay_signature: z.string().min(1),
+  orderId: z.string().min(1), // Our DB order ID
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,73 +21,47 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      orderId, // Our DB order ID
-    } = body;
+    const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = parsed.data;
 
-    if (
-      !razorpay_order_id ||
-      !razorpay_payment_id ||
-      !razorpay_signature ||
-      !orderId
-    ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { userId: true, payment: { select: { razorpayOrderId: true } } },
+    });
+    // Someone else's order answers exactly like a missing one.
+    if (!order || order.userId !== session.user.id) {
+      return NextResponse.json({ error: "That order could not be found" }, { status: 404 });
     }
 
-    // Verify signature
-    const generatedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest("hex");
+    // The payment must be the one opened FOR this order. A valid signature
+    // from a cheap order's payment must not be usable to settle a dear one.
+    if (!order.payment?.razorpayOrderId || order.payment.razorpayOrderId !== razorpay_order_id) {
+      return NextResponse.json({ error: "Payment verification failed", verified: false }, { status: 400 });
+    }
 
-    if (generatedSignature !== razorpay_signature) {
-      // Signature verification failed
+    if (!isValidCheckoutSignature(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
+      // Recorded for the admin, but the order is left open: a mismatch from
+      // the browser says nothing about whether money moved, and the gateway's
+      // own confirmation (the webhook) may still settle it. An unpaid hold
+      // lapses by itself.
       await prisma.payment.update({
         where: { orderId },
-        data: {
-          status: "FAILED",
-          errorCode: "SIGNATURE_MISMATCH",
-          errorDescription: "Payment signature verification failed",
-        },
+        data: { errorCode: "SIGNATURE_MISMATCH", errorDescription: "Payment signature verification failed" },
       });
-
-      // The hold must go back on the shelf. Leaving it would make the piece
-      // unsellable until the reservation expired, for a payment that never
-      // happened.
-      const failedItems = await db.orderItem.findMany({
-        where: { orderId, variantId: { not: null } },
-        select: { variantId: true, quantity: true },
-      });
-      await checkoutService.releaseForOrder(
-        OrderId(orderId),
-        failedItems.map((item) => ({ variantId: item.variantId!, quantity: item.quantity })),
-      );
-
-      return NextResponse.json(
-        { error: "Payment verification failed", verified: false },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Payment verification failed", verified: false }, { status: 400 });
     }
 
-    // Signature verified. Which instrument actually carried the payment is
-    // asked for OUTSIDE the transaction — it is a call to a third party, and
-    // holding a database transaction open across the public internet is how
-    // a busy evening turns into a pile of lock timeouts. It never throws, so
-    // a slow or unavailable gateway leaves these fields null and the sale
-    // still completes.
+    // Which instrument carried the payment is asked for OUTSIDE the
+    // transaction — a third-party call, never held across a lock. It never
+    // throws; a slow gateway only leaves these fields empty.
     const instrument = await fetchPaymentInstrument(razorpay_payment_id);
 
-    // Settling the hold, recording the payment and issuing the invoice happen
-    // together — a paid order must never exist without its stock consumed
-    // and its bill raised. An order cancelled before the money landed is not
-    // revived: the payment is recorded and a refund is owed instead.
+    // Recording the payment, taking the stock and issuing the invoice happen
+    // together. An order cancelled before the money landed is not revived:
+    // the payment is recorded and a refund is owed instead.
     const outcome = await settleGatewayPayment({
       orderId,
       razorpayOrderId: razorpay_order_id,
@@ -90,14 +70,9 @@ export async function POST(req: NextRequest) {
       instrument,
     });
 
-    // Stock left the shelf with this payment (or a lapsed hold was let go);
-    // listings showing it as available must refresh.
     revalidateStockViews();
 
     if (outcome === "CLOSED") {
-      // Not an error: the payment went through and is on record. The client
-      // is told plainly that the order had been cancelled and the money will
-      // come back to them.
       return NextResponse.json({
         success: true,
         verified: true,
@@ -107,16 +82,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      verified: true,
-      message: "Payment verified successfully",
-    });
+    return NextResponse.json({ success: true, verified: true, message: "Payment verified successfully" });
   } catch (error) {
     console.error("Payment verification error:", error);
-    return NextResponse.json(
-      { error: "Payment verification failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Payment verification failed" }, { status: 500 });
   }
 }

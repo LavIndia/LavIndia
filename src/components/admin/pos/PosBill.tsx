@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { css } from "styled-system/css";
 import { formatPaisa } from "@/modules/_shared/money";
 import type { UpiPayee } from "@/modules/payments/upi/upi-link";
 import type { PosPaymentMethod } from "@/modules/orders";
+import { PosRazorpayQr } from "./PosRazorpayQr";
 import { UpiQrCode } from "./UpiQrCode";
 import type { PosCartLine } from "./usePosCart";
 
@@ -90,6 +92,8 @@ export function PosBill({
   submitting,
   onBack,
   onConfirm,
+  paidQrId,
+  onQrPaid,
 }: {
   lines: PosCartLine[];
   totals: { subtotalCents: number; discountCents: number; taxCents: number; grandTotalCents: number };
@@ -100,7 +104,16 @@ export function PosBill({
   submitting: boolean;
   onBack: () => void;
   onConfirm: () => void;
+  /** Set once the gateway has the money; the sale then only needs recording. */
+  paidQrId: string | null;
+  onQrPaid: (qrId: string) => void;
 }) {
+  // null until the gateway QR is made; false means it could not be, so the
+  // plain UPI QR is showing and the cashier confirms by hand.
+  const [automatic, setAutomatic] = useState<boolean | null>(null);
+  const [byHand, setByHand] = useState(false);
+  const watching = method === "UPI" && !byHand && automatic !== false;
+
   return (
     <div className={wrapStyle}>
       <div className={billStyle}>
@@ -152,16 +165,33 @@ export function PosBill({
       <div className={payPanelStyle}>
         {method === "UPI" ? (
           <>
-            <UpiQrCode
-              payee={payee}
-              amountCents={totals.grandTotalCents}
-              note={`LavIndia ${reference}`}
-              reference={reference}
-            />
+            {byHand ? (
+              <UpiQrCode
+                payee={payee}
+                amountCents={totals.grandTotalCents}
+                note={`LavIndia ${reference}`}
+                reference={reference}
+              />
+            ) : (
+              <PosRazorpayQr
+                amountCents={totals.grandTotalCents}
+                reference={reference}
+                onPaid={onQrPaid}
+                onAutomatic={setAutomatic}
+                fallback={
+                  <UpiQrCode
+                    payee={payee}
+                    amountCents={totals.grandTotalCents}
+                    note={`LavIndia ${reference}`}
+                    reference={reference}
+                  />
+                }
+              />
+            )}
             <p className={stepStyle}>
-              Show this to the customer. The amount is already filled in, so
-              they cannot pay the wrong figure. Confirm only once their app
-              shows the payment as successful.
+              {watching
+                ? "Show this to the customer. The amount is already filled in, and the sale is recorded by itself the moment the payment arrives."
+                : "Show this to the customer. The amount is already filled in, so they cannot pay the wrong figure. Confirm only once their app shows the payment as successful."}
             </p>
           </>
         ) : (
@@ -173,25 +203,39 @@ export function PosBill({
         )}
 
         <div className={actionsStyle}>
-          <Button size="lg" onClick={onConfirm} disabled={submitting}>
-            {submitting ? (
-              <Loader2
-                className={css({ height: "4", width: "4", animation: "spin 1s linear infinite" })}
-              />
-            ) : (
-              <Check className={css({ height: "4", width: "4" })} />
-            )}
-            Payment received
-          </Button>
-          <Button variant="outline" onClick={onBack} disabled={submitting}>
-            <ArrowLeft className={css({ height: "4", width: "4" })} />
-            Back to the sale
-          </Button>
+          {/* While the gateway is watching, there is nothing for the cashier to
+              confirm — and no button that could record an unpaid sale. If the
+              automatic recording failed after payment, this is the retry. */}
+          {(!watching || paidQrId) && (
+            <Button size="lg" onClick={onConfirm} disabled={submitting}>
+              {submitting ? (
+                <Loader2
+                  className={css({ height: "4", width: "4", animation: "spin 1s linear infinite" })}
+                />
+              ) : (
+                <Check className={css({ height: "4", width: "4" })} />
+              )}
+              {paidQrId ? "Record the sale" : "Payment received"}
+            </Button>
+          )}
+          {/* Once money has arrived the sale must be recorded, not abandoned. */}
+          {!paidQrId && (
+            <Button variant="outline" onClick={onBack} disabled={submitting}>
+              <ArrowLeft className={css({ height: "4", width: "4" })} />
+              Back to the sale
+            </Button>
+          )}
+          {watching && !paidQrId && (
+            <Button variant="ghost" size="sm" onClick={() => setByHand(true)}>
+              Confirm by hand instead
+            </Button>
+          )}
         </div>
 
         <p className={stepStyle}>
-          Nothing is recorded until you confirm — no stock movement and no
-          invoice number.
+          {paidQrId
+            ? "The payment has been received. Record the sale to issue the invoice."
+            : "Nothing is recorded until the payment is confirmed — no stock movement and no invoice number."}
         </p>
       </div>
     </div>

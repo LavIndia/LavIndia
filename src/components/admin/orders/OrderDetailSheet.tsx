@@ -23,6 +23,7 @@ import {
   formatRupees,
   paymentDescription,
 } from "./OrderBadges";
+import { OrderPaymentLinks, canCollectPayment } from "./OrderPaymentLinks";
 import { OrderRefundPanel } from "./OrderRefundPanel";
 import type { OrderRow } from "./order-types";
 
@@ -131,6 +132,8 @@ export function OrderDetailSheet({
             )}
 
             <OrderRefundPanel order={order} onRecordRefund={onRecordRefund} />
+
+            {canCollectPayment(order) && <OrderPaymentLinks order={order} />}
 
             <div>
               <h3 className={sectionTitleStyle}>Customer</h3>

@@ -14,6 +14,8 @@ import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/require-admin";
 import { createAuditLog } from "@/lib/audit";
 import { posService } from "@/modules/pos";
+import { verifyPosQrPayment } from "@/modules/payments/razorpay/pos-qr";
+import { DomainError } from "@/modules/_shared/errors";
 import { VariantId } from "@/modules/_shared/ids";
 import { pricingContext } from "@/lib/promotions-cache";
 import {
@@ -46,6 +48,12 @@ const schema = z.object({
     reference: z.string().trim().max(120).optional(),
     payerVpa: z.string().trim().max(120).optional(),
     utr: z.string().trim().max(40).optional(),
+    /**
+     * A Razorpay counter QR that took this payment. When given, the payment
+     * is looked up with the gateway and the payer and bank reference come
+     * from there, not from anything the screen sent.
+     */
+    gatewayQrId: z.string().trim().min(1).max(60).optional(),
   }),
   customer: z
     .object({
@@ -85,6 +93,23 @@ export const POST = apiHandler(async (req: NextRequest) => {
     paymentMethod: input.payment.method === "OTHER" ? null : input.payment.method,
   });
 
+  // A QR payment is proved against the gateway for the amount being charged,
+  // before anything is recorded.
+  let payment: Parameters<typeof posService.completeSale>[0]["payment"] = input.payment;
+  if (input.payment.gatewayQrId) {
+    if (input.payment.method !== "UPI" || input.expectedGrandTotalCents === undefined) {
+      throw new DomainError("VALIDATION_FAILED", "A QR payment must be a UPI sale with its total");
+    }
+    const verified = await verifyPosQrPayment(input.payment.gatewayQrId, input.expectedGrandTotalCents);
+    payment = {
+      method: "UPI",
+      reference: verified.gatewayPaymentId,
+      payerVpa: verified.payerVpa ?? undefined,
+      utr: verified.utr ?? undefined,
+      gatewayPaymentId: verified.gatewayPaymentId,
+    };
+  }
+
   const sale = await posService.completeSale({
     lines: input.lines.map((line) => ({
       variantId: VariantId(line.variantId),
@@ -92,7 +117,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
       overridePriceCents: line.overridePriceCents,
       overrideReason: line.overrideReason,
     })),
-    payment: input.payment,
+    payment,
     customer: input.customer,
     discountCents: input.discountCents,
     pricing,

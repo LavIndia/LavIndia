@@ -67,6 +67,11 @@ export interface CreateOrderInput {
     payerVpa?: string;
     /** UPI RRN / UTR — the bank's reference for the transfer. */
     utr?: string;
+    /**
+     * The gateway's payment id, when the gateway took this payment. Unique on
+     * the payment row, so one gateway payment can never pay for two orders.
+     */
+    gatewayPaymentId?: string;
   };
   status?: OrderStatus;
   shippingCents?: number;

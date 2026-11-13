@@ -84,12 +84,13 @@ model Order {
   customerMobile String?
   customerGstin  String?
 
-  user     User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  address  Address?        @relation(fields: [addressId], references: [id])
-  items    OrderItem[]
-  payment  Payment?
-  tracking OrderTracking[]
-  invoice  Invoice?
+  user         User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address      Address?        @relation(fields: [addressId], references: [id])
+  items        OrderItem[]
+  payment      Payment?
+  paymentLinks PaymentLink[]
+  tracking     OrderTracking[]
+  invoice      Invoice?
 
   @@index([source, createdAt])
   @@index([createdAt])

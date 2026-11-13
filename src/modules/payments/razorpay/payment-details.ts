@@ -14,6 +14,8 @@
  * Server-only — it uses the secret key.
  */
 
+import { razorpayCredentials } from "./config";
+
 const RAZORPAY_API = "https://api.razorpay.com/v1";
 
 /** The subset of Razorpay's payment entity this needs. */
@@ -113,9 +115,9 @@ export function describeInstrument(payment: RazorpayPayment): PaymentInstrument 
 export async function fetchPaymentInstrument(
   razorpayPaymentId: string,
 ): Promise<PaymentInstrument> {
-  const keyId = process.env.RAZORPAY_KEY_ID;
-  const keySecret = process.env.RAZORPAY_KEY_SECRET;
-  if (!keyId || !keySecret) return UNKNOWN;
+  const credentials = razorpayCredentials();
+  if (!credentials) return UNKNOWN;
+  const { keyId, keySecret } = credentials;
 
   try {
     const credentials = Buffer.from(`${keyId}:${keySecret}`).toString("base64");

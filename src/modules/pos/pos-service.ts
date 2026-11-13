@@ -28,6 +28,8 @@ export interface PosSaleInput {
     reference?: string;
     payerVpa?: string;
     utr?: string;
+    /** Set when a gateway QR took the payment; see payments/razorpay/pos-qr. */
+    gatewayPaymentId?: string;
   };
   customer?: {
     customerId?: string;
@@ -88,6 +90,7 @@ class PosService {
             reference: input.payment.reference,
             payerVpa: input.payment.payerVpa,
             utr: input.payment.utr,
+            gatewayPaymentId: input.payment.gatewayPaymentId,
           },
           status: "DELIVERED",
           discountCents: input.discountCents,

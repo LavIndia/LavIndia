@@ -1,7 +1,9 @@
 /**
  * Settling an online order once the gateway confirms its payment.
  *
- * The signature has already been checked by the caller (api/payment/verify).
+ * The caller has already proved the payment is genuine — the browser signature
+ * (api/payment/verify) or the signed webhook (api/payment/webhook).
+ * Both can report the same payment, in either order; the second is a no-op.
  * What happens next depends on the order as it stands, read under a row lock
  * so an admin cancelling it at the same moment queues behind this:
  *
@@ -9,6 +11,9 @@
  *     offers counted and the invoice raised, together or not at all.
  *   - Already paid with this payment: a repeat of the same confirmation (a
  *     retry, a double tap). Nothing is done twice.
+ *   - Already paid, but by a DIFFERENT payment (the client paid at checkout and
+ *     again through a link, say): the order is untouched and the extra money
+ *     is noted on it as owed back.
  *   - Cancelled or refunded: the money arrived after the order was closed —
  *     its stock went back and its holds were released. The payment is
  *     recorded, because it happened, but the order is NOT revived, no stock
@@ -30,9 +35,11 @@ import { takePaidOrderStock } from "./paid-order-stock";
 
 export interface GatewayPayment {
   orderId: string;
-  razorpayOrderId: string;
+  /** Absent for a QR payment, which has no gateway order behind it. */
+  razorpayOrderId?: string | null;
   razorpayPaymentId: string;
-  razorpaySignature: string;
+  /** Present when the browser reported the payment; a webhook has none. */
+  razorpaySignature?: string | null;
   /** What the gateway says the money came in on; each field only when known. */
   instrument: {
     method?: string | null;
@@ -42,8 +49,11 @@ export interface GatewayPayment {
   };
 }
 
-/** PAID — a normal sale. CLOSED — paid, but the order had been cancelled and a refund is owed. */
-export type SettleOutcome = "PAID" | "ALREADY_PAID" | "CLOSED";
+/**
+ * PAID — a normal sale. CLOSED — paid, but the order had been cancelled and a
+ * refund is owed. DUPLICATE — the order was already paid by another payment.
+ */
+export type SettleOutcome = "PAID" | "ALREADY_PAID" | "CLOSED" | "DUPLICATE";
 
 const CLOSED_STATUSES = ["CANCELLED", "REFUNDED"];
 
@@ -67,10 +77,13 @@ async function lockOrder(tx: Tx, orderId: string): Promise<Locked> {
 function paymentData(payment: GatewayPayment, lateNote?: string): Prisma.PaymentUpdateInput {
   const { instrument } = payment;
   return {
-    razorpayOrderId: payment.razorpayOrderId,
+    ...(payment.razorpayOrderId ? { razorpayOrderId: payment.razorpayOrderId } : {}),
     razorpayPaymentId: payment.razorpayPaymentId,
-    razorpaySignature: payment.razorpaySignature,
+    ...(payment.razorpaySignature ? { razorpaySignature: payment.razorpaySignature } : {}),
     status: "COMPLETED",
+    // An earlier failed attempt is history once a later one succeeds.
+    errorCode: null,
+    errorDescription: null,
     // Recorded only when known, so a failed lookup never overwrites a detail
     // that some other path (a webhook, say) already captured.
     ...(instrument.method ? { method: instrument.method } : {}),
@@ -92,6 +105,34 @@ async function recordLatePayment(tx: Tx, payment: GatewayPayment, description: s
   });
   await tx.orderTracking.create({
     data: { orderId: payment.orderId, status: "Payment received — refund owed", description, updatedBy: "system" },
+  });
+}
+
+/** A second payment for an order that is already paid: noted, never applied. */
+async function recordDuplicatePayment(tx: Tx, payment: GatewayPayment): Promise<void> {
+  const existing = await tx.payment.findUnique({ where: { orderId: payment.orderId }, select: { metadata: true } });
+  const metadata = (existing?.metadata ?? {}) as Record<string, unknown>;
+  const duplicates = Array.isArray(metadata.duplicatePayments) ? metadata.duplicatePayments : [];
+  if (duplicates.some((entry) => (entry as { id?: string })?.id === payment.razorpayPaymentId)) return;
+  await tx.payment.update({
+    where: { orderId: payment.orderId },
+    data: {
+      metadata: {
+        ...metadata,
+        duplicatePayments: [
+          ...duplicates,
+          { id: payment.razorpayPaymentId, at: new Date().toISOString() },
+        ],
+      },
+    },
+  });
+  await tx.orderTracking.create({
+    data: {
+      orderId: payment.orderId,
+      status: "Duplicate payment received — refund owed",
+      description: `A second payment (${payment.razorpayPaymentId}) arrived for an order that was already paid. The order is unchanged; the extra amount is owed back to the client.`,
+      updatedBy: "system",
+    },
   });
 }
 
@@ -134,6 +175,10 @@ export async function settleGatewayPayment(payment: GatewayPayment): Promise<Set
         const closed = CLOSED_STATUSES.includes(order.status);
         if (order.paymentStatus === "COMPLETED" && order.razorpayPaymentId === payment.razorpayPaymentId) {
           return closed ? "CLOSED" : "ALREADY_PAID";
+        }
+        if (order.paymentStatus === "COMPLETED") {
+          await recordDuplicatePayment(tx, payment);
+          return "DUPLICATE";
         }
         if (closed) {
           await recordLatePayment(

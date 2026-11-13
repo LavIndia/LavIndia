@@ -173,6 +173,7 @@ class OrderService implements OrdersPort {
         reference: input.payment.reference ?? null,
         payerVpa: input.payment.payerVpa ?? null,
         utr: input.payment.utr ?? null,
+        razorpayPaymentId: input.payment.gatewayPaymentId ?? null,
         createdAt: now,
       },
     });
