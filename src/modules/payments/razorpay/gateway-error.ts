@@ -17,7 +17,7 @@ export function readGatewayFailure(error: unknown): GatewayFailure {
   const description = shaped?.error?.description;
   // Razorpay answers a feature the account has not been given with a bare 404.
   if (description?.includes("requested URL was not found")) {
-    return { status: 502, message: "This feature is not switched on for your Razorpay account yet — ask Razorpay to enable it" };
+    return { status: 502, message: "This feature is not switched on for your Razorpay account yet â€” ask Razorpay to enable it" };
   }
   return {
     status: 502,
