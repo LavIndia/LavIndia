@@ -22,8 +22,9 @@ interface Product {
   name: string;
   slug: string;
   description: string | null;
-  priceCents: number;
-  compareAtCents: number | null;
+  /** In rupees — /api/products converts from paise before sending. */
+  price: number;
+  compareAtPrice: number | null;
   stock: number;
   images: Array<{ url: string; alt: string }>;
   isFeatured: boolean;
@@ -94,7 +95,11 @@ function BudgetShopContent() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        let url = `/api/products?maxPrice=${maxPriceCents}&sort=${sortBy}`;
+        // The menu's values name a column and a direction in one word; the API
+        // takes them as two parameters, and ignores a sort it does not know.
+        const apiSort = sortBy.startsWith("priceCents") ? "price" : sortBy;
+        const apiOrder = sortBy === "name" || sortBy.endsWith("-asc") ? "asc" : "desc";
+        let url = `/api/products?maxPrice=${maxPriceCents}&sort=${apiSort}&order=${apiOrder}`;
         if (selectedCategory !== "all") {
           url += `&categoryId=${selectedCategory}`;
         }
@@ -210,12 +215,8 @@ function BudgetShopContent() {
                     name={product.name}
                     slug={product.slug}
                     description={product.description}
-                    price={product.priceCents / 100}
-                    compareAtPrice={
-                      product.compareAtCents
-                        ? product.compareAtCents / 100
-                        : null
-                    }
+                    price={product.price}
+                    compareAtPrice={product.compareAtPrice}
                     images={product.images}
                     isFeatured={product.isFeatured}
                     isLimitedEdition={product.isLimitedEdition}
