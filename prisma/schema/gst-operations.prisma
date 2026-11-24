@@ -1,0 +1,395 @@
+// =========================================================================
+// GST OPERATIONS
+//
+// The working tables around the seven classification tables in gst.prisma:
+// how the shop decides things (configuration, product composition, supplier
+// papers, the approval trail), what it issues (GST invoice details, credit
+// notes) and how it keeps up (rate proposals, source watches, return
+// reconciliations).
+//
+// Like gst.prisma, nothing here has a foreign key into an existing table. An
+// order or product is held as a plain id and checked by the application, so
+// the whole set can be switched off or dropped without touching the shop.
+// Documents that have been issued are immutable: the database refuses to
+// change or delete them (see the constraints migration).
+// =========================================================================
+
+enum GstChargeTreatment {
+  /// Not yet decided. The engine cannot be enforced while either charge is unset.
+  UNSET
+  /// Carries no GST.
+  NONE
+  /// Part of the supply of the goods: taxed with them.
+  FOLLOWS_GOODS
+  /// A supply of its own, at the rate of its own classification.
+  SEPARATE
+}
+
+enum GstMixedBasketPolicy {
+  /// Split the charge across the goods by value, each part at its goods' rate.
+  PROPORTIONAL
+  /// The whole charge at the highest rate in the basket.
+  HIGHEST_RATE
+}
+
+enum GstPlatingType {
+  UNKNOWN
+  /// No precious metal anywhere in the piece.
+  NONE
+  ELECTROPLATED
+  PVD
+  /// Precious metal bonded or rolled onto a base metal.
+  CLAD_BONDED
+  /// The piece is itself precious metal.
+  SOLID_PRECIOUS
+}
+
+enum GstInfoStatus {
+  MISSING
+  PARTIAL
+  COMPLETE
+}
+
+enum GstClassificationAction {
+  INFO_SAVED
+  SUGGESTED
+  SUBMITTED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum GstInvoiceKind {
+  /// The buyer gave a GSTIN.
+  B2B
+  /// The buyer is a consumer.
+  B2C
+}
+
+enum GstEInvoiceStatus {
+  NOT_APPLICABLE
+  NOT_GENERATED
+  GENERATED
+  CANCELLED
+}
+
+enum GstCreditKind {
+  FULL
+  PARTIAL
+}
+
+enum GstProposalStatus {
+  PROPOSED
+  IN_REVIEW
+  ACCEPTED
+  REJECTED
+  SUPERSEDED
+}
+
+enum GstReturnType {
+  GSTR1
+  GSTR3B
+}
+
+enum GstReconStatus {
+  DRAFT
+  MATCHED
+  DIFFERENCES
+}
+
+enum GstPendingKind {
+  PRODUCT
+  CATEGORY
+}
+
+enum GstPendingStatus {
+  PENDING_IMPORT
+  IMPORTED
+  DROPPED
+}
+
+// ---------------------------------------------------------
+// Decisions
+// ---------------------------------------------------------
+
+/// How delivery and cash-on-delivery charges are taxed, and who decided so.
+/// One row. Both charges start UNSET; the accountant's choice is recorded here
+/// before the engine can be enforced. Nothing about them is assumed.
+model GstConfiguration {
+  id                    String                @id @default(cuid())
+  shippingTreatment     GstChargeTreatment    @default(UNSET)
+  codTreatment          GstChargeTreatment    @default(UNSET)
+  mixedBasketPolicy     GstMixedBasketPolicy?
+  /// Why: the accountant's reasoning, in their words.
+  treatmentBasis        String?
+  treatmentApprovedBy   String?
+  treatmentApprovedAt   DateTime?
+  /// Whether the state table in code has been checked against the GST portal.
+  stateTableReviewedBy  String?
+  stateTableReviewedAt  DateTime?
+  /// Whether the place-of-supply rule used has been confirmed by the accountant.
+  placeOfSupplyReviewedBy String?
+  placeOfSupplyReviewedAt DateTime?
+  updatedBy             String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@map("gst_configuration")
+}
+
+/// What a piece is made of, in structured form, as the owner confirms it.
+/// Kept apart from the product so the product itself is never touched.
+model GstProductProfile {
+  id               String         @id @default(cuid())
+  /// The product. No foreign key; one profile per product.
+  productId        String         @unique
+  baseMetal        String?
+  alloyNotes       String?
+  platingType      GstPlatingType @default(UNKNOWN)
+  platingMetal     String?
+  preciousMetal    String?
+  preciousPurity   String?
+  /// Weight of precious metal, in milligrams, when it is solid or clad.
+  preciousWeightMg Int?
+  /// [{ name, kind: STONE|PEARL, origin: NATURAL|CULTURED|SYNTHETIC|RECONSTRUCTED|GLASS|CUBIC_ZIRCONIA|OTHER|UNKNOWN, notes }]
+  gems             Json?
+  isHandmade       Boolean?
+  handmadeNotes    String?
+  supplierName     String?
+  /// What the supplier's invoice says — a hint, never proof.
+  supplierHsn      String?
+  materialNotes    String?
+  infoStatus       GstInfoStatus  @default(MISSING)
+  /// Who stood behind these details, and when.
+  confirmedBy      String?
+  confirmedAt      DateTime?
+  updatedBy        String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([infoStatus])
+  @@map("gst_product_profiles")
+}
+
+/// A supplier invoice or similar paper, kept as evidence. Stored in the
+/// database because uploaded files have nowhere else to live on this site.
+model GstSupplierDocument {
+  id            String   @id @default(cuid())
+  /// Products this paper speaks to. No foreign keys.
+  productIds    String[]
+  supplierName  String
+  invoiceNumber String?
+  invoiceDate   DateTime? @db.Date
+  fileName      String
+  mimeType      String
+  sizeBytes     Int
+  sha256        String
+  content       Bytes
+  notes         String?
+  uploadedBy    String
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("gst_supplier_documents")
+}
+
+/// The trail of a classification: information saved, submitted for approval,
+/// approved or rejected, and by whom. Append-only.
+model GstClassificationEvent {
+  id           String                  @id @default(cuid())
+  productId    String?
+  mappingId    String?
+  action       GstClassificationAction
+  actorId      String
+  actorName    String?
+  /// The accountant who approved or rejected, by name, since they may have no login.
+  approverName String?
+  reason       String?
+  /// What was proposed or decided: code, status, material snapshot.
+  details      Json?
+  createdAt    DateTime                @default(now())
+
+  @@index([productId, createdAt])
+  @@index([mappingId])
+  @@map("gst_classification_events")
+}
+
+// ---------------------------------------------------------
+// What is issued
+// ---------------------------------------------------------
+
+/// The GST particulars of an issued invoice, frozen at issue. The invoice
+/// itself (and its snapshot) is in the existing invoices table and is never
+/// touched; this adds the tax detail it cannot hold. Immutable except for the
+/// e-invoice fields, which are filled in later.
+model GstInvoiceDetail {
+  id                  String            @id @default(cuid())
+  orderId             String            @unique
+  /// The number of the existing invoice this belongs to.
+  invoiceNumber       String            @unique
+  financialYear       String
+  invoiceDate         DateTime
+  kind                GstInvoiceKind
+  supplier            Json
+  recipient           Json
+  supplierStateCode   String
+  placeOfSupplyCode   String
+  supplyType          GstSupplyType
+  pricesIncludeTax    Boolean
+  /// Per line: description, HSN/SAC, quantity, rate version, rate, taxable value, CGST/SGST/IGST/cess.
+  lines               Json
+  /// Taxable value and tax per rate, for the invoice footer and the HSN summary.
+  rateSummary         Json
+  taxableCents        Int
+  cgstCents           Int
+  sgstCents           Int
+  igstCents           Int
+  cessCents           Int               @default(0)
+  totalTaxCents       Int
+  /// Delivery or cash-on-delivery charges that carry no GST.
+  untaxedChargesCents Int               @default(0)
+  invoiceValueCents   Int
+  reverseCharge       Boolean           @default(false)
+  declarations        String[]
+  /// The calculation this was built from. No foreign key.
+  auditId             String?
+  eInvoiceStatus      GstEInvoiceStatus @default(NOT_APPLICABLE)
+  irn                 String?
+  ackNumber           String?
+  ackDate             DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  creditNotes GstCreditNote[]
+
+  @@index([invoiceDate])
+  @@index([financialYear])
+  @@map("gst_invoice_details")
+}
+
+/// A credit note against a GST invoice — whole or part. Reverses tax at the
+/// rate versions the invoice was issued under. Immutable.
+model GstCreditNote {
+  id               String        @id @default(cuid())
+  /// Taken from the existing credit-note series, so there is one unbroken run.
+  creditNoteNumber String        @unique
+  invoiceDetailId  String
+  orderId          String
+  financialYear    String
+  issuedAt         DateTime      @default(now())
+  kind             GstCreditKind
+  reason           String
+  /// Per line: the lineId on the invoice and the taxable value, tax and payable amount reversed.
+  lines            Json
+  taxableCents     Int
+  cgstCents        Int
+  sgstCents        Int
+  igstCents        Int
+  cessCents        Int           @default(0)
+  totalTaxCents    Int
+  /// What the buyer is refunded for: taxable + tax + any untaxed charge refunded.
+  refundCents      Int
+  /// How the money went back, as staff recorded it.
+  refundReference  String?
+  createdBy        String
+  createdAt        DateTime      @default(now())
+
+  invoiceDetail GstInvoiceDetail @relation(fields: [invoiceDetailId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceDetailId])
+  @@index([orderId])
+  @@index([issuedAt])
+  @@map("gst_credit_notes")
+}
+
+// ---------------------------------------------------------
+// Keeping up
+// ---------------------------------------------------------
+
+/// A change to a rate or classification that someone has spotted in an
+/// official notification, waiting for review. Accepting it creates a DRAFT
+/// rate; it is never published by itself.
+model GstRateProposal {
+  id             String            @id @default(cuid())
+  notificationId String?
+  sourceUrl      String?
+  title          String
+  noticeDate     DateTime?         @db.Date
+  effectiveFrom  DateTime?         @db.Date
+  /// What would change: { code, codeKind, description, rateBps, cgstBps, sgstBps, igstBps, cessBps, minUnitValueCents, maxUnitValueCents }.
+  proposedChange Json
+  summary        String?
+  status         GstProposalStatus @default(PROPOSED)
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  reviewNote     String?
+  /// The DRAFT rate created on acceptance. No foreign key.
+  createdRateId  String?
+  createdBy      String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  notification GstNotification? @relation(fields: [notificationId], references: [id], onDelete: Restrict)
+
+  @@index([status, createdAt])
+  @@map("gst_rate_proposals")
+}
+
+/// An official page worth checking from time to time. Only change detection:
+/// a changed page is flagged for a person to read, nothing is parsed or published.
+model GstSourceWatch {
+  id                    String    @id @default(cuid())
+  label                 String
+  url                   String    @unique
+  authority             String    @default("CBIC")
+  lastCheckedAt         DateTime?
+  /// HTTP status, or the failure in words.
+  lastStatus            String?
+  lastHash              String?
+  lastChangedAt         DateTime?
+  changeAcknowledgedAt  DateTime?
+  changeAcknowledgedBy  String?
+  createdBy             String
+  createdAt             DateTime  @default(now())
+
+  @@map("gst_source_watches")
+}
+
+/// The shop's own books set against a return, for a month. The figures
+/// "entered" are what someone read off the return; nothing here files or
+/// submits anything.
+model GstReturnReconciliation {
+  id              String         @id @default(cuid())
+  /// "2026-10"
+  period          String
+  returnType      GstReturnType
+  entered         Json
+  computed        Json
+  differences     Json
+  status          GstReconStatus @default(DRAFT)
+  note            String?
+  enteredBy       String
+  createdAt       DateTime       @default(now())
+
+  @@index([period, returnType])
+  @@map("gst_return_reconciliations")
+}
+
+/// Products and categories known to exist on the live shop but not in this
+/// database, waiting for a catalog import.
+model GstPendingCatalogItem {
+  id              String           @id @default(cuid())
+  kind            GstPendingKind
+  name            String
+  /// For a product: the category it belongs to.
+  categoryName    String?
+  source          String
+  note            String?
+  status          GstPendingStatus @default(PENDING_IMPORT)
+  matchedProductId String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([kind, name])
+  @@map("gst_pending_catalog_items")
+}

@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cartItemSchema, resolveCartLines } from "@/lib/cart-lines";
 import { priceCart } from "@/lib/cart-quote";
+import { recordGstAudit, recordGstAuditSafely } from "@/modules/gst";
 import { DELIVERY_RATES_SELECT, onlinePaymentInstrument, shippingCentsFor } from "@/lib/online-charges";
 import { z } from "zod";
 
@@ -76,8 +77,13 @@ export async function POST(req: NextRequest) {
         validated.paymentChoice ?? (validated.paymentMethod === "cod" ? "cod" : undefined),
       ),
       shippingCents: shippingCentsFor(validated.shippingMethod, settings),
+      // Read by the GST engine when it is on; ignored while it is OFF.
+      gst: { deliveryStateName: address.state, codFeeCents },
     });
     const { quote } = priced;
+    // Tax on the cash-on-delivery fee, when the GST engine is enforcing and
+    // that fee is taxed. Zero otherwise, so the totals below are unchanged.
+    const codTaxCents = quote.gst?.mode === "ENFORCE" ? quote.gst.codTaxCents : 0;
 
     // Draft is a statement about the website: an unpublished piece cannot be
     // bought online by anyone who happens to have its id.
@@ -111,7 +117,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const grandTotalCents = quote.totals.grandTotalCents + codFeeCents;
+    const grandTotalCents =
+      quote.totals.grandTotalCents + codFeeCents + (quote.totals.taxIncluded ? 0 : codTaxCents);
 
     // An offer can end or run out between the checkout showing a total and
     // the client pressing Place order. They are never charged more than they
@@ -143,7 +150,7 @@ export async function POST(req: NextRequest) {
             totalCents: quote.totals.subtotalCents,
             shippingCents: quote.totals.shippingCents,
             codFeeCents,
-            taxCents: quote.totals.taxCents,
+            taxCents: quote.totals.taxCents + codTaxCents,
             taxIncluded: quote.totals.taxIncluded,
             discountCode: quote.applied.find((a) => a.code)?.code ?? null,
             discountCents: quote.totals.discountCents,
@@ -167,6 +174,11 @@ export async function POST(req: NextRequest) {
           // counts once it is paid (api/payment/verify).
           countUsesNow: validated.paymentMethod === "cod",
         });
+
+        // Enforcing: the GST calculation is part of this same transaction.
+        if (quote.gst?.mode === "ENFORCE") {
+          await recordGstAudit(tx, { orderId: newOrder.id, orderNumber: newOrder.orderNumber, channel: "ONLINE", attachment: quote.gst });
+        }
 
         await tx.payment.create({
           data: {
@@ -211,6 +223,12 @@ export async function POST(req: NextRequest) {
       },
       { timeout: 20_000 },
     );
+
+    // Shadowing: record what the GST engine would have charged, now that the
+    // order is safe. It cannot hold an order up.
+    if (quote.gst?.mode === "SHADOW") {
+      await recordGstAuditSafely({ orderId: order.id, orderNumber: order.orderNumber, channel: "ONLINE", attachment: quote.gst });
+    }
 
     // A new order changes the bestseller ranking, and it took stock with it,
     // so the listings and product pages are dropped too.

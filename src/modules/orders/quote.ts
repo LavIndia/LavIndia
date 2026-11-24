@@ -26,7 +26,7 @@ import { allocateProportionally } from "../promotions/engine/allocate";
 import { DomainError } from "../_shared/errors";
 import { VariantId } from "../_shared/ids";
 import type { SellableVariant } from "../catalog";
-import type { LineAllocation, OrderLineInput, OrderLineSnapshot, OrderTotals } from "./contracts";
+import type { GstAttachment, LineAllocation, OrderLineInput, OrderLineSnapshot, OrderTotals } from "./contracts";
 
 export interface QuoteInput {
   channel: Channel;
@@ -49,6 +49,8 @@ export interface Quote {
   totals: OrderTotals & { deliveryDiscountCents: number };
   evaluation: Evaluation;
   applied: Array<{ promotionId: string; label: string; code: string | null; savingCents: number }>;
+  /** Attached by the GST engine in SHADOW or ENFORCE mode; absent when OFF. */
+  gst?: GstAttachment;
 }
 
 interface UnitPrice {

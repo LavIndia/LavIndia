@@ -22,6 +22,7 @@ import {
   XCircle,
   AlertCircle,
   PackageCheck,
+  FileText,
 } from "lucide-react";
 import { css, cva } from "styled-system/css";
 
@@ -43,6 +44,7 @@ interface Order {
   shippingCents: number;
   createdAt: string;
   items: OrderItem[];
+  gstInvoice?: boolean;
 }
 
 // Status pill — tone-based so order status reads at a glance (neutral = pending,
@@ -539,6 +541,14 @@ export default function OrdersPage() {
                         <Package className={css({ h: "4", w: "4" })} />
                         View Details
                       </Button>
+                      {order.gstInvoice && (
+                        <Button asChild variant="outline" className={css({ flex: "1" })}>
+                          <Link href={`/account-pages/gst-invoice/${order.id}`}>
+                            <FileText className={css({ h: "4", w: "4" })} />
+                            GST Invoice
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                     <div
                       className={css({

@@ -45,6 +45,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { GST_NAV_GROUP } from "./gst-nav-group";
 import { css, cx } from "styled-system/css";
 
 type NavItem = { name: string; href: string; icon: typeof LayoutDashboard };
@@ -95,6 +96,7 @@ const NAV_GROUPS: NavGroup[] = [
       { name: "Customer Segments", href: "/admin/customers/rfm", icon: UserCheck },
     ],
   },
+  GST_NAV_GROUP,
   {
     label: "Marketing & Content",
     items: [

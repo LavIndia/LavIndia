@@ -14,6 +14,7 @@ import { InvoiceId, type OrderId } from "../_shared/ids";
 import { greetingForInvoiceNumber } from "./invoices/greetings";
 import { allocateInvoiceNumber } from "./invoices/invoice-number";
 import type { InvoiceSnapshot } from "./invoices/invoice-types";
+import { onInvoiceIssued } from "../gst/invoice-detail";
 
 export interface IssuedInvoice {
   invoiceId: InvoiceId;
@@ -161,6 +162,16 @@ class BillingService implements BillingPort {
         createdBy: actorId ?? null,
       },
       select: { id: true },
+    });
+
+    // With the GST engine on, the GST particulars of this invoice are written
+    // beside it. Never holds the invoice up; nothing happens while it is OFF.
+    await onInvoiceIssued(client, {
+      orderId,
+      invoiceNumber: allocated.invoiceNumber,
+      financialYear: allocated.financialYear,
+      issuedAt,
+      invoiceTotalCents: snapshot.totals.grandTotalCents,
     });
 
     return {

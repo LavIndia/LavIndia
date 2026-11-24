@@ -17,7 +17,7 @@ import { DomainError } from "../_shared/errors";
 import { CustomerId, type OrderId } from "../_shared/ids";
 import { billingService } from "../billing/billing-service";
 import { orderService } from "../orders/order-service";
-import type { CreateOrderInput, OrderLineInput, PosPaymentMethod } from "../orders/contracts";
+import type { CreateOrderInput, GstAttachment, OrderLineInput, PosPaymentMethod } from "../orders/contracts";
 import type { InvoiceSnapshot } from "../billing/invoices/invoice-types";
 
 export interface PosSaleInput {
@@ -54,6 +54,8 @@ export interface PosSaleResult {
   invoiceNumber: string;
   invoice: InvoiceSnapshot;
   grandTotalCents: number;
+  /** The GST engine's result, when it is on. Kept out of the API response. */
+  gst?: GstAttachment;
 }
 
 class PosService {
@@ -116,6 +118,7 @@ class PosService {
         invoiceNumber: invoice.invoiceNumber,
         invoice: invoice.snapshot,
         grandTotalCents: order.totals.grandTotalCents,
+        gst: order.gst,
       };
     };
 

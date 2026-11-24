@@ -26,7 +26,7 @@ export interface HelpEntry {
    */
   route: string;
   /** Where it sits in the sidebar, for the Help index. */
-  area: "Overview" | "Catalog" | "Inventory" | "Sales" | "Marketing & Content" | "System";
+  area: "Overview" | "Catalog" | "Inventory" | "Sales" | "GST" | "Marketing & Content" | "System";
   title: string;
   /** One or two sentences: what this screen is for. */
   purpose: string;

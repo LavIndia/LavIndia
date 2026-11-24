@@ -33,7 +33,18 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ orders });
+    // Which orders have a GST tax invoice (only those priced by the GST engine).
+    // Best effort: the order list must never fail because of it.
+    const withGst = new Set<string>();
+    try {
+      const rows = await prisma.gstInvoiceDetail.findMany({
+        where: { orderId: { in: orders.map((o) => o.id) } },
+        select: { orderId: true },
+      });
+      rows.forEach((r) => withGst.add(r.orderId));
+    } catch {}
+
+    return NextResponse.json({ orders: orders.map((o) => ({ ...o, gstInvoice: withGst.has(o.id) })) });
   } catch (error) {
     console.error("Fetch orders error:", error);
     return NextResponse.json(

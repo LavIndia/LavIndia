@@ -16,7 +16,8 @@ import { catalogService, withdrawSoldOutRetiredProducts } from "../catalog";
 import { inventoryService } from "../inventory";
 import type { CreateOrderInput, CreatedOrder, OrdersPort } from "./contracts";
 import { GST_RATE_BPS } from "./pricing";
-import { quoteCart, type Quote } from "./quote";
+import { type Quote } from "./quote";
+import { quoteCartWithGst, recordGstAudit } from "../gst";
 import { appliedSnapshot, persistOrderLines } from "./persist-lines";
 
 /**
@@ -67,7 +68,7 @@ class OrderService implements OrdersPort {
 
     // One pricing path for both channels: catalog, manual prices, offers,
     // then GST per line.
-    const quote = quoteCart(
+    const quote = await quoteCartWithGst(
       {
         channel: input.source,
         lines: input.lines,
@@ -81,6 +82,9 @@ class OrderService implements OrdersPort {
         taxRateBps: GST_RATE_BPS,
       },
       byId,
+      // The counter's goods are handed over in the shop; a delivered order is
+      // priced by the checkout route, which knows the address.
+      { channel: input.source },
     );
 
     if (
@@ -187,6 +191,12 @@ class OrderService implements OrdersPort {
       },
     });
 
+    // With the GST engine enforcing, its calculation is written in the same
+    // transaction as the order, so an order never exists without its record.
+    if (quote.gst?.mode === "ENFORCE") {
+      await recordGstAudit(client, { orderId: order.id, orderNumber: order.orderNumber, channel: input.source, attachment: quote.gst });
+    }
+
     // Stock moves in the same transaction. If this fails — someone else took
     // the last piece a moment earlier — the whole order rolls back rather
     // than leaving a sale with no stock behind it.
@@ -207,6 +217,7 @@ class OrderService implements OrdersPort {
       lines,
       totals,
       createdAt: order.createdAt,
+      gst: quote.gst,
     };
   }
 }

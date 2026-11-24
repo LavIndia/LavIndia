@@ -9,6 +9,7 @@ import { SALES_HELP } from "./sales";
 import { CUSTOMERS_HELP } from "./customers";
 import { MARKETING_HELP } from "./marketing";
 import { OFFERS_HELP } from "./offers";
+import { GST_HELP } from "./gst";
 import { SYSTEM_HELP } from "./system";
 import { HELP_PAGE_HELP } from "./help-page";
 
@@ -20,6 +21,7 @@ export const ADMIN_HELP: HelpEntry[] = [
   ...INVENTORY_HELP,
   ...SALES_HELP,
   ...CUSTOMERS_HELP,
+  ...GST_HELP,
   ...OFFERS_HELP,
   ...MARKETING_HELP,
   ...SYSTEM_HELP,
@@ -31,6 +33,7 @@ export const HELP_AREAS: HelpEntry["area"][] = [
   "Catalog",
   "Inventory",
   "Sales",
+  "GST",
   "Marketing & Content",
   "System",
 ];

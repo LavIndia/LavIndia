@@ -4,7 +4,8 @@
  * is shown is what they are charged.
  */
 import { catalogService, type SellableVariant } from "@/modules/catalog";
-import { GST_RATE_BPS, quoteCart, type Quote } from "@/modules/orders";
+import { GST_RATE_BPS, type Quote } from "@/modules/orders";
+import { quoteCartWithGst } from "@/modules/gst";
 import { VariantId } from "@/modules/_shared/ids";
 import { rupees, type Channel, type Nudge, type PaymentInstrument } from "@/modules/promotions";
 import { getPromotionSnapshot, pricingContext, type PricingContext } from "@/lib/promotions-cache";
@@ -53,6 +54,8 @@ export async function priceCart(args: {
   paymentMethod?: PaymentInstrument | null;
   shippingCents?: number;
   manualOrderDiscountCents?: number;
+  /** For the GST engine, when it is on: where the goods go, and any cash-on-delivery fee. */
+  gst?: { deliveryStateName?: string | null; codFeeCents?: number };
 }): Promise<PricedCart> {
   const [pricing, variantList, snapshot] = await Promise.all([
     pricingContext({
@@ -67,7 +70,7 @@ export async function priceCart(args: {
   const variants = new Map(variantList.map((v) => [v.variantId as string, v]));
   const rows = new Map(snapshot.rows.map((row) => [row.id, row]));
 
-  const quote = quoteCart(
+  const quote = await quoteCartWithGst(
     {
       channel: args.channel,
       lines: args.lines.map((line) => ({ ...line, variantId: VariantId(line.variantId) })),
@@ -81,6 +84,13 @@ export async function priceCart(args: {
       taxRateBps: GST_RATE_BPS,
     },
     variants,
+    {
+      channel: args.channel,
+      codFeeCents: args.gst?.codFeeCents,
+      deliveryStateName: args.gst?.deliveryStateName,
+      // A cart priced before an address exists: tax in total is the same either way.
+      deferPlaceOfSupply: args.channel === "ONLINE" && !args.gst?.deliveryStateName,
+    },
   );
 
   const appliedMessages = quote.applied.map((a) => {

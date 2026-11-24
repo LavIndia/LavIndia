@@ -15,6 +15,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { createAuditLog } from "@/lib/audit";
 import { posService } from "@/modules/pos";
 import { verifyPosQrPayment } from "@/modules/payments/razorpay/pos-qr";
+import { recordGstAuditSafely } from "@/modules/gst";
 import { DomainError } from "@/modules/_shared/errors";
 import { VariantId } from "@/modules/_shared/ids";
 import { pricingContext } from "@/lib/promotions-cache";
@@ -127,6 +128,14 @@ export const POST = apiHandler(async (req: NextRequest) => {
     idempotencyKey: input.idempotencyKey,
   });
 
+  // With the GST engine in SHADOW, what it would have charged is recorded now
+  // that the sale is safe; it never holds the sale up. (ENFORCE records its
+  // calculation inside the sale's own transaction.)
+  const { gst, ...publicSale } = sale;
+  if (gst?.mode === "SHADOW") {
+    await recordGstAuditSafely({ orderId: sale.orderId, orderNumber: sale.orderNumber, channel: "STORE", attachment: gst });
+  }
+
   await createAuditLog({
     adminId: actor.id,
     adminName: actor.name ?? undefined,
@@ -146,5 +155,5 @@ export const POST = apiHandler(async (req: NextRequest) => {
   // online order does, so it drops the same caches.
   revalidateStockViews();
   revalidateTag(BESTSELLERS_TAG);
-  return NextResponse.json({ success: true, sale });
+  return NextResponse.json({ success: true, sale: publicSale });
 });

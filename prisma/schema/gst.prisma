@@ -1,0 +1,318 @@
+// =========================================================================
+// GST DOMAIN
+//
+// An independent classification and tax-rate system, added beside the
+// existing pricing and billing without touching them. Nothing here has a
+// foreign key into an existing table: a reference to a product or an order is
+// held as a plain id and checked by the application, so these tables can be
+// created, switched off or dropped without any effect on the shop.
+//
+// The engine is OFF until GstBusinessProfile.engineMode says otherwise, and
+// even in SHADOW mode it only records what it would have charged — see
+// src/modules/gst (to come).
+//
+// Rates are facts with a source and a validity period. A rate that has been
+// used is never edited: it is closed with an effective_to date and a new
+// version is added, so the tax applied to any past sale can always be shown.
+// =========================================================================
+
+enum GstEngineMode {
+  /// The engine does nothing. The default.
+  OFF
+  /// Calculates beside the existing engine and logs differences. Charges nobody.
+  SHADOW
+  /// The engine sets the tax. Only reachable once the profile is verified.
+  ENFORCE
+}
+
+enum GstVerificationStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+}
+
+enum GstRegistrationType {
+  REGULAR
+  COMPOSITION
+  UNREGISTERED
+}
+
+/// How sure the shop is of a classification. Anything other than VERIFIED must
+/// never be charged on; it is reported, not defaulted.
+enum GstClassificationStatus {
+  VERIFIED
+  NEEDS_ACCOUNTANT_APPROVAL
+  NEEDS_PRODUCT_INFORMATION
+}
+
+/// What a mapping classifies: a piece, or a charge that is not a piece.
+enum GstChargeKind {
+  PRODUCT
+  SHIPPING
+  COD_FEE
+}
+
+enum GstRateApproval {
+  DRAFT
+  APPROVED
+}
+
+enum GstSupplyType {
+  INTRA_STATE
+  INTER_STATE
+}
+
+enum GstAuditOutcome {
+  /// New and existing engines agree.
+  MATCHED
+  /// Both ran, and the tax differs.
+  DIFFERS
+  /// At least one line had no verified classification, so no tax was worked out for it.
+  MISSING_MAPPING
+  ERROR
+}
+
+// ---------------------------------------------------------
+// Where a rate or classification comes from
+// ---------------------------------------------------------
+
+/// A government notification, circular or schedule entry that a rate or
+/// classification rests on. Kept so that every rate can be traced to its source.
+model GstNotification {
+  id             String    @id @default(cuid())
+  /// e.g. "01/2017-Central Tax (Rate)". As printed on the notification.
+  number         String
+  title          String?
+  issuedOn       DateTime? @db.Date
+  effectiveFrom  DateTime? @db.Date
+  /// Normally CBIC.
+  authority      String    @default("CBIC")
+  sourceUrl      String?
+  /// Who looked at the original and confirmed this entry reads as stated.
+  verifiedBy     String?
+  verifiedAt     DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  rates     GstRateMaster[]
+  proposals GstRateProposal[]
+
+  @@unique([number, issuedOn])
+  @@map("gst_notifications")
+}
+
+// ---------------------------------------------------------
+// Classification masters
+// ---------------------------------------------------------
+
+/// Harmonised System of Nomenclature codes — goods.
+model GstHsnMaster {
+  id          String   @id @default(cuid())
+  /// 2, 4, 6 or 8 digits.
+  code        String   @unique
+  description String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rates    GstRateMaster[]
+  mappings GstProductMapping[]
+
+  @@map("gst_hsn_master")
+}
+
+/// Services Accounting Codes — services, e.g. a delivery charge if it is
+/// treated as a supply of its own.
+model GstSacMaster {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  description String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rates    GstRateMaster[]
+  mappings GstProductMapping[]
+
+  @@map("gst_sac_master")
+}
+
+// ---------------------------------------------------------
+// Rates
+// ---------------------------------------------------------
+
+/// A rate for one code over a period. Exactly one of hsnId / sacId is set —
+/// enforced by the application.
+///
+/// Immutable once used: `firstUsedAt` is stamped the first time a calculation
+/// relies on the row, after which only `effectiveTo` and `approval` may change
+/// (also enforced by the application). A change of rate is a new row.
+model GstRateMaster {
+  id             String          @id @default(cuid())
+  hsnId          String?
+  sacId          String?
+  /// The total rate in basis points. 300 = 3%.
+  rateBps        Int
+  /// Central and state share on an intra-state supply; normally half each.
+  cgstBps        Int
+  sgstBps        Int
+  /// The rate on an inter-state supply; normally equal to `rateBps`.
+  igstBps        Int
+  /// Compensation cess, where one applies.
+  cessBps        Int             @default(0)
+  /// Some rates depend on the price of the item. Null means no bound.
+  minUnitValueCents Int?
+  maxUnitValueCents Int?
+  /// The first day the rate applies, and the last (null = still current).
+  effectiveFrom  DateTime        @db.Date
+  effectiveTo    DateTime?       @db.Date
+  notificationId String?
+  approval       GstRateApproval @default(DRAFT)
+  approvedBy     String?
+  approvedAt     DateTime?
+  firstUsedAt    DateTime?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  hsn          GstHsnMaster?    @relation(fields: [hsnId], references: [id], onDelete: Restrict)
+  sac          GstSacMaster?    @relation(fields: [sacId], references: [id], onDelete: Restrict)
+  notification GstNotification? @relation(fields: [notificationId], references: [id], onDelete: Restrict)
+
+  @@index([hsnId, effectiveFrom])
+  @@index([sacId, effectiveFrom])
+  @@index([notificationId])
+  @@map("gst_rate_master")
+}
+
+// ---------------------------------------------------------
+// The shop's own registration, and the engine switch
+// ---------------------------------------------------------
+
+/// Who is supplying, from where, and whether the engine is allowed to run.
+///
+/// One row. Stays PENDING_VERIFICATION until the GSTIN, registered address and
+/// state have been supplied from the registration certificate; the engine
+/// cannot be set to ENFORCE before then (enforced by the application). The
+/// state is never assumed.
+model GstBusinessProfile {
+  id                  String                @id @default(cuid())
+  legalName           String?
+  tradeName           String?
+  /// 15 characters. Null until supplied — the placeholder in site settings is not used.
+  gstin               String?               @unique
+  /// The two-digit state code that the GSTIN begins with.
+  stateCode           String?
+  stateName           String?
+  registeredAddress   String?
+  registrationType    GstRegistrationType   @default(REGULAR)
+  /// Whether e-invoicing applies, once the accountant has said so. Null = not yet known.
+  eInvoicingApplies   Boolean?
+  verificationStatus  GstVerificationStatus @default(PENDING_VERIFICATION)
+  verifiedBy          String?
+  verifiedAt          DateTime?
+
+  /// The feature flag. OFF by default.
+  engineMode          GstEngineMode         @default(OFF)
+  engineModeChangedBy String?
+  engineModeChangedAt DateTime?
+  /// Who approved enforcement, and when.
+  enforceApprovedBy   String?
+  enforceApprovedAt   DateTime?
+
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@map("gst_business_profile")
+}
+
+// ---------------------------------------------------------
+// What each product, or charge, is classified as
+// ---------------------------------------------------------
+
+/// Links a piece, or a delivery / cash-on-delivery charge, to an HSN or SAC.
+///
+/// `productId` and `variantId` point at existing tables but carry no foreign
+/// key, so deleting a product cannot cascade here and nothing here can block
+/// a product change. A mapping whose product has gone is reported by the
+/// admin check, not removed.
+model GstProductMapping {
+  id                   String                   @id @default(cuid())
+  chargeKind           GstChargeKind            @default(PRODUCT)
+  /// Null for SHIPPING and COD_FEE.
+  productId            String?
+  /// Set only when one variant classifies differently from its product.
+  variantId            String?
+  hsnId                String?
+  sacId                String?
+  status               GstClassificationStatus  @default(NEEDS_PRODUCT_INFORMATION)
+  /// What the piece is made of and why it is classified as it is.
+  basis                String?
+  approvedBy           String?
+  approvedAt           DateTime?
+  effectiveFrom        DateTime                 @db.Date
+  effectiveTo          DateTime?                @db.Date
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  hsn GstHsnMaster? @relation(fields: [hsnId], references: [id], onDelete: Restrict)
+  sac GstSacMaster? @relation(fields: [sacId], references: [id], onDelete: Restrict)
+
+  @@index([productId, effectiveFrom])
+  @@index([variantId])
+  @@index([chargeKind, effectiveFrom])
+  @@index([status])
+  @@map("gst_product_mappings")
+}
+
+// ---------------------------------------------------------
+// What the engine worked out
+// ---------------------------------------------------------
+
+/// One calculation, in full. In SHADOW mode this is the whole output: what the
+/// new engine would have charged, set against what the existing engine did.
+///
+/// It is a record of the calculation, not the source an invoice is drawn from:
+/// a newly issued invoice carries its own copy of the tax details in its
+/// snapshot.
+model GstCalculationAudit {
+  id                  String          @id @default(cuid())
+  /// The order, once there is one; null for a quote. No foreign key.
+  orderId             String?
+  orderNumber         String?
+  mode                GstEngineMode
+  channel             String
+  calculatedAt        DateTime        @default(now())
+  engineVersion       String
+  outcome             GstAuditOutcome
+  supplierStateCode   String?
+  placeOfSupplyCode   String?
+  supplyType          GstSupplyType?
+  /// Everything the calculation was given: lines, prices, discounts, shipping, addresses.
+  inputs              Json
+  /// Per line: product, HSN/SAC, rate and the version it came from, taxable
+  /// value, CGST / SGST / IGST.
+  lines               Json
+  /// Lines that had no verified classification, and why.
+  missingMappings     Json?
+  /// The rate versions relied on.
+  rateVersionIds      String[]
+  taxableCents        Int
+  cgstCents           Int
+  sgstCents           Int
+  igstCents           Int
+  cessCents           Int             @default(0)
+  totalTaxCents       Int
+  /// What the existing engine charged, and the gap.
+  legacyTaxCents      Int?
+  differenceCents     Int?
+  errorMessage        String?
+
+  @@index([orderId])
+  @@index([calculatedAt])
+  @@index([outcome, calculatedAt])
+  /// Added by the constraints migration: finds the audits that rely on a rate
+  /// version, which the used-rate triggers do on every edit of a used rate.
+  @@index([rateVersionIds], type: Gin)
+  @@map("gst_calculation_audits")
+}

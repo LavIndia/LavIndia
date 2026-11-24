@@ -30,7 +30,10 @@ export type Capability =
   | "pos:override-price"
   | "billing:issue"
   | "billing:void"
-  | "catalog:write";
+  | "catalog:write"
+  | "gst:read"
+  | "gst:write"
+  | "gst:approve";
 
 export class UnauthorizedError extends Error {
   readonly status: number;

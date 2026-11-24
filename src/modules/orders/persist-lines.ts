@@ -62,6 +62,7 @@ export async function persistOrderLines(
       promotionDiscountCents: line.promotionDiscountCents,
       taxCents: line.taxCents,
       taxRateBps: line.taxRateBps,
+      hsnCode: line.hsnCode ?? null,
       // Only a price changed by hand needs a reason and a name against it.
       overrideReason: manual > 0 ? (input?.overrideReason ?? null) : null,
       overriddenBy: manual > 0 ? (options.actorId ?? null) : null,

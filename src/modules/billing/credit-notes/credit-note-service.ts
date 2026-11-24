@@ -14,6 +14,7 @@ import { prisma, type Tx } from "../../_shared/db";
 import type { InvoiceSnapshot } from "../invoices/invoice-types";
 import { allocateCreditNoteNumber } from "./credit-note-number";
 import type { CreditNoteSnapshot, IssuedCreditNote } from "./credit-note-types";
+import { mirrorLegacyCreditNote } from "../../gst/credit-notes";
 
 const SUMMARY = { id: true, creditNoteNumber: true, snapshot: true } as const;
 
@@ -88,6 +89,9 @@ export async function issueCreditNoteForOrder(
     },
     select: SUMMARY,
   });
+  // With the GST engine on, the matching GST credit note is written under the
+  // same number. Never holds the existing credit note up.
+  await mirrorLegacyCreditNote(tx, { orderId, creditNoteNumber: allocated.creditNoteNumber, financialYear: allocated.financialYear, issuedAt, reason, actorId: actorId ?? null });
   return toIssued(created);
 }
 

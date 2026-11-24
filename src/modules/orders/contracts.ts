@@ -103,6 +103,18 @@ export interface CreateOrderInput {
   expectedGrandTotalCents?: number;
 }
 
+/**
+ * What the GST engine attaches to a priced cart when it is in SHADOW or
+ * ENFORCE mode. Opaque to this domain: it is carried from pricing to the
+ * moment an order is written. Absent while the engine is OFF.
+ */
+export interface GstAttachment {
+  mode: "SHADOW" | "ENFORCE";
+  /** Tax on the cash-on-delivery fee, when that fee is taxed (ENFORCE only). */
+  codTaxCents: number;
+  payload: unknown;
+}
+
 /** A line as it was actually sold, frozen at that moment. */
 export interface OrderLineSnapshot {
   variantId: VariantId;
@@ -125,6 +137,8 @@ export interface OrderLineSnapshot {
   allocations: LineAllocation[];
   taxCents: number;
   taxRateBps: number;
+  /** Set only when the GST engine classified the line (ENFORCE). */
+  hsnCode?: string | null;
   lineTotalCents: number;
 }
 
@@ -165,6 +179,8 @@ export interface CreatedOrder {
   lines: OrderLineSnapshot[];
   totals: OrderTotals;
   createdAt: Date;
+  /** The GST engine's result for this order, when it is on. */
+  gst?: GstAttachment;
 }
 
 /**
