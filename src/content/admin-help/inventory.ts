@@ -81,6 +81,8 @@ export const INVENTORY_HELP: HelpEntry[] = [
       "Book a delivery from a workshop or wholesaler into stock, with what you paid for it. Receiving always adds to what you already hold.",
     steps: [
       "Scan each piece's barcode, or type its name or SKU in Add items and pick it from the list. Scanning the same piece again adds one more.",
+      "Just added the piece in Products? Choose Receive stock in the message that appears after saving, or import with a quantity column — you arrive here with it already listed.",
+      "Or press Add from CSV and choose your supplier's list (columns sku or barcode, quantity, and optional unitCost in rupees per unit). Matching pieces are added to the list for you to review — nothing is booked until you press Receive stock.",
       "Check the quantity on each line; the line shows the stock now and what it “becomes”.",
       "Enter the prices from the bill if you have them: Asking price, After bargain and Your cost.",
       "Choose the Supplier and add the Invoice number and Invoice date if you have them.",
@@ -92,6 +94,7 @@ export const INVENTORY_HELP: HelpEntry[] = [
         items: [
           { term: "Add items", text: "Scan a barcode with a scanner, or type a name or SKU and choose from the list. The list shows each option's SKU, price and how many are available." },
           { term: "Scan with camera", text: "The camera button beside the box. Use it on a phone or tablet with no scanner attached." },
+          { term: "Add from CSV", text: "Fills the list from a file. Rows whose SKU or barcode is not in Products are listed under the button and skipped — add those pieces first in Products (with photos), ideally with Bulk upload and a quantity column, which brings you straight back here. Template downloads an example file." },
           { term: "Barcode not found", text: "No piece carries that code. Search by name or SKU instead. A new piece must be added in Products first — receiving never creates one." },
         ],
       },
@@ -129,6 +132,9 @@ export const INVENTORY_HELP: HelpEntry[] = [
       "Stock goes into the shop's default location, named at the top of the screen.",
       "Every line appears in Movements as Received, with who booked it in and when. It cannot be undone — correct a mistake with a Count down adjustment.",
       "The website shows the new stock as soon as you save.",
+      "Receiving never creates a piece. A delivery with both existing and new pieces is done in two parts: first Add from CSV and Receive stock for the pieces you already sell, then add the new ones in Products (Bulk upload with a quantity column, plus photos) — that brings you back here with them listed. Use the same supplier and invoice number for both parts.",
+      "The list is not kept if you leave this page, so book what is on it before you go to Products.",
+      "The full step-by-step guide, with a diagram, is in the shop's \"Receiving Stock & Adding Products — Admin Guide\" document.",
     ],
     related: [
       { label: "Stock", href: "/admin/inventory/stock" },

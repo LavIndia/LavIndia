@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useTransition } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -16,21 +17,28 @@ export function AdminModeToggle() {
   const isAdmin = session?.user?.role === "ADMIN";
   const isInAdminMode = pathname.startsWith("/admin");
 
+  const [isPending, startTransition] = useTransition();
+  const target = isInAdminMode ? "/" : "/admin/dashboard";
+
+  // Warm the destination so the click navigates immediately instead of
+  // waiting on a cold route (the cause of "click did nothing").
+  useEffect(() => {
+    if (isAdmin) router.prefetch(target);
+  }, [isAdmin, router, target]);
+
   if (!isAdmin) return null;
 
   const handleToggle = () => {
-    if (isInAdminMode) {
-      // Switch to user mode - go to homepage
-      router.push("/");
-    } else {
-      // Switch to admin mode - go to admin dashboard
-      router.push("/admin/dashboard");
-    }
+    // Ignore repeat taps while navigating; show pending state meanwhile.
+    if (isPending) return;
+    startTransition(() => router.push(target));
   };
 
   return (
     <Button
       onClick={handleToggle}
+      disabled={isPending}
+      aria-busy={isPending}
       variant={isInAdminMode ? "default" : "outline"}
       size="sm"
       className={toggleStyle}

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { parse } from "papaparse";
+import { queueReceive, type ReceiveHandoffItem } from "@/lib/receive-handoff";
 import { css } from "styled-system/css";
 import { buildBulkVariants, splitMultiValue, splitTags } from "@/lib/product-bulk";
 import { slugify } from "@/modules/catalog/products/slug";
@@ -42,8 +43,7 @@ interface ProductRow {
   price: string;
   compareAtPrice?: string;
   costPrice?: string;
-  stock?: string;
-  openingStock?: string;
+  quantity?: string;
   category: string;
   sku?: string;
   material?: string;
@@ -124,9 +124,11 @@ export default function BulkUploadPage() {
         errors.push("Sample row only — delete this row before importing");
       }
 
-      const stock = row.openingStock ?? row.stock;
-      if (stock?.trim() && (!/^\d+$/.test(stock.trim()) || Number(stock) < 0))
-        errors.push("Opening stock must be a non-negative number");
+      // Quantity is not booked by this upload. It carries over to Receive
+      // stock, where it is confirmed together with the supplier's bill.
+      if (row.quantity?.trim() && !/^\d+$/.test(row.quantity.trim())) {
+        errors.push("Quantity must be a whole number");
+      }
 
       // Unknown categories are created automatically when the row is imported.
       if (row.category?.trim() && !catMap[row.category.trim().toLowerCase()]) {
@@ -142,12 +144,6 @@ export default function BulkUploadPage() {
       }
 
       if (!row.description) warnings.push("No description");
-
-      if (buildBulkVariants(row.colors, row.sizes).length > 0 && Number(stock || 0) > 0) {
-        warnings.push(row.id?.trim()
-          ? "Opening stock is not changed when updating; adjust stock in Inventory"
-          : "Opening stock is ignored when options are supplied; receive stock per variant");
-      }
 
       if (row.colors && splitMultiValue(row.colors).length === 0) {
         errors.push("Colour values must be comma-separated");
@@ -199,6 +195,7 @@ export default function BulkUploadPage() {
 
       let success = 0;
       const failures: string[] = [];
+      const toReceive: ReceiveHandoffItem[] = [];
       for (const { row, data } of validRows) {
         try {
           const categoryId = categoryIds.get(data.category.trim().toLowerCase());
@@ -229,6 +226,7 @@ export default function BulkUploadPage() {
           }
 
           const variants = buildBulkVariants(data.colors, data.sizes);
+          const quantity = parseInt(data.quantity?.trim() || "0", 10) || 0;
           const images = imageUrls.map((url, index) => ({
             url,
             alt: null,
@@ -288,14 +286,18 @@ export default function BulkUploadPage() {
               const problem = await updateResponse.json();
               throw new Error(problem.error || "Product update failed");
             }
+            if (quantity > 0) toReceive.push({ productId: data.id.trim(), quantity });
           } else {
             const response = await fetch("/api/admin/products/bulk", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ products: [{ ...fields, stock: parseInt(data.openingStock || data.stock || "0", 10) || 0, categoryName: data.category.trim(), discountPercent: null, variants }] }),
+              body: JSON.stringify({ products: [{ ...fields, stock: 0, categoryName: data.category.trim(), discountPercent: null, variants }] }),
             });
             const result = await response.json();
             if (!response.ok || result.failed) throw new Error(result.errors?.[0]?.error || "Product import failed");
+            if (quantity > 0 && result.created?.[0]?.productId) {
+              toReceive.push({ productId: result.created[0].productId, quantity });
+            }
           }
           success++;
         } catch (error) {
@@ -309,7 +311,14 @@ export default function BulkUploadPage() {
         toast.success(`${success} products saved`);
       }
       if (success > 0) {
-        router.push("/admin/products");
+        // Pieces with a quantity go straight to Receive stock, pre-filled, so
+        // the delivery is confirmed once with its supplier and invoice.
+        if (toReceive.length > 0) {
+          queueReceive(toReceive);
+          router.push("/admin/inventory/receive");
+        } else {
+          router.push("/admin/products");
+        }
         router.refresh();
       }
     } catch (error) {
@@ -320,9 +329,9 @@ export default function BulkUploadPage() {
   };
 
   const downloadTemplate = () => {
-    const template = `id,name,slug,description,price,compareAtPrice,costPrice,openingStock,category,sku,material,tags,colors,sizes,imagePaths,isPublished,isFeatured,isLimitedEdition
-,"SAMPLE ONLY - Necklace (delete this row)",sample-necklace,"Example: lightweight gold-plated necklace",1599.00,1999.00,650.00,0,Necklaces,SAMPLE-NECK-001,"Gold Plated Brass",festive-edit|gift-under-2k,"Gold, Rose Gold","16 inch, 18 inch","front.jpg, side.jpg",false,false,false
-,"SAMPLE ONLY - Ring (delete this row)",sample-ring,"Example: adjustable silver ring",899.00,,300.00,0,Rings,SAMPLE-RING-001,"Silver plated alloy",everyday,"Silver","6, 7, 8","ring.jpg",false,true,false`;
+    const template = `id,name,slug,description,price,compareAtPrice,costPrice,quantity,category,sku,material,tags,colors,sizes,imagePaths,isPublished,isFeatured,isLimitedEdition
+,"SAMPLE ONLY - Necklace (delete this row)",sample-necklace,"Example: lightweight gold-plated necklace",1599.00,1999.00,650.00,10,Necklaces,SAMPLE-NECK-001,"Gold Plated Brass",festive-edit|gift-under-2k,"Gold, Rose Gold","16 inch, 18 inch","front.jpg, side.jpg",false,false,false
+,"SAMPLE ONLY - Ring (delete this row)",sample-ring,"Example: adjustable silver ring",899.00,,300.00,5,Rings,SAMPLE-RING-001,"Silver plated alloy",everyday,"Silver","6, 7, 8","ring.jpg",false,true,false`;
 
     const blob = new Blob([template], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -396,8 +405,10 @@ export default function BulkUploadPage() {
               public paths and URLs can also be used directly.
             </li>
             <li>
-              Opening stock applies only to products without options. Option
-              variants start at zero and are received separately in Inventory.
+              Add a quantity column if stock arrived with these pieces. After
+              the import you go to Receive stock with them pre-filled, to add
+              the supplier and bill and confirm. Pieces with colours or sizes
+              get the quantity for each variant — adjust it there.
             </li>
             <li>Prices should be in rupees (e.g., 15999.00 for ₹15,999)</li>
             <li>Upload your file and review the preview</li>
@@ -420,7 +431,7 @@ export default function BulkUploadPage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".csv,text/csv,text/comma-separated-values,application/csv,application/vnd.ms-excel,text/plain"
             onChange={handleFileSelect}
             className={css({ srOnly: true })}
           />
@@ -525,7 +536,7 @@ export default function BulkUploadPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead>Price</TableHead>
-                    <TableHead>Stock</TableHead>
+                    <TableHead>Qty</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -540,7 +551,7 @@ export default function BulkUploadPage() {
                       <TableCell>
                         ₹{parseFloat(v.data.price).toLocaleString()}
                       </TableCell>
-                      <TableCell>{v.data.openingStock ?? v.data.stock ?? "0"}</TableCell>
+                      <TableCell>{v.data.quantity?.trim() || "—"}</TableCell>
                       <TableCell>
                         {v.errors.length > 0 ? (
                           <div className={css({ display: "flex", flexDirection: "column", gap: "1" })}>

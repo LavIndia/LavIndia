@@ -110,6 +110,8 @@ export interface CatalogPort {
    * and Receive Stock both funnel every input source through this.
    */
   findVariantByCode(code: string): Promise<SellableVariant | null>;
+  /** Batch form of findVariantByCode: one query for a whole list of codes. */
+  findVariantsByCodes(codes: readonly string[]): Promise<SellableVariant[]>;
   searchVariants(options: CatalogSearchOptions): Promise<SellableVariant[]>;
   findProductWithVariants(productId: ProductId): Promise<CatalogProductWithVariants | null>;
   findProductsWithVariants(productIds: readonly ProductId[]): Promise<CatalogProductWithVariants[]>;

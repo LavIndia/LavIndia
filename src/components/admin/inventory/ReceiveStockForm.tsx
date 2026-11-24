@@ -9,7 +9,9 @@ import { useEffect, useState } from "react";
 import { css } from "styled-system/css";
 import { formatPaisa } from "@/modules/_shared/money";
 import { VariantSearchField } from "./VariantSearchField";
+import { ReceiveCsvImport } from "./ReceiveCsvImport";
 import { StockLineList } from "./StockLineList";
+import { useReceiveHandoff } from "./useReceiveHandoff";
 import { useStockLines } from "./useStockLines";
 import { useStockSubmit } from "./useStockSubmit";
 
@@ -73,6 +75,7 @@ export function ReceiveStockForm({ locationId }: { locationId?: string }) {
     totals,
     toPayload,
   } = useStockLines();
+  useReceiveHandoff(locationId, addVariant);
   const [reason, setReason] = useState("");
   const [supplierId, setSupplierId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
@@ -116,6 +119,14 @@ export function ReceiveStockForm({ locationId }: { locationId?: string }) {
         <Label htmlFor="receive-search">Add items</Label>
         <VariantSearchField onSelect={(variant) => addVariant(variant)} locationId={locationId} autoFocus />
       </div>
+
+      <ReceiveCsvImport
+        locationId={locationId}
+        onLine={(variant, quantity, unitCost) => {
+          addVariant(variant, quantity);
+          if (unitCost) setCost(variant.variantId, "unitCost", unitCost);
+        }}
+      />
 
       <StockLineList
         lines={lines}

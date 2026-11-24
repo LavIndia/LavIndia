@@ -300,7 +300,16 @@ export function useProductForm(product?: Product) {
       }
 
       setFormData((prev) => ({ ...prev, isPublished: publish }));
-      toast.success(publish ? "Product published" : "Draft saved");
+      const saved = product ? null : await res.json().catch(() => null);
+      toast.success(publish ? "Product published" : "Draft saved", saved?.id
+        ? {
+            duration: 15000,
+            action: {
+              label: "Receive stock",
+              onClick: () => router.push(`/admin/inventory/receive?product=${saved.id}`),
+            },
+          }
+        : undefined);
       router.push("/admin/products");
       router.refresh();
     } catch {

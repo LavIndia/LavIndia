@@ -14,7 +14,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { requireAdmin } from "@/lib/require-admin";
 import { catalogService } from "@/modules/catalog";
 import { inventoryService } from "@/modules/inventory";
-import { LocationId, VariantId } from "@/modules/_shared/ids";
+import { LocationId, ProductId, VariantId } from "@/modules/_shared/ids";
 import type { SellableVariant } from "@/modules/catalog";
 
 const MAX_RESULTS = 20;
@@ -88,4 +88,32 @@ export const GET = apiHandler(async (req: NextRequest) => {
 
   const results = await withStock(variants, locationId);
   return NextResponse.json({ found: results.length > 0, results });
+});
+
+/**
+ * POST { codes: string[] }  batch exact SKU/barcode match, for CSV receiving.
+ * One catalog query and one stock query however long the list is.
+ */
+export const POST = apiHandler(async (req: NextRequest) => {
+  await requireAdmin("inventory:read");
+
+  const body = (await req.json()) as { codes?: unknown; productIds?: unknown; locationId?: unknown };
+  const codes = Array.isArray(body.codes)
+    ? body.codes.filter((code): code is string => typeof code === "string").slice(0, 2000)
+    : [];
+  const locationId = typeof body.locationId === "string" && body.locationId ? body.locationId : undefined;
+
+  const productIds = Array.isArray(body.productIds)
+    ? body.productIds.filter((id): id is string => typeof id === "string").slice(0, 500)
+    : [];
+
+  // Codes find single pieces; product ids find every variant of those
+  // products (the hand-off from Products after adding a piece).
+  const [byCode, products] = await Promise.all([
+    catalogService.findVariantsByCodes(codes),
+    catalogService.findProductsWithVariants(productIds.map((id) => ProductId(id))),
+  ]);
+  const variants = [...byCode, ...products.flatMap((product) => product.variants)];
+  const results = await withStock(variants, locationId);
+  return NextResponse.json({ results });
 });

@@ -147,7 +147,7 @@ export const CATALOG_HELP: HelpEntry[] = [
       "If the piece comes in several colours or sizes, pick them under Options and press Generate variants.",
       "Add photographs and star the cover.",
       "Press Save Draft to keep it offline, or Publish once Before you publish is all ticked.",
-      "Receive its stock in Inventory → Receive stock.",
+      "Stock arrived with it? Press Receive stock in the message that appears after saving (it stays for 15 seconds). You arrive in Inventory → Receive stock with the piece already listed.",
     ],
     sections: PIECE_FORM_SECTIONS,
     notes: [
@@ -197,7 +197,7 @@ export const CATALOG_HELP: HelpEntry[] = [
     ],
     sections: [
       { heading: "The columns", items: [
-        { term: "name · slug · price · stock · category", text: "Required. Slug is the web address, e.g. gold-necklace, and must not be used by another piece. Price is in rupees, e.g. 15999.00 for ₹15,999. Stock is booked into Inventory as an adjustment, “Opening stock — bulk upload”, at the main location." },
+        { term: "name · slug · price · category", text: "Required. Slug is the web address, e.g. gold-necklace, and must not be used by another piece. Price is in rupees, e.g. 15999.00 for ₹15,999." },
         { term: "category", text: "Must match an existing category name (capitals don't matter)." },
         { term: "description · compareAtPrice · sku", text: "Optional." },
         { term: "isPublished", text: "true to put the piece online straight away; anything else makes it a draft." },
@@ -212,7 +212,7 @@ export const CATALOG_HELP: HelpEntry[] = [
       "Only the first 50 rows are shown in the preview, but every valid row is imported.",
       "A message at the end says how many were imported and how many failed — usually because a slug is already taken.",
       "Each imported piece gets its single Default variant with its own SKU and barcode, ready to sell and print labels for. It has no photographs, colour or size variants, material or tags — open it, add them and save.",
-      "The stock column is not added to Inventory. After importing, open and save each piece, then receive its stock in Inventory → Receive stock.",
+      "Stock arrived with these pieces? Add a quantity column. After the import you land on Receive stock with them already listed, so you only add the supplier and bill and press Receive stock — nothing is typed twice. Pieces with colours or sizes get that quantity for each variant; change it there. Without a quantity column, pieces start at zero.",
       "The file has to be chosen by clicking; dropping it on the box doesn't work.",
     ],
     related: [{ label: "Products", href: "/admin/products" }, { label: "Categories", href: "/admin/categories" }],

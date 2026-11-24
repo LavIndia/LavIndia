@@ -168,6 +168,17 @@ class CatalogService implements CatalogPort {
     return row ? toSellableVariant(row) : null;
   }
 
+  /** Resolves many scanned or typed codes in ONE query (CSV receiving). */
+  async findVariantsByCodes(codes: readonly string[]): Promise<SellableVariant[]> {
+    const unique = [...new Set(codes.map((code) => code.trim()).filter(Boolean))];
+    if (unique.length === 0) return [];
+    const rows = await prisma.productVariant.findMany({
+      where: { OR: [{ barcode: { in: unique } }, { sku: { in: unique } }] },
+      select: VARIANT_SELECT,
+    });
+    return rows.map(toSellableVariant);
+  }
+
   async searchVariants(options: CatalogSearchOptions): Promise<SellableVariant[]> {
     const { query, limit = 20, sellableOnly = true } = options;
     const where: Prisma.ProductVariantWhereInput = sellableOnly ? { ...SELLABLE_WHERE } : {};

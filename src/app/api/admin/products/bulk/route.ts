@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
     let successCount = 0;
     let failedCount = 0;
     const errors: Array<{ row: number; error: string }> = [];
+    const created: Array<{ row: number; productId: string }> = [];
 
     // Resolved once for the whole file rather than once per row.
     const locationId = await inventoryService.getDefaultLocationId();
@@ -67,7 +68,8 @@ export async function POST(req: NextRequest) {
     // barcode) and its opening stock commit together — see product-import.
     for (let i = 0; i < products.length; i++) {
       try {
-        await importProductRow(products[i], { actorId: session.user.id, locationId });
+        const { productId } = await importProductRow(products[i], { actorId: session.user.id, locationId });
+        created.push({ row: i + 1, productId });
         successCount++;
       } catch (error) {
         failedCount++;
@@ -103,6 +105,7 @@ export async function POST(req: NextRequest) {
       success: successCount,
       failed: failedCount,
       errors,
+      created,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
